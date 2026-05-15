@@ -1,0 +1,24 @@
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+*.pyc
+__pycache__/
+.env*
+
+# Scraping scripts
+researcher*.py
+scraper.py
+check_models.py
+clean_csv.py
+
+# Data files (except the main one)
+all_suppliers_engaged.csv
+engaged_suppliers_multimedia.csv
+suppliers.csv
+google_profile/
+
+# OS files
+Thumbs.db
+desktop.ini
