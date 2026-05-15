@@ -51,6 +51,22 @@ export default function SuppliersDashboard() {
       });
   }, []);
 
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const heroMedia = [
+    { type: 'video', src: '/media/media_fiesta/WhatsApp%20Video%202026-05-15%20at%2013.37.47.mp4' },
+    { type: 'image', src: '/media/media_fiesta/WhatsApp%20Image%202026-05-15%20at%2013.37.18.jpeg' },
+    { type: 'video', src: '/media/media_fiesta/WhatsApp%20Video%202026-05-15%20at%2013.37.54.mp4' },
+    { type: 'image', src: '/media/media_fiesta/WhatsApp%20Image%202026-05-15%20at%2013.37.25.jpeg' },
+    { type: 'image', src: '/media/media_fiesta/WhatsApp%20Image%202026-05-15%20at%2013.37.29.jpeg' },
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentMediaIndex((prev) => (prev + 1) % heroMedia.length);
+    }, 5000); // Change media every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
+
   const handleLogin = (agent) => {
     const isManager = agent === 'נתנאל';
     const isGeneral = agent === 'מאגר כללי';
@@ -284,8 +300,108 @@ export default function SuppliersDashboard() {
     );
   };
 
+  const renderAgentTargets = () => {
+    if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return null;
+
+    const dailyTarget = 50;
+    const weeklyTarget = 250;
+    
+    // Count how many suppliers the current agent has acted on
+    const callsDone = Object.values(supplierStates).filter(state => 
+      state.agent === activeAgent && state.status !== null
+    ).length;
+
+    const dailyRemaining = Math.max(0, dailyTarget - callsDone);
+    const dailyProgress = Math.min(100, (callsDone / dailyTarget) * 100);
+
+    return (
+      <div style={{ marginBottom: '30px' }} className="animate-in">
+        <div className="glass-card" style={{ padding: '20px', borderRight: '6px solid var(--accent)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '800' }}>היעד היומי שלך</h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>נשארו עוד {dailyRemaining} שיחות ליעד היום</p>
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <span style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--accent)' }}>{callsDone}</span>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}> / {dailyTarget}</span>
+            </div>
+          </div>
+          
+          {/* Progress Bar */}
+          <div style={{ width: '100%', height: '10px', background: '#e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${dailyProgress}%` }}
+              style={{ height: '100%', background: 'linear-gradient(90deg, #8b5cf6, #d946ef)', borderRadius: '10px' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', fontSize: '0.75rem', fontWeight: '700' }}>
+            <span style={{ color: 'var(--text-muted)' }}>יעד שבועי: {callsDone} / {weeklyTarget}</span>
+            <span style={{ color: dailyProgress === 100 ? '#10b981' : 'var(--accent)' }}>
+              {dailyProgress === 100 ? 'היעד הושלם! 🎉' : `${Math.round(dailyProgress)}% הושלם`}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="dashboard-container" dir="rtl">
+      {/* Compact Hero Section */}
+      <section className="hero-section animate-in">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentMediaIndex}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1 }}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+          >
+            {heroMedia[currentMediaIndex].type === 'video' ? (
+              <video 
+                autoPlay 
+                muted 
+                loop 
+                playsInline
+                className="hero-media"
+                key={heroMedia[currentMediaIndex].src}
+              >
+                <source src={heroMedia[currentMediaIndex].src} type="video/mp4" />
+              </video>
+            ) : (
+              <img 
+                src={heroMedia[currentMediaIndex].src} 
+                className="hero-media" 
+                alt="Fiesta Hero" 
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+        <div className="hero-overlay"></div>
+        <div className="hero-content">
+          <h1 style={{ fontSize: '2.5rem', fontWeight: '900', letterSpacing: '-1px', marginBottom: '4px', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>FIESTA</h1>
+          <p style={{ fontSize: '1rem', fontWeight: '500', opacity: 0.9, textShadow: '0 1px 5px rgba(0,0,0,0.3)' }}>Experience Luxury Management</p>
+        </div>
+        
+        {/* Carousel Indicators */}
+        <div style={{ position: 'absolute', bottom: '15px', display: 'flex', gap: '6px', zIndex: 10 }}>
+          {heroMedia.map((_, idx) => (
+            <div 
+              key={idx}
+              style={{ 
+                width: '8px', height: '8px', borderRadius: '50%', 
+                background: currentMediaIndex === idx ? 'white' : 'rgba(255,255,255,0.4)',
+                transition: 'all 0.3s'
+              }}
+            />
+          ))}
+        </div>
+      </section>
+
       {/* Success Celebration Modal */}
       <AnimatePresence>
         {showSuccessModal && (
@@ -320,29 +436,28 @@ export default function SuppliersDashboard() {
         )}
       </AnimatePresence>
 
-      <header className="animate-in" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+      <header className="animate-in" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 className="logo">Fiesta</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>ברוך הבא {activeAgent}, שיהיה יום עבודה פורה 🚀</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1rem', fontWeight: '600' }}>ברוך הבא {activeAgent}, יום פורה! 🚀</p>
         </div>
         
         {/* Agent Selector & Logout */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ display: 'flex', background: '#e2e8f0', padding: '4px', borderRadius: '12px', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', background: '#e2e8f0', padding: '4px', borderRadius: '10px', gap: '2px' }}>
             {['ינון', 'מורן', 'נתנאל', 'מאגר כללי'].map(agent => (
               <button
                 key={agent}
                 onClick={() => setActiveAgent(agent)}
                 style={{
-                  padding: '8px 16px',
-                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
                   border: 'none',
                   background: activeAgent === agent ? 'white' : 'transparent',
                   color: activeAgent === agent ? 'var(--primary)' : 'var(--text-muted)',
                   fontWeight: '700',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
-                  fontSize: '0.85rem'
+                  fontSize: '0.75rem'
                 }}
               >
                 {agent}
@@ -352,17 +467,18 @@ export default function SuppliersDashboard() {
           <button 
             onClick={() => { setIsLoggedIn(false); setPassword(''); }}
             style={{ 
-              padding: '8px', borderRadius: '50%', border: '1px solid var(--border)', 
-              background: 'white', color: '#ef4444', cursor: 'pointer' 
+              padding: '6px', borderRadius: '50%', border: '1px solid var(--border)', 
+              background: 'white', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}
             title="יציאה"
           >
-            <LogOut size={18} />
+            <LogOut size={16} />
           </button>
         </div>
       </header>
 
       {activeAgent === 'נתנאל' && renderManagerStats()}
+      {renderAgentTargets()}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '100px', color: 'var(--text-muted)' }}>
