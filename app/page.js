@@ -17,7 +17,8 @@ export default function SuppliersDashboard() {
   // Categories mapping
   const agentCategoryMap = {
     'ינון': ['די ג\'יי', 'צלמים', 'אטרקציות', 'DJ'],
-    'מורן': ['אולמות וגנים', 'גני אירועים', 'אולמות אירועים'],
+    'מורן': ['אולמות וגנים', 'גני אירועים', 'אולמות אירועים', 'מאפרות', 'שיער', 'כלות', 'לחתן ולכלה'],
+    'הודיה': ['מאפרות', 'שיער', 'כלות', 'לחתן ולכלה'],
     'נתנאל': [] // Sees all
   };
 
@@ -105,7 +106,7 @@ export default function SuppliersDashboard() {
           <div style={{ marginBottom: '25px' }}>
             <p style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '12px' }}>בחר פרופיל כניסה:</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-              {['ינון', 'מורן', 'נתנאל', 'מאגר כללי'].map(agent => (
+              {['ינון', 'מורן', 'הודיה', 'נתנאל', 'מאגר כללי'].map(agent => (
                 <button
                   key={agent}
                   onClick={() => setActiveAgent(agent)}
@@ -245,7 +246,8 @@ export default function SuppliersDashboard() {
   const getStats = () => {
     const stats = {
       'ינון': { closed: 0, noAnswer: 0, thinking: 0, total: 0 },
-      'מורן': { closed: 0, noAnswer: 0, thinking: 0, total: 0 }
+      'מורן': { closed: 0, noAnswer: 0, thinking: 0, total: 0 },
+      'הודיה': { closed: 0, noAnswer: 0, thinking: 0, total: 0 }
     };
 
     Object.values(supplierStates).forEach(state => {
@@ -266,7 +268,7 @@ export default function SuppliersDashboard() {
       <div style={{ marginBottom: '40px' }} className="animate-in">
         <h2 style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '20px', color: 'var(--primary)' }}>סיכום ביצועים - מבט מנהל</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-          {['ינון', 'מורן'].map(agent => (
+          {['ינון', 'מורן', 'הודיה'].map(agent => (
             <div key={agent} className="glass-card" style={{ borderTop: '4px solid var(--accent)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
                 <div style={{ width: '40px', height: '40px', background: 'var(--accent-soft)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
@@ -444,7 +446,7 @@ export default function SuppliersDashboard() {
         {/* Agent Selector & Logout */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ display: 'flex', background: '#e2e8f0', padding: '4px', borderRadius: '10px', gap: '2px' }}>
-            {['ינון', 'מורן', 'נתנאל', 'מאגר כללי'].map(agent => (
+            {['ינון', 'מורן', 'הודיה', 'נתנאל', 'מאגר כללי'].map(agent => (
               <button
                 key={agent}
                 onClick={() => setActiveAgent(agent)}
@@ -488,13 +490,26 @@ export default function SuppliersDashboard() {
       ) : (
         <div className="suppliers-grid">
           {suppliers
-            .filter(s => {
+            .filter((s, i) => {
               if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
               const allowedCategories = agentCategoryMap[activeAgent] || [];
+              
               // If it's a general unassigned supplier, show to everyone so they can categorize
-              if (s.Category === "ספקים ללא קטגוריה") return true;
-              if (!s.Category) return true;
-              return allowedCategories.some(cat => s.Category.includes(cat));
+              if (s.Category === "ספקים ללא קטגוריה" || !s.Category) return true;
+              
+              const matches = allowedCategories.some(cat => s.Category.includes(cat));
+              if (!matches) return false;
+
+              // Split logic for bride categories shared between Moran and Hodaya
+              const brideCategories = ['מאפרות', 'שיער', 'כלות', 'לחתן ולכלה'];
+              const isBrideCategory = brideCategories.some(cat => s.Category.includes(cat));
+              
+              if (isBrideCategory) {
+                if (activeAgent === 'מורן') return i % 2 === 0;
+                if (activeAgent === 'הודיה') return i % 2 === 1;
+              }
+
+              return true;
             })
             .map((s, i) => {
             const state = supplierStates[i] || { status: null };
