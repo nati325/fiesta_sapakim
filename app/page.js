@@ -305,8 +305,25 @@ export default function SuppliersDashboard() {
   const renderAgentTargets = () => {
     if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return null;
 
-    const dailyTarget = 50;
-    const weeklyTarget = 250;
+    if (activeAgent === 'הודיה') {
+      return (
+        <div style={{ marginBottom: '30px' }} className="animate-in">
+          <div className="glass-card" style={{ 
+            padding: '25px', 
+            textAlign: 'center', 
+            background: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)',
+            border: '2px solid #fbcfe8'
+          }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#db2777' }}>
+              תודה רבה לאישה הטובה והיפה בעולם ✨
+            </h3>
+          </div>
+        </div>
+      );
+    }
+
+    const dailyTarget = activeAgent === 'מורן' ? 7 : 50;
+    const weeklyTarget = activeAgent === 'מורן' ? 35 : 250;
     
     // Count how many suppliers the current agent has acted on
     const callsDone = Object.values(supplierStates).filter(state => 
@@ -322,7 +339,11 @@ export default function SuppliersDashboard() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: '800' }}>היעד היומי שלך</h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>נשארו עוד {dailyRemaining} שיחות ליעד היום</p>
+              {activeAgent === 'מורן' && dailyRemaining > 0 ? (
+                <p style={{ fontSize: '0.85rem', color: '#ef4444', fontWeight: '700' }}>⚠️ שימי לב מורן, נשארו עוד {dailyRemaining} שיחות כדי להגיע ליעד!</p>
+              ) : (
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>נשארו עוד {dailyRemaining} שיחות ליעד היום</p>
+              )}
             </div>
             <div style={{ textAlign: 'left' }}>
               <span style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--accent)' }}>{callsDone}</span>
