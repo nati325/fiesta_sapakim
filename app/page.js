@@ -27,7 +27,7 @@ export default function SuppliersDashboard() {
   };
 
   useEffect(() => {
-    fetch('/api/suppliers')
+    fetch('/api/suppliers', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         const processedData = data.map(s => ({
@@ -50,7 +50,7 @@ export default function SuppliersDashboard() {
         });
         
         // Fetch saved states
-        fetch('/api/states')
+        fetch('/api/states', { cache: 'no-store' })
           .then(res => res.json())
           .then(savedStates => {
             const mergedStates = { ...initialStates };
@@ -709,7 +709,7 @@ export default function SuppliersDashboard() {
               const phone = s["Real Phone"] || s["phone"];
               const state = supplierStates[phone] || { status: null };
               const isHandled = state.status === 'not-interested' || state.status === 'not-available' || state.status === 'contract';
-              const isCallback = !!state.callbackScheduled;
+              const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
               
               if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
               
