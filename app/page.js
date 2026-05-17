@@ -45,8 +45,24 @@ export default function SuppliersDashboard() {
             agent: null
           };
         });
-        setSupplierStates(initialStates);
-        setLoading(false);
+        
+        // Fetch saved states
+        fetch('/api/states')
+          .then(res => res.json())
+          .then(savedStates => {
+            const mergedStates = { ...initialStates };
+            for (const key in savedStates) {
+              if (mergedStates[key]) {
+                mergedStates[key] = { ...mergedStates[key], ...savedStates[key] };
+              }
+            }
+            setSupplierStates(mergedStates);
+            setLoading(false);
+          })
+          .catch(() => {
+            setSupplierStates(initialStates);
+            setLoading(false);
+          });
       })
       .catch(err => {
         console.error(err);
@@ -77,16 +93,27 @@ export default function SuppliersDashboard() {
     return Math.round((tomorrow - new Date()) / 60000);
   };
 
+  const updateSupplierState = (index, newState) => {
+    setSupplierStates(prev => ({
+      ...prev,
+      [index]: { ...prev[index], ...newState }
+    }));
+    fetch('/api/states', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ index, state: newState })
+    }).catch(console.error);
+  };
+
   const scheduleCallback = (index, supplier, minutes) => {
     if ('Notification' in window && Notification.permission !== 'granted') {
       Notification.requestPermission();
     }
     const reminderTime = new Date(Date.now() + minutes * 60000);
     const timeStr = reminderTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-    setSupplierStates(prev => ({
-      ...prev,
-      [index]: { ...prev[index], callbackScheduled: timeStr }
-    }));
+    
+    updateSupplierState(index, { callbackScheduled: timeStr });
+    
     setActiveCallbackPicker(null);
     setTimeout(() => {
       if ('Notification' in window && Notification.permission === 'granted') {
@@ -203,41 +230,26 @@ export default function SuppliersDashboard() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setSupplierStates(prev => ({
-          ...prev,
-          [index]: { ...prev[index], uploadedImage: reader.result }
-        }));
+        updateSupplierState(index, { uploadedImage: reader.result });
       };
       reader.readAsDataURL(file);
     }
   };
 
   const handleDateChange = (index, date) => {
-    setSupplierStates(prev => ({
-      ...prev,
-      [index]: { ...prev[index], closingDate: date }
-    }));
+    updateSupplierState(index, { closingDate: date });
   };
 
   const toggleDatePicker = (index) => {
-    setSupplierStates(prev => ({
-      ...prev,
-      [index]: { ...prev[index], showDatePicker: !prev[index].showDatePicker }
-    }));
+    updateSupplierState(index, { showDatePicker: !supplierStates[index].showDatePicker });
   };
 
   const setStatus = (index, status) => {
-    setSupplierStates(prev => ({
-      ...prev,
-      [index]: { ...prev[index], status, reminder: null, agent: activeAgent }
-    }));
+    updateSupplierState(index, { status, reminder: null, agent: activeAgent });
   };
 
   const setReminder = (index, timeText) => {
-    setSupplierStates(prev => ({
-      ...prev,
-      [index]: { ...prev[index], reminder: timeText, agent: activeAgent }
-    }));
+    updateSupplierState(index, { reminder: timeText, agent: activeAgent });
   };
 
   const addToCalendar = (index, supplier, overrideReminder = null) => {
