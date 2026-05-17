@@ -437,6 +437,17 @@ export default function SuppliersDashboard() {
 
   return (
     <div className="dashboard-container" dir="rtl">
+      {activeAgent === 'נתנאל' && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'linear-gradient(135deg, #bf953f 0%, #fcf6ba 25%, #b38728 50%, #fbf5b7 75%, #aa771c 100%)',
+          zIndex: -1
+        }} />
+      )}
       {/* Compact Hero Section */}
       <section className="hero-section animate-in">
         <AnimatePresence mode="wait">
