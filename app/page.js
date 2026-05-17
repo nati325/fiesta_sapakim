@@ -16,6 +16,7 @@ export default function SuppliersDashboard() {
   const [activeCallbackPicker, setActiveCallbackPicker] = useState(null);
   const [callbackAlerts, setCallbackAlerts] = useState([]);
   const [activeTab, setActiveTab] = useState('לטיפול');
+  const [showReminderSuccess, setShowReminderSuccess] = useState(false);
   
   // Categories mapping
   const agentCategoryMap = {
@@ -117,6 +118,9 @@ export default function SuppliersDashboard() {
     updateSupplierState(phone, { callbackScheduled: timeStr });
     
     setActiveCallbackPicker(null);
+    setShowReminderSuccess(true);
+    setTimeout(() => setShowReminderSuccess(false), 4000);
+
     setTimeout(() => {
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification(`⏰ תזכורת - ${supplier['Supplier Name']}`, {
@@ -531,6 +535,37 @@ export default function SuppliersDashboard() {
               </button>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Reminder Success Toast */}
+      <AnimatePresence>
+        {showReminderSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            style={{
+              position: 'fixed',
+              bottom: '40px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: '#10b981',
+              color: 'white',
+              padding: '16px 24px',
+              borderRadius: '50px',
+              boxShadow: '0 10px 25px rgba(16, 185, 129, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              zIndex: 3000,
+              fontWeight: '700',
+              fontSize: '1rem'
+            }}
+          >
+            <CheckCircle2 size={24} />
+            התזכורת נשמרה בהצלחה! נתזכר אותך במועד שנבחר
+          </motion.div>
         )}
       </AnimatePresence>
 
