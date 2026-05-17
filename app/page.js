@@ -919,6 +919,17 @@ export default function SuppliersDashboard() {
             לחזור אליהם ⏰
           </button>
           <button
+            onClick={() => setActiveTab('עדיין לא חתם')}
+            style={{
+              padding: '10px 24px', borderRadius: '20px', border: 'none',
+              background: activeTab === 'עדיין לא חתם' ? '#3b82f6' : '#e2e8f0',
+              color: activeTab === 'עדיין לא חתם' ? 'white' : 'var(--text-muted)',
+              fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
+            }}
+          >
+            עדיין לא חתם ⏳
+          </button>
+          <button
             onClick={() => setActiveTab('טופלו')}
             style={{
               padding: '10px 24px', borderRadius: '20px', border: 'none',
@@ -967,8 +978,13 @@ export default function SuppliersDashboard() {
               const isHandled = state.status === 'not-interested' || state.status === 'not-available' || state.status === 'contract';
               const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
               
+              if (state.status === 'not-signed') {
+                return activeTab === 'עדיין לא חתם';
+              }
+              
               if (activeTab === 'לטיפול') return !isHandled && !isCallback;
               if (activeTab === 'לחזור אליהם') return !isHandled && isCallback;
+              if (activeTab === 'עדיין לא חתם') return false;
               return isHandled; // 'טופלו'
             })
             .map((s, i) => {
@@ -988,6 +1004,7 @@ export default function SuppliersDashboard() {
                   justifyContent: 'space-between',
                   borderRight: state.status === 'not-available' ? '4px solid #f59e0b' : 
                                state.status === 'contract' ? '4px solid #10b981' : 
+                               state.status === 'not-signed' ? '4px solid #3b82f6' : 
                                state.callbackScheduled ? '4px solid #0ea5e9' : '1px solid var(--border)'
                 }}
               >
@@ -1068,14 +1085,27 @@ export default function SuppliersDashboard() {
                       📵 לא זמין / לא ענו
                     </button>
                     <button
+                      onClick={() => {
+                        setStatus(phone, 'not-signed');
+                        setActiveTab('עדיין לא חתם');
+                      }}
+                      style={{
+                        padding: '9px 6px', borderRadius: '10px', border: '1px solid #3b82f6',
+                        background: state.status === 'not-signed' ? '#3b82f6' : 'transparent',
+                        color: state.status === 'not-signed' ? 'white' : '#3b82f6',
+                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
+                      }}
+                    >
+                      ⏳ עדיין לא חתם
+                    </button>
+                    <button
                       onClick={() => setActiveCallbackPicker(activeCallbackPicker === phone ? null : phone)}
                       style={{
                         padding: '9px 6px', borderRadius: '10px',
-                        border: `1px solid ${state.callbackScheduled ? '#0ea5e9' : '#3b82f6'}`,
-                        background: state.callbackScheduled ? '#0ea5e9' : (activeCallbackPicker === phone ? '#3b82f6' : 'transparent'),
-                        color: state.callbackScheduled ? 'white' : (activeCallbackPicker === phone ? 'white' : '#3b82f6'),
-                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer',
-                        gridColumn: 'span 2'
+                        border: `1px solid ${state.callbackScheduled ? '#0ea5e9' : '#0284c7'}`,
+                        background: state.callbackScheduled ? '#0ea5e9' : (activeCallbackPicker === phone ? '#0284c7' : 'transparent'),
+                        color: state.callbackScheduled ? 'white' : (activeCallbackPicker === phone ? 'white' : '#0284c7'),
+                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
                       }}
                     >
                       {state.callbackScheduled ? `⏰ ${state.callbackScheduled}` : '⏰ לחזור מאוחר יותר'}
