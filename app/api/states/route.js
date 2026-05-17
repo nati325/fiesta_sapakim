@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import clientPromise from '../../../lib/mongodb';
+import getMongoClient from '../../../lib/mongodb';
 
 export async function GET() {
   try {
-    const client = await clientPromise;
+    const client = await getMongoClient();
     const db = client.db('fiesta_crm');
     const collection = db.collection('supplier_states');
     
@@ -29,7 +29,7 @@ export async function POST(req) {
     const payload = await req.json();
     
     if (payload.phone !== undefined && payload.state) {
-      const client = await clientPromise;
+      const client = await getMongoClient();
       const db = client.db('fiesta_crm');
       const collection = db.collection('supplier_states');
       
