@@ -89,6 +89,100 @@ export default function SuppliersDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  // Persistent callback reminder checker running every 5 seconds
+  useEffect(() => {
+    if (!isLoggedIn || !activeAgent) return;
+
+    const checkReminders = () => {
+      const now = Date.now();
+      const newAlerts = [];
+      const allowedCategories = agentCategoryMap[activeAgent] || [];
+
+      suppliers.forEach((s, index) => {
+        const phone = s["Real Phone"] || s["phone"];
+        const state = supplierStates[phone];
+        if (!state) return;
+
+        // Condition for active, non-dismissed callback reminder
+        if (state.callbackTimestamp && now >= state.callbackTimestamp && state.callbackDismissed !== true) {
+          
+          // Check if this supplier belongs to the active agent
+          let isAllowed = false;
+          if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') {
+            isAllowed = true;
+          } else {
+            if (s.Category === "ספקים ללא קטגוריה" || !s.Category) {
+              isAllowed = true;
+            } else {
+              const matches = allowedCategories.some(cat => s.Category.includes(cat));
+              if (matches) {
+                // Split logic for bride categories shared between Moran and Hodaya
+                const brideCategories = ['מאפרות', 'שיער', 'כלות', 'לחתן ולכלה'];
+                const isBrideCategory = brideCategories.some(cat => s.Category.includes(cat));
+                if (isBrideCategory) {
+                  if (activeAgent === 'מורן' && index % 2 === 0) isAllowed = true;
+                  if (activeAgent === 'הודיה' && index % 2 === 1) isAllowed = true;
+                } else {
+                  isAllowed = true;
+                }
+              }
+            }
+          }
+
+          if (isAllowed) {
+            newAlerts.push({
+              id: phone,
+              supplierName: s["Supplier Name"],
+              phone: s["Real Phone"] || s["phone"],
+              phoneKey: phone,
+              scheduledTime: state.callbackScheduled || 'הזמן שנבחר'
+            });
+
+            // Send email and browser push notification if not already sent
+            if (!state.callbackEmailSent) {
+              // Immediately update DB to prevent multiple triggers
+              updateSupplierState(phone, { callbackEmailSent: true });
+
+              // Send browser push notification
+              if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(`⏰ תזכורת - ${s['Supplier Name']}`, {
+                  body: `הגיע הזמן לחזור לספק!\nטלפון: ${s['Real Phone']}`,
+                  requireInteraction: true
+                });
+              }
+
+              // Send email alert via existing send-email API
+              fetch('/api/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  supplierName: s['Supplier Name'],
+                  phone: s['Real Phone'],
+                  agentName: activeAgent,
+                  scheduledTime: state.callbackScheduled || 'הזמן שנבחר'
+                })
+              }).catch(console.error);
+            }
+          }
+        }
+      });
+
+      // Update callbackAlerts state only if the list has changed
+      setCallbackAlerts(prev => {
+        const prevKeys = prev.map(a => a.phoneKey).sort().join(',');
+        const newKeys = newAlerts.map(a => a.phoneKey).sort().join(',');
+        if (prevKeys !== newKeys) {
+          return newAlerts;
+        }
+        return prev;
+      });
+    };
+
+    checkReminders();
+    const timer = setInterval(checkReminders, 5000);
+    return () => clearInterval(timer);
+  }, [suppliers, supplierStates, activeAgent, isLoggedIn]);
+
   const minutesUntilTomorrow = () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -137,38 +231,22 @@ export default function SuppliersDashboard() {
     const reminderTime = new Date(Date.now() + minutes * 60000);
     const timeStr = reminderTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
     
-    updateSupplierState(phone, { callbackScheduled: timeStr });
+    updateSupplierState(phone, { 
+      callbackScheduled: timeStr,
+      callbackTimestamp: reminderTime.getTime(),
+      callbackDismissed: false,
+      callbackEmailSent: false,
+      agent: activeAgent
+    });
     
     setActiveCallbackPicker(null);
     setShowReminderSuccess(true);
     setTimeout(() => setShowReminderSuccess(false), 4000);
+  };
 
-    setTimeout(() => {
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(`⏰ תזכורת - ${supplier['Supplier Name']}`, {
-          body: `הגיע הזמן לחזור לספק!\nטלפון: ${supplier['Real Phone']}`,
-          requireInteraction: true
-        });
-      }
-      // Send email
-      fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          supplierName: supplier['Supplier Name'],
-          phone: supplier['Real Phone'],
-          agentName: activeAgent,
-          scheduledTime: timeStr
-        })
-      }).catch(console.error);
-      // In-app alert
-      setCallbackAlerts(prev => [...prev, {
-        id: Date.now(),
-        supplierName: supplier['Supplier Name'],
-        phone: supplier['Real Phone'],
-        phoneKey: phone
-      }]);
-    }, minutes * 60000);
+  const dismissCallbackAlert = (phone) => {
+    updateSupplierState(phone, { callbackDismissed: true });
+    setCallbackAlerts(prev => prev.filter(a => a.phoneKey !== phone));
   };
 
 
@@ -303,23 +381,76 @@ export default function SuppliersDashboard() {
     window.open(calendarUrl, '_blank');
   };
 
-  const sendToWhatsApp = (phone, supplier) => {
+  const sendToWhatsApp = async (phone, supplier) => {
     const state = supplierStates[phone];
     if (!state.uploadedImage) {
       alert("יש להעלות צילום מסך או חוזה לפני הדיווח!");
       return;
     }
 
+    // Try to copy the contract image to the clipboard so they can paste it in WhatsApp
+    try {
+      const img = new Image();
+      img.src = state.uploadedImage;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      await new Promise((resolve) => {
+        canvas.toBlob(async (blob) => {
+          if (blob) {
+            try {
+              await navigator.clipboard.write([
+                new ClipboardItem({
+                  'image/png': blob
+                })
+              ]);
+            } catch (e) {
+              console.error("Failed to copy image to clipboard:", e);
+            }
+          }
+          resolve();
+        }, 'image/png');
+      });
+    } catch (err) {
+      console.error("Failed to process image for clipboard:", err);
+    }
+
     const phoneNumber = "0535378985";
     const closingDate = state.closingDate || new Date().toISOString().split('T')[0];
+
+    // Format google rating stars
+    const ratingVal = parseFloat(supplier["Google Rating"]);
+    let ratingStars = "אין דירוג";
+    if (!isNaN(ratingVal) && ratingVal > 0) {
+      ratingStars = `${"⭐".repeat(Math.round(ratingVal))} (${ratingVal} מתוך 5)`;
+    }
     
     const message = encodeURIComponent(
-      `*דיווח סגירה* 📝\n\n` +
-      `סוכן: *${activeAgent}*\n` +
-      `ספק: *${supplier["Supplier Name"]}*\n` +
-      `טלפון: ${supplier["Real Phone"]}\n` +
-      `תאריך: ${closingDate}\n` +
-      `✅ *החוזה/צילום המסך מוכנים לשליחה.*\n\n` +
+      `*דיווח סגירה - Fiesta* 📝\n\n` +
+      `👤 סוכן: *${activeAgent}*\n` +
+      `🏢 ספק: *${supplier["Supplier Name"]}*\n` +
+      `📞 טלפון: ${supplier["Real Phone"] || 'לא צוין'}\n` +
+      `📍 כתובת: ${supplier["Address"] || 'לא צוין'}\n` +
+      `🗓️ תאריך סגירה: ${closingDate}\n\n` +
+      `⭐ *דירוג ופרטים מהאינטרנט:*\n` +
+      `- דירוג גוגל: ${ratingStars}\n` +
+      `- כמות ביקורות: ${supplier["Reviews Count"] || '0'}\n` +
+      `- קישור לביקורות בגוגל: ${supplier["Google Reviews Link"] || 'אין קישור'}\n` +
+      `- אתר אינטרנט: ${supplier["Website"] || 'אין אתר'}\n\n` +
+      `🖼️ *תמונות שנסרקו:*\n` +
+      `- תמונה ראשית: ${supplier["Main Image"] || 'אין תמונה ראשית'}\n` +
+      `- תמונת גוגל: ${supplier["Google Image"] || 'אין תמונת גוגל'}\n\n` +
+      `📋 *חוזה/צילום מסך:*\n` +
+      `תמונת החוזה הועתקה אוטומטית ללוח שלך! 📋\n` +
+      `אנא לחץ *Ctrl+V* (הדבק) בצ'אט הווטסאפ שייפתח כעת כדי לשלוח את החוזה.\n\n` +
       `מערכת Fiesta`
     );
     
@@ -591,24 +722,126 @@ export default function SuppliersDashboard() {
 
       {/* Callback Alerts Banner */}
       {callbackAlerts.length > 0 && (
-        <div style={{ position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 2000, display: 'flex', flexDirection: 'column', gap: '10px', width: '90%', maxWidth: '500px' }}>
+        <div style={{ 
+          position: 'fixed', 
+          top: '20px', 
+          left: '20px', 
+          zIndex: 9999, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '12px', 
+          width: 'calc(100% - 40px)', 
+          maxWidth: '420px',
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          padding: '6px',
+          direction: 'rtl'
+        }}>
           {callbackAlerts.map(alert => (
             <motion.div
               key={alert.id}
-              initial={{ opacity: 0, y: -30 }}
-              animate={{ opacity: 1, y: 0 }}
-              style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', color: 'white', padding: '16px 20px', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 8px 30px rgba(14,165,233,0.45)' }}
+              initial={{ opacity: 0, x: -50, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: -50, scale: 0.9 }}
+              layout
+              style={{ 
+                background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95))', 
+                backdropFilter: 'blur(16px)',
+                color: 'white', 
+                padding: '18px', 
+                borderRadius: '20px', 
+                display: 'flex', 
+                flexDirection: 'column',
+                gap: '12px',
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                borderRight: '6px solid var(--accent)',
+                transition: 'all 0.3s ease'
+              }}
             >
-              <div>
-                <p style={{ fontWeight: '800', fontSize: '1rem', marginBottom: '2px' }}>⏰ {alert.supplierName}</p>
-                <p style={{ fontSize: '0.85rem', opacity: 0.9 }}>הגיע הזמן לחזור לספק! 📞 {alert.phone}</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <motion.div 
+                    animate={{ rotate: [0, -10, 10, -10, 10, 0] }}
+                    transition={{ repeat: Infinity, duration: 2, repeatDelay: 2 }}
+                    style={{ fontSize: '1.5rem' }}
+                  >
+                    ⏰
+                  </motion.div>
+                  <div>
+                    <h4 style={{ fontWeight: '800', fontSize: '1.1rem', marginBottom: '2px', color: '#f8fafc' }}>
+                      {alert.supplierName}
+                    </h4>
+                    <p style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>
+                      הגיע זמן לחזור לספק! (נקבע ל-{alert.scheduledTime})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => dismissCallbackAlert(alert.phoneKey)}
+                  style={{ 
+                    background: 'rgba(255, 255, 255, 0.1)', 
+                    border: 'none', 
+                    borderRadius: '50%', 
+                    width: '28px', 
+                    height: '28px', 
+                    color: '#94a3b8', 
+                    fontWeight: '800', 
+                    cursor: 'pointer', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    fontSize: '0.85rem',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#ef4444'; e.currentTarget.style.color = 'white'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.color = '#94a3b8'; }}
+                  title="סגור תזכורת"
+                >
+                  ✕
+                </button>
               </div>
-              <button
-                onClick={() => setCallbackAlerts(prev => prev.filter(a => a.id !== alert.id))}
-                style={{ background: 'rgba(255,255,255,0.25)', border: 'none', borderRadius: '10px', padding: '8px 14px', color: 'white', fontWeight: '800', cursor: 'pointer', fontSize: '0.9rem' }}
-              >
-                ✓
-              </button>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <a 
+                  href={`tel:${alert.phone}`} 
+                  className="btn-primary" 
+                  style={{ 
+                    flex: 1, 
+                    padding: '8px 12px', 
+                    fontSize: '0.85rem',
+                    borderRadius: '10px',
+                    background: 'var(--accent)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    color: 'white',
+                    textDecoration: 'none',
+                    fontWeight: '700'
+                  }}
+                >
+                  <Phone size={14} />
+                  <span>התקשר עכשיו ({alert.phone})</span>
+                </a>
+                <button
+                  onClick={() => dismissCallbackAlert(alert.phoneKey)}
+                  style={{ 
+                    padding: '8px 12px', 
+                    fontSize: '0.85rem', 
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: 'transparent',
+                    color: '#cbd5e1',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'white'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#cbd5e1'; }}
+                >
+                  סמן כטופל
+                </button>
+              </div>
             </motion.div>
           ))}
         </div>
