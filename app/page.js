@@ -440,6 +440,7 @@ export default function SuppliersDashboard() {
       `📞 טלפון: ${supplier["Real Phone"] || 'לא צוין'}\n` +
       `📍 כתובת: ${supplier["Address"] || 'לא צוין'}\n` +
       `🗓️ תאריך סגירה: ${closingDate}\n\n` +
+      (state.notes ? `✍️ *הערות הסוכן:*\n${state.notes}\n\n` : '') +
       `⭐ *דירוג ופרטים מהאינטרנט:*\n` +
       `- דירוג גוגל: ${ratingStars}\n` +
       `- כמות ביקורות: ${supplier["Reviews Count"] || '0'}\n` +
@@ -1038,6 +1039,30 @@ export default function SuppliersDashboard() {
                 </div>
 
                 <div>
+                  {/* Notes Input */}
+                  <textarea
+                    placeholder="✍️ הערות מיוחדות לדיווח..."
+                    value={state.notes || ""}
+                    onChange={(e) => updateSupplierState(phone, { notes: e.target.value })}
+                    style={{
+                      width: '100%',
+                      height: '50px',
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border)',
+                      background: '#f8fafc',
+                      fontSize: '0.8rem',
+                      resize: 'none',
+                      marginBottom: '10px',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      transition: 'border-color 0.2s',
+                      direction: 'rtl'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                    onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                  />
+
                   {/* Action Buttons */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px' }}>
                     <button
@@ -1050,17 +1075,6 @@ export default function SuppliersDashboard() {
                       }}
                     >
                       ✅ נשלח חוזה ונחתם
-                    </button>
-                    <button
-                      onClick={() => setStatus(phone, 'thinking')}
-                      style={{
-                        padding: '9px 6px', borderRadius: '10px', border: '1px solid #8b5cf6',
-                        background: state.status === 'thinking' ? '#8b5cf6' : 'transparent',
-                        color: state.status === 'thinking' ? 'white' : '#8b5cf6',
-                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
-                      }}
-                    >
-                      🤔 חושב על זה
                     </button>
                     <button
                       onClick={() => setStatus(phone, 'not-interested')}
@@ -1105,7 +1119,8 @@ export default function SuppliersDashboard() {
                         border: `1px solid ${state.callbackScheduled ? '#0ea5e9' : '#0284c7'}`,
                         background: state.callbackScheduled ? '#0ea5e9' : (activeCallbackPicker === phone ? '#0284c7' : 'transparent'),
                         color: state.callbackScheduled ? 'white' : (activeCallbackPicker === phone ? 'white' : '#0284c7'),
-                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
+                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer',
+                        gridColumn: 'span 2'
                       }}
                     >
                       {state.callbackScheduled ? `⏰ ${state.callbackScheduled}` : '⏰ לחזור מאוחר יותר'}
