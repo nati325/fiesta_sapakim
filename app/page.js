@@ -639,7 +639,7 @@ export default function SuppliersDashboard() {
       {renderAgentTargets()}
 
       {activeAgent && activeAgent !== 'נתנאל' && activeAgent !== 'מאגר כללי' && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
           <button
             onClick={() => setActiveTab('לטיפול')}
             style={{
@@ -650,6 +650,17 @@ export default function SuppliersDashboard() {
             }}
           >
             ספקים לטיפול
+          </button>
+          <button
+            onClick={() => setActiveTab('לחזור אליהם')}
+            style={{
+              padding: '10px 24px', borderRadius: '20px', border: 'none',
+              background: activeTab === 'לחזור אליהם' ? '#f59e0b' : '#e2e8f0',
+              color: activeTab === 'לחזור אליהם' ? 'white' : 'var(--text-muted)',
+              fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
+            }}
+          >
+            לחזור אליהם ⏰
           </button>
           <button
             onClick={() => setActiveTab('טופלו')}
@@ -698,11 +709,13 @@ export default function SuppliersDashboard() {
               const phone = s["Real Phone"] || s["phone"];
               const state = supplierStates[phone] || { status: null };
               const isHandled = state.status === 'not-interested' || state.status === 'not-available' || state.status === 'contract';
+              const isCallback = !!state.callbackScheduled;
               
               if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
               
-              if (activeTab === 'לטיפול') return !isHandled;
-              return isHandled;
+              if (activeTab === 'לטיפול') return !isHandled && !isCallback;
+              if (activeTab === 'לחזור אליהם') return !isHandled && isCallback;
+              return isHandled; // 'טופלו'
             })
             .map((s, i) => {
             const phone = s["Real Phone"] || s["phone"];
