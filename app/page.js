@@ -78,6 +78,9 @@ export default function SuppliersDashboard() {
   };
 
   const scheduleCallback = (index, supplier, minutes) => {
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
     const reminderTime = new Date(Date.now() + minutes * 60000);
     const timeStr = reminderTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
     setSupplierStates(prev => ({
@@ -92,6 +95,18 @@ export default function SuppliersDashboard() {
           requireInteraction: true
         });
       }
+      // Send email
+      fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierName: supplier['Supplier Name'],
+          phone: supplier['Real Phone'],
+          agentName: activeAgent,
+          scheduledTime: timeStr
+        })
+      }).catch(console.error);
+      // In-app alert
       setCallbackAlerts(prev => [...prev, {
         id: Date.now(),
         supplierName: supplier['Supplier Name'],
@@ -100,6 +115,7 @@ export default function SuppliersDashboard() {
       }]);
     }, minutes * 60000);
   };
+
 
   const handleLogin = (agent) => {
     const isManager = agent === 'נתנאל';
@@ -594,8 +610,8 @@ export default function SuppliersDashboard() {
             .map((s, i) => {
             const state = supplierStates[i] || { status: null };
             
-            // Skip if not interested
-            if (state.status === 'not-interested') return null;
+            // Skip if not interested or not available
+            if (state.status === 'not-interested' || state.status === 'not-available') return null;
 
             return (
                 <motion.div 
@@ -608,9 +624,9 @@ export default function SuppliersDashboard() {
                   display: 'flex', 
                   flexDirection: 'column', 
                   justifyContent: 'space-between',
-                  borderRight: state.status === 'no-answer' ? '4px solid #f59e0b' : 
-                               state.status === 'closed' ? '4px solid #10b981' : 
-                               state.status === 'thinking' ? '4px solid #8b5cf6' : '1px solid var(--border)'
+                  borderRight: state.status === 'not-available' ? '4px solid #f59e0b' : 
+                               state.status === 'contract' ? '4px solid #10b981' : 
+                               state.callbackScheduled ? '4px solid #0ea5e9' : '1px solid var(--border)'
                 }}
               >
                 <div>
@@ -643,67 +659,53 @@ export default function SuppliersDashboard() {
                 </div>
 
                 <div>
-                  {/* Status Selection Row */}
+                  {/* Action Buttons */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px' }}>
-                    <button 
-                      onClick={() => setStatus(i, 'no-answer')}
-                      style={{ 
-                        padding: '8px', borderRadius: '8px', border: '1px solid #f59e0b', 
-                        background: state.status === 'no-answer' ? '#f59e0b' : 'transparent',
-                        color: state.status === 'no-answer' ? 'white' : '#f59e0b',
-                        fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer'
+                    <button
+                      onClick={() => setStatus(i, 'contract')}
+                      style={{
+                        padding: '9px 6px', borderRadius: '10px', border: '1px solid #10b981',
+                        background: state.status === 'contract' ? '#10b981' : 'transparent',
+                        color: state.status === 'contract' ? 'white' : '#10b981',
+                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
                       }}
                     >
-                      לא ענה
+                      ✅ נשלח חוזה ונחתם
                     </button>
-                    <button 
-                      onClick={() => setStatus(i, 'thinking')}
-                      style={{ 
-                        padding: '8px', borderRadius: '8px', border: '1px solid #8b5cf6', 
-                        background: state.status === 'thinking' ? '#8b5cf6' : 'transparent',
-                        color: state.status === 'thinking' ? 'white' : '#8b5cf6',
-                        fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer'
-                      }}
-                    >
-                      חושב על זה
-                    </button>
-                    <button 
-                      onClick={() => setStatus(i, 'closed')}
-                      style={{ 
-                        padding: '8px', borderRadius: '8px', border: '1px solid #10b981', 
-                        background: state.status === 'closed' ? '#10b981' : 'transparent',
-                        color: state.status === 'closed' ? 'white' : '#10b981',
-                        fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer'
-                      }}
-                    >
-                      ענה ונסגר
-                    </button>
-                    <button 
+                    <button
                       onClick={() => setStatus(i, 'not-interested')}
-                      style={{ 
-                        padding: '8px', borderRadius: '8px', border: '1px solid #ef4444', 
+                      style={{
+                        padding: '9px 6px', borderRadius: '10px', border: '1px solid #ef4444',
                         background: 'transparent', color: '#ef4444',
-                        fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer'
+                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
                       }}
                     >
-                      לא מעוניין
+                      ❌ לא מעוניין
+                    </button>
+                    <button
+                      onClick={() => setStatus(i, 'not-available')}
+                      style={{
+                        padding: '9px 6px', borderRadius: '10px', border: '1px solid #f59e0b',
+                        background: state.status === 'not-available' ? '#f59e0b' : 'transparent',
+                        color: state.status === 'not-available' ? 'white' : '#f59e0b',
+                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
+                      }}
+                    >
+                      📵 לא זמין
+                    </button>
+                    <button
+                      onClick={() => setActiveCallbackPicker(activeCallbackPicker === i ? null : i)}
+                      style={{
+                        padding: '9px 6px', borderRadius: '10px',
+                        border: `1px solid ${state.callbackScheduled ? '#0ea5e9' : '#8b5cf6'}`,
+                        background: state.callbackScheduled ? '#0ea5e9' : (activeCallbackPicker === i ? '#8b5cf6' : 'transparent'),
+                        color: state.callbackScheduled ? 'white' : (activeCallbackPicker === i ? 'white' : '#8b5cf6'),
+                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
+                      }}
+                    >
+                      {state.callbackScheduled ? `⏰ ${state.callbackScheduled}` : '⏰ לחזור מאוחר יותר'}
                     </button>
                   </div>
-
-                  {/* Callback Later Button */}
-                  <button
-                    onClick={() => setActiveCallbackPicker(activeCallbackPicker === i ? null : i)}
-                    style={{
-                      width: '100%', padding: '8px', borderRadius: '8px', marginBottom: '10px',
-                      border: `1px solid ${state.callbackScheduled ? '#0ea5e9' : '#cbd5e1'}`,
-                      background: state.callbackScheduled ? '#e0f2fe' : 'transparent',
-                      color: state.callbackScheduled ? '#0369a1' : '#64748b',
-                      fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                    }}
-                  >
-                    ⏰ {state.callbackScheduled ? `תזכורת נקבעה ל-${state.callbackScheduled}` : 'לחזור מאוחר יותר'}
-                  </button>
 
                   <AnimatePresence>
                     {activeCallbackPicker === i && (
@@ -714,7 +716,7 @@ export default function SuppliersDashboard() {
                         exit={{ opacity: 0, height: 0 }}
                         style={{ background: '#f0f9ff', padding: '14px', borderRadius: '12px', marginBottom: '12px', overflow: 'hidden', border: '1px solid #bae6fd' }}
                       >
-                        <p style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1', marginBottom: '10px' }}>⏰ מתי לחזור לספק?</p>
+                        <p style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1', marginBottom: '10px' }}>⏰ בחר שעה לחזרה לספק:</p>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                           {[
                             { label: 'עוד 30 דק׳', minutes: 30 },
@@ -742,56 +744,8 @@ export default function SuppliersDashboard() {
                   </AnimatePresence>
 
                   <AnimatePresence mode="wait">
-                    {state.status === 'thinking' && (
-                      <motion.div
-                        key="reminder-menu"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        style={{ background: '#f5f3ff', padding: '12px', borderRadius: '12px', marginBottom: '16px' }}
-                      >
-                        <p style={{ fontSize: '0.75rem', fontWeight: '700', color: '#6d28d9', marginBottom: '8px' }}>מתי לחזור אליו?</p>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          {['עוד שעה', 'מחר', 'עוד שבוע'].map(t => (
-                            <button 
-                              key={t}
-                              onClick={() => {
-                                setReminder(i, t);
-                                // Trigger calendar immediately for "one-click" experience
-                                setTimeout(() => addToCalendar(i, s, t), 100);
-                              }}
-                              style={{ 
-                                flex: 1, padding: '6px', borderRadius: '6px', border: 'none',
-                                background: state.reminder === t ? '#8b5cf6' : 'white',
-                                color: state.reminder === t ? 'white' : '#8b5cf6',
-                                fontSize: '0.7rem', fontWeight: '600', cursor: 'pointer',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                              }}
-                            >
-                              {t}
-                            </button>
-                          ))}
-                        </div>
-                        {state.reminder && (
-                          <div style={{ marginTop: '10px' }}>
-                            <button 
-                              onClick={() => addToCalendar(i, s)}
-                              style={{ 
-                                width: '100%', padding: '10px', borderRadius: '8px', 
-                                border: '1px solid #ddd6fe', background: 'white', color: '#8b5cf6', 
-                                fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-                              }}
-                            >
-                              <Calendar size={16} />
-                              פתח יומן שוב
-                            </button>
-                          </div>
-                        )}
-                      </motion.div>
-                    )}
 
-                    {state.status === 'closed' && (
+                    {state.status === 'contract' && (
                       <motion.div
                         key="closed-menu"
                         initial={{ opacity: 0, height: 0 }}
