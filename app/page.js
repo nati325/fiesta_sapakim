@@ -229,7 +229,55 @@ export default function SuppliersDashboard() {
       Notification.requestPermission();
     }
     const reminderTime = new Date(Date.now() + minutes * 60000);
-    const timeStr = reminderTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+    
+    const isToday = reminderTime.toDateString() === new Date().toDateString();
+    const isTomorrow = new Date(Date.now() + 86400000).toDateString() === reminderTime.toDateString();
+    
+    let timeStr = "";
+    const hoursStr = reminderTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+    if (isToday) {
+      timeStr = `היום ב-${hoursStr}`;
+    } else if (isTomorrow) {
+      timeStr = `מחר ב-${hoursStr}`;
+    } else {
+      const dateStr = reminderTime.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+      timeStr = `${dateStr} ב-${hoursStr}`;
+    }
+    
+    updateSupplierState(phone, { 
+      callbackScheduled: timeStr,
+      callbackTimestamp: reminderTime.getTime(),
+      callbackDismissed: false,
+      callbackEmailSent: false,
+      agent: activeAgent
+    });
+    
+    setActiveCallbackPicker(null);
+    setShowReminderSuccess(true);
+    setTimeout(() => setShowReminderSuccess(false), 4000);
+  };
+
+  const scheduleCustomCallback = (phone, dateTimeString) => {
+    if (!dateTimeString) return;
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+    const reminderTime = new Date(dateTimeString);
+    if (isNaN(reminderTime.getTime())) return;
+    
+    const isToday = reminderTime.toDateString() === new Date().toDateString();
+    const isTomorrow = new Date(Date.now() + 86400000).toDateString() === reminderTime.toDateString();
+    
+    let timeStr = "";
+    const hoursStr = reminderTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+    if (isToday) {
+      timeStr = `היום ב-${hoursStr}`;
+    } else if (isTomorrow) {
+      timeStr = `מחר ב-${hoursStr}`;
+    } else {
+      const dateStr = reminderTime.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+      timeStr = `${dateStr} ב-${hoursStr}`;
+    }
     
     updateSupplierState(phone, { 
       callbackScheduled: timeStr,
@@ -920,6 +968,17 @@ export default function SuppliersDashboard() {
             לחזור אליהם ⏰
           </button>
           <button
+            onClick={() => setActiveTab('לא ענו')}
+            style={{
+              padding: '10px 24px', borderRadius: '20px', border: 'none',
+              background: activeTab === 'לא ענו' ? '#f97316' : '#e2e8f0',
+              color: activeTab === 'לא ענו' ? 'white' : 'var(--text-muted)',
+              fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
+            }}
+          >
+            לא ענו 📵
+          </button>
+          <button
             onClick={() => setActiveTab('עדיין לא חתם')}
             style={{
               padding: '10px 24px', borderRadius: '20px', border: 'none',
@@ -976,15 +1035,19 @@ export default function SuppliersDashboard() {
             .filter((s) => {
               const phone = s["Real Phone"] || s["phone"];
               const state = supplierStates[phone] || { status: null };
-              const isHandled = state.status === 'not-interested' || state.status === 'not-available' || state.status === 'contract';
+              const isHandled = state.status === 'not-interested' || state.status === 'contract';
               const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
               
+              if (state.status === 'not-available') {
+                return activeTab === 'לא ענו';
+              }
               if (state.status === 'not-signed') {
                 return activeTab === 'עדיין לא חתם';
               }
               
               if (activeTab === 'לטיפול') return !isHandled && !isCallback;
               if (activeTab === 'לחזור אליהם') return !isHandled && isCallback;
+              if (activeTab === 'לא ענו') return false;
               if (activeTab === 'עדיין לא חתם') return false;
               return isHandled; // 'טופלו'
             })
@@ -1003,7 +1066,7 @@ export default function SuppliersDashboard() {
                   display: 'flex', 
                   flexDirection: 'column', 
                   justifyContent: 'space-between',
-                  borderRight: state.status === 'not-available' ? '4px solid #f59e0b' : 
+                  borderRight: state.status === 'not-available' ? '4px solid #f97316' : 
                                state.status === 'contract' ? '4px solid #10b981' : 
                                state.status === 'not-signed' ? '4px solid #3b82f6' : 
                                state.callbackScheduled ? '4px solid #0ea5e9' : '1px solid var(--border)'
@@ -1088,11 +1151,14 @@ export default function SuppliersDashboard() {
                       ❌ לא מעוניין
                     </button>
                     <button
-                      onClick={() => setStatus(phone, 'not-available')}
+                      onClick={() => {
+                        setStatus(phone, 'not-available');
+                        setActiveTab('לא ענו');
+                      }}
                       style={{
-                        padding: '9px 6px', borderRadius: '10px', border: '1px solid #f59e0b',
-                        background: state.status === 'not-available' ? '#f59e0b' : 'transparent',
-                        color: state.status === 'not-available' ? 'white' : '#f59e0b',
+                        padding: '9px 6px', borderRadius: '10px', border: '1px solid #f97316',
+                        background: state.status === 'not-available' ? '#f97316' : 'transparent',
+                        color: state.status === 'not-available' ? 'white' : '#f97316',
                         fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
                       }}
                     >
@@ -1158,6 +1224,52 @@ export default function SuppliersDashboard() {
                               {opt.label}
                             </button>
                           ))}
+                        </div>
+
+                        <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #bae6fd' }}>
+                          <p style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1', marginBottom: '8px' }}>📅 או בחר מועד מותאם אישית:</p>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input 
+                              type="datetime-local" 
+                              id={`custom-date-${phone}`}
+                              style={{
+                                flex: 1,
+                                padding: '8px',
+                                borderRadius: '8px',
+                                border: '1px solid #bae6fd',
+                                fontSize: '0.8rem',
+                                color: '#0369a1',
+                                outline: 'none',
+                                background: 'white',
+                                fontFamily: 'inherit'
+                              }}
+                            />
+                            <button
+                              onClick={() => {
+                                const val = document.getElementById(`custom-date-${phone}`).value;
+                                if (val) {
+                                  scheduleCustomCallback(phone, val);
+                                } else {
+                                  alert('אנא בחר תאריך ושעה');
+                                }
+                              }}
+                              style={{
+                                padding: '8px 14px',
+                                borderRadius: '8px',
+                                background: '#0284c7',
+                                color: 'white',
+                                border: 'none',
+                                fontWeight: '700',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                transition: 'background 0.2s'
+                              }}
+                              onMouseOver={(e) => e.target.style.background = '#0369a1'}
+                              onMouseOut={(e) => e.target.style.background = '#0284c7'}
+                            >
+                              אישור
+                            </button>
+                          </div>
                         </div>
                       </motion.div>
                     )}
