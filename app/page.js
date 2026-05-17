@@ -15,6 +15,7 @@ export default function SuppliersDashboard() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [activeCallbackPicker, setActiveCallbackPicker] = useState(null);
   const [callbackAlerts, setCallbackAlerts] = useState([]);
+  const [activeTab, setActiveTab] = useState('לטיפול');
   
   // Categories mapping
   const agentCategoryMap = {
@@ -35,8 +36,9 @@ export default function SuppliersDashboard() {
         setSuppliers(processedData);
         const today = new Date().toISOString().split('T')[0];
         const initialStates = {};
-        processedData.forEach((_, index) => {
-          initialStates[index] = {
+        processedData.forEach((s) => {
+          const phone = s["Real Phone"] || s["phone"];
+          initialStates[phone] = {
             uploadedImage: null,
             closingDate: today,
             showDatePicker: false,
@@ -93,26 +95,26 @@ export default function SuppliersDashboard() {
     return Math.round((tomorrow - new Date()) / 60000);
   };
 
-  const updateSupplierState = (index, newState) => {
+  const updateSupplierState = (phone, newState) => {
     setSupplierStates(prev => ({
       ...prev,
-      [index]: { ...prev[index], ...newState }
+      [phone]: { ...prev[phone], ...newState }
     }));
     fetch('/api/states', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ index, state: newState })
+      body: JSON.stringify({ phone, state: newState })
     }).catch(console.error);
   };
 
-  const scheduleCallback = (index, supplier, minutes) => {
+  const scheduleCallback = (phone, supplier, minutes) => {
     if ('Notification' in window && Notification.permission !== 'granted') {
       Notification.requestPermission();
     }
     const reminderTime = new Date(Date.now() + minutes * 60000);
     const timeStr = reminderTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
     
-    updateSupplierState(index, { callbackScheduled: timeStr });
+    updateSupplierState(phone, { callbackScheduled: timeStr });
     
     setActiveCallbackPicker(null);
     setTimeout(() => {
@@ -138,7 +140,7 @@ export default function SuppliersDashboard() {
         id: Date.now(),
         supplierName: supplier['Supplier Name'],
         phone: supplier['Real Phone'],
-        index
+        phoneKey: phone
       }]);
     }, minutes * 60000);
   };
@@ -226,34 +228,34 @@ export default function SuppliersDashboard() {
     );
   }
 
-  const handleFileChange = (index, file) => {
+  const handleFileChange = (phone, file) => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        updateSupplierState(index, { uploadedImage: reader.result });
+        updateSupplierState(phone, { uploadedImage: reader.result });
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleDateChange = (index, date) => {
-    updateSupplierState(index, { closingDate: date });
+  const handleDateChange = (phone, date) => {
+    updateSupplierState(phone, { closingDate: date });
   };
 
-  const toggleDatePicker = (index) => {
-    updateSupplierState(index, { showDatePicker: !supplierStates[index].showDatePicker });
+  const toggleDatePicker = (phone) => {
+    updateSupplierState(phone, { showDatePicker: !supplierStates[phone].showDatePicker });
   };
 
-  const setStatus = (index, status) => {
-    updateSupplierState(index, { status, reminder: null, agent: activeAgent });
+  const setStatus = (phone, status) => {
+    updateSupplierState(phone, { status, reminder: null, agent: activeAgent });
   };
 
-  const setReminder = (index, timeText) => {
-    updateSupplierState(index, { reminder: timeText, agent: activeAgent });
+  const setReminder = (phone, timeText) => {
+    updateSupplierState(phone, { reminder: timeText, agent: activeAgent });
   };
 
-  const addToCalendar = (index, supplier, overrideReminder = null) => {
-    const state = supplierStates[index];
+  const addToCalendar = (phone, supplier, overrideReminder = null) => {
+    const state = supplierStates[phone];
     const reminderType = overrideReminder || state.reminder;
     if (!reminderType) return;
 
@@ -277,8 +279,8 @@ export default function SuppliersDashboard() {
     window.open(calendarUrl, '_blank');
   };
 
-  const sendToWhatsApp = (index, supplier) => {
-    const state = supplierStates[index];
+  const sendToWhatsApp = (phone, supplier) => {
+    const state = supplierStates[phone];
     if (!state.uploadedImage) {
       alert("יש להעלות צילום מסך או חוזה לפני הדיווח!");
       return;
@@ -590,6 +592,33 @@ export default function SuppliersDashboard() {
       {activeAgent === 'נתנאל' && renderManagerStats()}
       {renderAgentTargets()}
 
+      {activeAgent && activeAgent !== 'נתנאל' && activeAgent !== 'מאגר כללי' && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
+          <button
+            onClick={() => setActiveTab('לטיפול')}
+            style={{
+              padding: '10px 24px', borderRadius: '20px', border: 'none',
+              background: activeTab === 'לטיפול' ? 'var(--primary)' : '#e2e8f0',
+              color: activeTab === 'לטיפול' ? 'white' : 'var(--text-muted)',
+              fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
+            }}
+          >
+            ספקים לטיפול
+          </button>
+          <button
+            onClick={() => setActiveTab('טופלו')}
+            style={{
+              padding: '10px 24px', borderRadius: '20px', border: 'none',
+              background: activeTab === 'טופלו' ? '#10b981' : '#e2e8f0',
+              color: activeTab === 'טופלו' ? 'white' : 'var(--text-muted)',
+              fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
+            }}
+          >
+            ספקים שטופלו
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div style={{ textAlign: 'center', padding: '100px', color: 'var(--text-muted)' }}>
           <div style={{ width: '40px', height: '40px', border: '3px solid #e2e8f0', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }}></div>
@@ -613,21 +642,29 @@ export default function SuppliersDashboard() {
               const isBrideCategory = brideCategories.some(cat => s.Category.includes(cat));
               
               if (isBrideCategory) {
-                if (activeAgent === 'מורן') return i % 2 === 0;
-                if (activeAgent === 'הודיה') return i % 2 === 1;
+                if (activeAgent === 'מורן' && i % 2 !== 0) return false;
+                if (activeAgent === 'הודיה' && i % 2 !== 1) return false;
               }
 
               return true;
             })
+            .filter((s) => {
+              const phone = s["Real Phone"] || s["phone"];
+              const state = supplierStates[phone] || { status: null };
+              const isHandled = state.status === 'not-interested' || state.status === 'not-available' || state.status === 'contract';
+              
+              if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
+              
+              if (activeTab === 'לטיפול') return !isHandled;
+              return isHandled;
+            })
             .map((s, i) => {
-            const state = supplierStates[i] || { status: null };
-            
-            // Skip if not interested or not available
-            if (state.status === 'not-interested' || state.status === 'not-available') return null;
+            const phone = s["Real Phone"] || s["phone"];
+            const state = supplierStates[phone] || { status: null };
 
             return (
                 <motion.div 
-                key={i}
+                key={phone}
                 layout
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -658,7 +695,7 @@ export default function SuppliersDashboard() {
                     </div>
                     <div 
                       className="date-trigger" 
-                      onClick={() => toggleDatePicker(i)}
+                      onClick={() => toggleDatePicker(phone)}
                       style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--primary)' }}
                     >
                       <Calendar size={16} />
@@ -674,7 +711,7 @@ export default function SuppliersDashboard() {
                   {/* Action Buttons */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px' }}>
                     <button
-                      onClick={() => setStatus(i, 'contract')}
+                      onClick={() => setStatus(phone, 'contract')}
                       style={{
                         padding: '9px 6px', borderRadius: '10px', border: '1px solid #10b981',
                         background: state.status === 'contract' ? '#10b981' : 'transparent',
@@ -685,7 +722,7 @@ export default function SuppliersDashboard() {
                       ✅ נשלח חוזה ונחתם
                     </button>
                     <button
-                      onClick={() => setStatus(i, 'not-interested')}
+                      onClick={() => setStatus(phone, 'not-interested')}
                       style={{
                         padding: '9px 6px', borderRadius: '10px', border: '1px solid #ef4444',
                         background: 'transparent', color: '#ef4444',
@@ -695,7 +732,7 @@ export default function SuppliersDashboard() {
                       ❌ לא מעוניין
                     </button>
                     <button
-                      onClick={() => setStatus(i, 'not-available')}
+                      onClick={() => setStatus(phone, 'not-available')}
                       style={{
                         padding: '9px 6px', borderRadius: '10px', border: '1px solid #f59e0b',
                         background: state.status === 'not-available' ? '#f59e0b' : 'transparent',
@@ -706,12 +743,12 @@ export default function SuppliersDashboard() {
                       📵 לא זמין
                     </button>
                     <button
-                      onClick={() => setActiveCallbackPicker(activeCallbackPicker === i ? null : i)}
+                      onClick={() => setActiveCallbackPicker(activeCallbackPicker === phone ? null : phone)}
                       style={{
                         padding: '9px 6px', borderRadius: '10px',
                         border: `1px solid ${state.callbackScheduled ? '#0ea5e9' : '#8b5cf6'}`,
-                        background: state.callbackScheduled ? '#0ea5e9' : (activeCallbackPicker === i ? '#8b5cf6' : 'transparent'),
-                        color: state.callbackScheduled ? 'white' : (activeCallbackPicker === i ? 'white' : '#8b5cf6'),
+                        background: state.callbackScheduled ? '#0ea5e9' : (activeCallbackPicker === phone ? '#8b5cf6' : 'transparent'),
+                        color: state.callbackScheduled ? 'white' : (activeCallbackPicker === phone ? 'white' : '#8b5cf6'),
                         fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
                       }}
                     >
@@ -720,7 +757,7 @@ export default function SuppliersDashboard() {
                   </div>
 
                   <AnimatePresence>
-                    {activeCallbackPicker === i && (
+                    {activeCallbackPicker === phone && (
                       <motion.div
                         key="callback-picker"
                         initial={{ opacity: 0, height: 0 }}
@@ -740,7 +777,7 @@ export default function SuppliersDashboard() {
                           ].map(opt => (
                             <button
                               key={opt.label}
-                              onClick={() => scheduleCallback(i, s, opt.minutes)}
+                              onClick={() => scheduleCallback(phone, s, opt.minutes)}
                               style={{
                                 padding: '8px 4px', borderRadius: '8px',
                                 border: '1px solid #bae6fd', background: 'white',
@@ -766,13 +803,13 @@ export default function SuppliersDashboard() {
                       >
                         <div 
                           className="upload-zone"
-                          onClick={() => document.getElementById(`file-${i}`).click()}
+                          onClick={() => document.getElementById(`file-${phone}`).click()}
                           style={{ marginBottom: '16px', background: state.uploadedImage ? '#f0fdf4' : 'transparent', borderColor: state.uploadedImage ? '#bbf7d0' : 'var(--border)', cursor: 'pointer' }}
                         >
                           <input 
-                            id={`file-${i}`}
+                            id={`file-${phone}`}
                             type="file" 
-                            onChange={(e) => handleFileChange(i, e.target.files[0])}
+                            onChange={(e) => handleFileChange(phone, e.target.files[0])}
                             style={{ display: 'none' }}
                             accept="image/*"
                           />
@@ -791,7 +828,7 @@ export default function SuppliersDashboard() {
 
                         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                           <button 
-                            onClick={() => sendToWhatsApp(i, s)}
+                            onClick={() => sendToWhatsApp(phone, s)}
                             className="btn-primary btn-whatsapp" 
                             style={{ 
                               flex: 1, padding: '12px',
@@ -819,7 +856,7 @@ export default function SuppliersDashboard() {
                         <input 
                           type="date" 
                           value={state.closingDate}
-                          onChange={(e) => handleDateChange(i, e.target.value)}
+                          onChange={(e) => handleDateChange(phone, e.target.value)}
                           style={{ 
                             width: '100%', padding: '10px', borderRadius: '8px', 
                             border: '1px solid var(--border)', fontFamily: 'inherit', fontSize: '0.9rem'
