@@ -26,9 +26,9 @@ export async function POST(req) {
         } catch(e) {}
     }
     
-    // Merge the new state for the specific index
-    if (payload.index !== undefined && payload.state) {
-        currentStates[payload.index] = { ...currentStates[payload.index], ...payload.state };
+    // Merge the new state for the specific phone number
+    if (payload.phone !== undefined && payload.state) {
+        currentStates[payload.phone] = { ...currentStates[payload.phone], ...payload.state };
     }
 
     fs.writeFileSync(statesFile, JSON.stringify(currentStates, null, 2), 'utf-8');
