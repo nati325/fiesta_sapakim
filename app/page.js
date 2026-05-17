@@ -106,9 +106,16 @@ export default function SuppliersDashboard() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, state: newState })
     })
-    .then(res => {
+    .then(async res => {
       if (!res.ok) {
-        throw new Error('Failed to update state in DB');
+        let errMsg = 'Failed to update state in DB';
+        try {
+          const errData = await res.json();
+          if (errData && errData.error) {
+            errMsg = errData.error;
+          }
+        } catch (e) {}
+        throw new Error(errMsg);
       }
       return res.json();
     })
@@ -119,7 +126,7 @@ export default function SuppliersDashboard() {
     })
     .catch(err => {
       console.error("DB Save Error:", err);
-      alert("⚠️ שגיאה בשמירת הנתונים במונגו! וודא שביצעת Redeploy ב-Vercel עם הסיסמה המעודכנת ושהאינטרנט מחובר.");
+      alert(`⚠️ שגיאה בשמירת הנתונים במונגו!\n\nסיבת השגיאה מהשרת: ${err.message}\n\nאנא וודא שהגדרת את MONGODB_URI ב-Vercel בצורה נכונה ושהגדרת Network Access ל-0.0.0.0/0 ב-MongoDB Atlas.`);
     });
   };
 
