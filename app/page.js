@@ -471,10 +471,13 @@ export default function SuppliersDashboard() {
 
     Object.values(supplierStates).forEach(state => {
       if (state.agent && stats[state.agent]) {
-        stats[state.agent].total++;
-        if (state.status === 'closed') stats[state.agent].closed++;
-        if (state.status === 'no-answer') stats[state.agent].noAnswer++;
-        if (state.status === 'thinking') stats[state.agent].thinking++;
+        const hasAction = state.status !== null || !!state.callbackScheduled;
+        if (hasAction) {
+          stats[state.agent].total++;
+          if (state.status === 'contract' || state.status === 'closed') stats[state.agent].closed++;
+          if (state.status === 'not-available' || state.status === 'no-answer') stats[state.agent].noAnswer++;
+          if (state.status === 'thinking') stats[state.agent].thinking++;
+        }
       }
     });
 
@@ -544,9 +547,9 @@ export default function SuppliersDashboard() {
     const dailyTarget = activeAgent === 'מורן' ? 7 : 50;
     const weeklyTarget = activeAgent === 'מורן' ? 35 : 250;
     
-    // Count how many suppliers the current agent has acted on
+    // Count how many suppliers the current agent has acted on (including scheduled callbacks)
     const callsDone = Object.values(supplierStates).filter(state => 
-      state.agent === activeAgent && state.status !== null
+      state.agent === activeAgent && (state.status !== null || !!state.callbackScheduled)
     ).length;
 
     const dailyRemaining = Math.max(0, dailyTarget - callsDone);
@@ -1032,6 +1035,17 @@ export default function SuppliersDashboard() {
                       ✅ נשלח חוזה ונחתם
                     </button>
                     <button
+                      onClick={() => setStatus(phone, 'thinking')}
+                      style={{
+                        padding: '9px 6px', borderRadius: '10px', border: '1px solid #8b5cf6',
+                        background: state.status === 'thinking' ? '#8b5cf6' : 'transparent',
+                        color: state.status === 'thinking' ? 'white' : '#8b5cf6',
+                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
+                      }}
+                    >
+                      🤔 חושב על זה
+                    </button>
+                    <button
                       onClick={() => setStatus(phone, 'not-interested')}
                       style={{
                         padding: '9px 6px', borderRadius: '10px', border: '1px solid #ef4444',
@@ -1051,16 +1065,17 @@ export default function SuppliersDashboard() {
                         fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
                       }}
                     >
-                      📵 לא זמין
+                      📵 לא זמין / לא ענו
                     </button>
                     <button
                       onClick={() => setActiveCallbackPicker(activeCallbackPicker === phone ? null : phone)}
                       style={{
                         padding: '9px 6px', borderRadius: '10px',
-                        border: `1px solid ${state.callbackScheduled ? '#0ea5e9' : '#8b5cf6'}`,
-                        background: state.callbackScheduled ? '#0ea5e9' : (activeCallbackPicker === phone ? '#8b5cf6' : 'transparent'),
-                        color: state.callbackScheduled ? 'white' : (activeCallbackPicker === phone ? 'white' : '#8b5cf6'),
-                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
+                        border: `1px solid ${state.callbackScheduled ? '#0ea5e9' : '#3b82f6'}`,
+                        background: state.callbackScheduled ? '#0ea5e9' : (activeCallbackPicker === phone ? '#3b82f6' : 'transparent'),
+                        color: state.callbackScheduled ? 'white' : (activeCallbackPicker === phone ? 'white' : '#3b82f6'),
+                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer',
+                        gridColumn: 'span 2'
                       }}
                     >
                       {state.callbackScheduled ? `⏰ ${state.callbackScheduled}` : '⏰ לחזור מאוחר יותר'}
