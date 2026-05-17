@@ -719,10 +719,10 @@ export default function SuppliersDashboard() {
                         <p style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1', marginBottom: '10px' }}>⏰ בחר שעה לחזרה לספק:</p>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                           {[
+                            { label: 'עוד דקה (בדיקה)', minutes: 1 },
                             { label: 'עוד 30 דק׳', minutes: 30 },
                             { label: 'עוד שעה', minutes: 60 },
                             { label: 'עוד 2 שעות', minutes: 120 },
-                            { label: 'עוד 3 שעות', minutes: 180 },
                             { label: 'מחר 9:00', minutes: minutesUntilTomorrow() },
                             { label: 'עוד יומיים', minutes: 2880 },
                           ].map(opt => (
