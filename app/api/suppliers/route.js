@@ -4,7 +4,7 @@ import path from 'path';
 
 export async function GET() {
     try {
-        const filePath = path.join(process.cwd(), 'engaged_suppliers_enriched.csv');
+        const filePath = path.join(process.cwd(), 'engaged_suppliers_final_production.csv');
         
         if (!fs.existsSync(filePath)) {
             console.log("File not found at:", filePath);

@@ -1,17 +1,25 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const statesFile = path.join(process.cwd(), 'supplier_states.json');
+import clientPromise from '../../../lib/mongodb';
 
 export async function GET() {
   try {
-    if (!fs.existsSync(statesFile)) {
-      return NextResponse.json({});
-    }
-    const data = fs.readFileSync(statesFile, 'utf-8');
-    return NextResponse.json(JSON.parse(data));
+    const client = await clientPromise;
+    const db = client.db('fiesta_crm');
+    const collection = db.collection('supplier_states');
+    
+    const allStatesArray = await collection.find({}).toArray();
+    
+    const statesObject = {};
+    allStatesArray.forEach(doc => {
+      const { _id, phone, ...stateData } = doc;
+      if (phone) {
+        statesObject[phone] = stateData;
+      }
+    });
+
+    return NextResponse.json(statesObject);
   } catch (error) {
+    console.error("MongoDB GET Error:", error);
     return NextResponse.json({});
   }
 }
@@ -19,20 +27,22 @@ export async function GET() {
 export async function POST(req) {
   try {
     const payload = await req.json();
-    let currentStates = {};
-    if (fs.existsSync(statesFile)) {
-        try {
-            currentStates = JSON.parse(fs.readFileSync(statesFile, 'utf-8'));
-        } catch(e) {}
+    
+    if (payload.phone !== undefined && payload.state) {
+      const client = await clientPromise;
+      const db = client.db('fiesta_crm');
+      const collection = db.collection('supplier_states');
+      
+      await collection.updateOne(
+        { phone: payload.phone },
+        { $set: payload.state },
+        { upsert: true }
+      );
+      
+      return NextResponse.json({ success: true });
     }
     
-    // Merge the new state for the specific phone number
-    if (payload.phone !== undefined && payload.state) {
-        currentStates[payload.phone] = { ...currentStates[payload.phone], ...payload.state };
-    }
-
-    fs.writeFileSync(statesFile, JSON.stringify(currentStates, null, 2), 'utf-8');
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: false, message: "No phone provided" });
   } catch (error) {
     console.error("API error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
