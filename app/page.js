@@ -105,7 +105,22 @@ export default function SuppliersDashboard() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, state: newState })
-    }).catch(console.error);
+    })
+    .then(res => {
+      if (!res.ok) {
+        throw new Error('Failed to update state in DB');
+      }
+      return res.json();
+    })
+    .then(data => {
+      if (!data.success) {
+        console.error("Failed to update status:", data.message);
+      }
+    })
+    .catch(err => {
+      console.error("DB Save Error:", err);
+      alert("⚠️ שגיאה בשמירת הנתונים במונגו! וודא שביצעת Redeploy ב-Vercel עם הסיסמה המעודכנת ושהאינטרנט מחובר.");
+    });
   };
 
   const scheduleCallback = (phone, supplier, minutes) => {
@@ -151,9 +166,7 @@ export default function SuppliersDashboard() {
 
 
   const handleLogin = (agent) => {
-    const isManager = agent === 'נתנאל';
-    const isGeneral = agent === 'מאגר כללי';
-    const correctPassword = isManager ? 'Dama3253!?' : 'fiestamadar';
+    const correctPassword = 'fiestamadar';
 
     if (password === correctPassword) {
       setActiveAgent(agent);
@@ -711,8 +724,6 @@ export default function SuppliersDashboard() {
               const isHandled = state.status === 'not-interested' || state.status === 'not-available' || state.status === 'contract';
               const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
               
-              if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
-              
               if (activeTab === 'לטיפול') return !isHandled && !isCallback;
               if (activeTab === 'לחזור אליהם') return !isHandled && isCallback;
               return isHandled; // 'טופלו'
@@ -784,7 +795,8 @@ export default function SuppliersDashboard() {
                       onClick={() => setStatus(phone, 'not-interested')}
                       style={{
                         padding: '9px 6px', borderRadius: '10px', border: '1px solid #ef4444',
-                        background: 'transparent', color: '#ef4444',
+                        background: state.status === 'not-interested' ? '#ef4444' : 'transparent',
+                        color: state.status === 'not-interested' ? 'white' : '#ef4444',
                         fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
                       }}
                     >
