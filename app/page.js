@@ -13,6 +13,8 @@ export default function SuppliersDashboard() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [activeCallbackPicker, setActiveCallbackPicker] = useState(null);
+  const [callbackAlerts, setCallbackAlerts] = useState([]);
   
   // Categories mapping
   const agentCategoryMap = {
@@ -68,6 +70,37 @@ export default function SuppliersDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  const minutesUntilTomorrow = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    return Math.round((tomorrow - new Date()) / 60000);
+  };
+
+  const scheduleCallback = (index, supplier, minutes) => {
+    const reminderTime = new Date(Date.now() + minutes * 60000);
+    const timeStr = reminderTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+    setSupplierStates(prev => ({
+      ...prev,
+      [index]: { ...prev[index], callbackScheduled: timeStr }
+    }));
+    setActiveCallbackPicker(null);
+    setTimeout(() => {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(`⏰ תזכורת - ${supplier['Supplier Name']}`, {
+          body: `הגיע הזמן לחזור לספק!\nטלפון: ${supplier['Real Phone']}`,
+          requireInteraction: true
+        });
+      }
+      setCallbackAlerts(prev => [...prev, {
+        id: Date.now(),
+        supplierName: supplier['Supplier Name'],
+        phone: supplier['Real Phone'],
+        index
+      }]);
+    }, minutes * 60000);
+  };
+
   const handleLogin = (agent) => {
     const isManager = agent === 'נתנאל';
     const isGeneral = agent === 'מאגר כללי';
@@ -77,6 +110,7 @@ export default function SuppliersDashboard() {
       setActiveAgent(agent);
       setIsLoggedIn(true);
       setLoginError(false);
+      if ('Notification' in window) Notification.requestPermission();
     } else {
       setLoginError(true);
     }
@@ -459,6 +493,31 @@ export default function SuppliersDashboard() {
         )}
       </AnimatePresence>
 
+      {/* Callback Alerts Banner */}
+      {callbackAlerts.length > 0 && (
+        <div style={{ position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 2000, display: 'flex', flexDirection: 'column', gap: '10px', width: '90%', maxWidth: '500px' }}>
+          {callbackAlerts.map(alert => (
+            <motion.div
+              key={alert.id}
+              initial={{ opacity: 0, y: -30 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', color: 'white', padding: '16px 20px', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 8px 30px rgba(14,165,233,0.45)' }}
+            >
+              <div>
+                <p style={{ fontWeight: '800', fontSize: '1rem', marginBottom: '2px' }}>⏰ {alert.supplierName}</p>
+                <p style={{ fontSize: '0.85rem', opacity: 0.9 }}>הגיע הזמן לחזור לספק! 📞 {alert.phone}</p>
+              </div>
+              <button
+                onClick={() => setCallbackAlerts(prev => prev.filter(a => a.id !== alert.id))}
+                style={{ background: 'rgba(255,255,255,0.25)', border: 'none', borderRadius: '10px', padding: '8px 14px', color: 'white', fontWeight: '800', cursor: 'pointer', fontSize: '0.9rem' }}
+              >
+                ✓
+              </button>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
       <header className="animate-in" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <p style={{ color: 'var(--text-muted)', fontSize: '1rem', fontWeight: '600' }}>ברוך הבא {activeAgent}, יום פורה! 🚀</p>
@@ -630,6 +689,57 @@ export default function SuppliersDashboard() {
                       לא מעוניין
                     </button>
                   </div>
+
+                  {/* Callback Later Button */}
+                  <button
+                    onClick={() => setActiveCallbackPicker(activeCallbackPicker === i ? null : i)}
+                    style={{
+                      width: '100%', padding: '8px', borderRadius: '8px', marginBottom: '10px',
+                      border: `1px solid ${state.callbackScheduled ? '#0ea5e9' : '#cbd5e1'}`,
+                      background: state.callbackScheduled ? '#e0f2fe' : 'transparent',
+                      color: state.callbackScheduled ? '#0369a1' : '#64748b',
+                      fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                    }}
+                  >
+                    ⏰ {state.callbackScheduled ? `תזכורת נקבעה ל-${state.callbackScheduled}` : 'לחזור מאוחר יותר'}
+                  </button>
+
+                  <AnimatePresence>
+                    {activeCallbackPicker === i && (
+                      <motion.div
+                        key="callback-picker"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        style={{ background: '#f0f9ff', padding: '14px', borderRadius: '12px', marginBottom: '12px', overflow: 'hidden', border: '1px solid #bae6fd' }}
+                      >
+                        <p style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1', marginBottom: '10px' }}>⏰ מתי לחזור לספק?</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                          {[
+                            { label: 'עוד 30 דק׳', minutes: 30 },
+                            { label: 'עוד שעה', minutes: 60 },
+                            { label: 'עוד 2 שעות', minutes: 120 },
+                            { label: 'עוד 3 שעות', minutes: 180 },
+                            { label: 'מחר 9:00', minutes: minutesUntilTomorrow() },
+                            { label: 'עוד יומיים', minutes: 2880 },
+                          ].map(opt => (
+                            <button
+                              key={opt.label}
+                              onClick={() => scheduleCallback(i, s, opt.minutes)}
+                              style={{
+                                padding: '8px 4px', borderRadius: '8px',
+                                border: '1px solid #bae6fd', background: 'white',
+                                color: '#0369a1', fontSize: '0.7rem', fontWeight: '700', cursor: 'pointer'
+                              }}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   <AnimatePresence mode="wait">
                     {state.status === 'thinking' && (
