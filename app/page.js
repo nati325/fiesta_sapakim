@@ -17,6 +17,7 @@ export default function SuppliersDashboard() {
   const [callbackAlerts, setCallbackAlerts] = useState([]);
   const [activeTab, setActiveTab] = useState('לטיפול');
   const [showReminderSuccess, setShowReminderSuccess] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Categories mapping
   const agentCategoryMap = {
@@ -642,6 +643,75 @@ export default function SuppliersDashboard() {
     );
   };
 
+  const filteredSuppliers = suppliers
+    .filter((s, i) => {
+      if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
+      const allowedCategories = agentCategoryMap[activeAgent] || [];
+      
+      // If it's a general unassigned supplier, show to everyone so they can categorize
+      if (s.Category === "ספקים ללא קטגוריה" || !s.Category) return true;
+      
+      const matches = allowedCategories.some(cat => s.Category.includes(cat));
+      if (!matches) return false;
+
+      // Split logic for bride categories shared between Moran and Hodaya
+      const brideCategories = ['מאפרות', 'שיער', 'כלות', 'לחתן ולכלה'];
+      const isBrideCategory = brideCategories.some(cat => s.Category.includes(cat));
+      
+      if (isBrideCategory) {
+        if (activeAgent === 'מורן' && i % 2 !== 0) return false;
+        if (activeAgent === 'הודיה' && i % 2 !== 1) return false;
+      }
+
+      return true;
+    })
+    .filter((s) => {
+      if (searchQuery) return true; // Bypass tab filtering if searching!
+      
+      const phone = s["Real Phone"] || s["phone"];
+      const state = supplierStates[phone] || { status: null };
+      const isHandled = state.status === 'not-interested' || state.status === 'contract';
+      const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
+      
+      if (state.status === 'not-available') {
+        return activeTab === 'לא ענו';
+      }
+      if (state.status === 'not-signed') {
+        return activeTab === 'עדיין לא חתם';
+      }
+      
+      if (activeTab === 'לטיפול') return !isHandled && !isCallback;
+      if (activeTab === 'לחזור אליהם') return !isHandled && isCallback;
+      if (activeTab === 'לא ענו') return false;
+      if (activeTab === 'עדיין לא חתם') return false;
+      return isHandled; // 'טופלו'
+    })
+    .filter((s) => {
+      if (!searchQuery) return true;
+      
+      const query = searchQuery.trim().toLowerCase();
+      
+      // 1. Supplier Name
+      const nameMatches = s["Supplier Name"] && s["Supplier Name"].toLowerCase().includes(query);
+      
+      // 2. Supplier Number (original index in the CSV / suppliers list)
+      const originalIndex = suppliers.indexOf(s) + 1;
+      const indexMatches = originalIndex.toString() === query || 
+                           `#${originalIndex}` === query || 
+                           `ספק ${originalIndex}` === query || 
+                           originalIndex.toString().includes(query);
+      
+      // 3. Phone number matches (Real Phone, Phone Number, etc.)
+      const cleanQuery = query.replace(/[-\s]/g, '');
+      const realPhoneClean = (s["Real Phone"] || "").replace(/[-\s]/g, '');
+      const phoneClean = (s["Phone Number"] || s["phone"] || "").replace(/[-\s]/g, '');
+      
+      const phoneMatches = (realPhoneClean && realPhoneClean.includes(cleanQuery)) || 
+                           (phoneClean && phoneClean.includes(cleanQuery));
+                           
+      return nameMatches || indexMatches || phoneMatches;
+    });
+
   return (
     <div className="dashboard-container" dir="rtl">
       {activeAgent === 'נתנאל' && (
@@ -1009,357 +1079,474 @@ export default function SuppliersDashboard() {
           טוען ספקים...
         </div>
       ) : (
-        <div className="suppliers-grid">
-          {suppliers
-            .filter((s, i) => {
-              if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
-              const allowedCategories = agentCategoryMap[activeAgent] || [];
-              
-              // If it's a general unassigned supplier, show to everyone so they can categorize
-              if (s.Category === "ספקים ללא קטגוריה" || !s.Category) return true;
-              
-              const matches = allowedCategories.some(cat => s.Category.includes(cat));
-              if (!matches) return false;
+        <>
+          {/* Premium Search Bar */}
+          <div style={{ marginBottom: '24px' }} className="animate-in">
+            <div className="glass-card" style={{ 
+              padding: '16px 20px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px',
+              background: 'var(--card-bg)',
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(139, 92, 246, 0.05)',
+              border: '1px solid var(--border)',
+              transition: 'all 0.3s ease',
+              direction: 'rtl'
+            }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <span style={{ 
+                  position: 'absolute', 
+                  right: '16px', 
+                  top: '50%', 
+                  transform: 'translateY(-50%)', 
+                  fontSize: '1.2rem',
+                  color: 'var(--text-muted)',
+                  pointerEvents: 'none',
+                  zIndex: 2
+                }}>
+                  🔍
+                </span>
+                <input 
+                  type="text" 
+                  placeholder="חפש ספק לפי שם, מספר טלפון או מספר ספק (#)..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '14px 48px 14px 16px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border)',
+                    background: '#f8fafc',
+                    fontSize: '1rem',
+                    fontWeight: '500',
+                    outline: 'none',
+                    transition: 'all 0.2s ease',
+                    color: 'var(--text)',
+                    fontFamily: 'inherit',
+                    paddingRight: '48px'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = 'var(--accent)';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.15)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'var(--border)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    style={{
+                      position: 'absolute',
+                      left: '16px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: '#e2e8f0',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '24px',
+                      height: '24px',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 'bold',
+                      transition: 'all 0.2s',
+                      zIndex: 2
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#cbd5e1'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#e2e8f0'}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
 
-              // Split logic for bride categories shared between Moran and Hodaya
-              const brideCategories = ['מאפרות', 'שיער', 'כלות', 'לחתן ולכלה'];
-              const isBrideCategory = brideCategories.some(cat => s.Category.includes(cat));
-              
-              if (isBrideCategory) {
-                if (activeAgent === 'מורן' && i % 2 !== 0) return false;
-                if (activeAgent === 'הודיה' && i % 2 !== 1) return false;
-              }
-
-              return true;
-            })
-            .filter((s) => {
-              const phone = s["Real Phone"] || s["phone"];
-              const state = supplierStates[phone] || { status: null };
-              const isHandled = state.status === 'not-interested' || state.status === 'contract';
-              const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
-              
-              if (state.status === 'not-available') {
-                return activeTab === 'לא ענו';
-              }
-              if (state.status === 'not-signed') {
-                return activeTab === 'עדיין לא חתם';
-              }
-              
-              if (activeTab === 'לטיפול') return !isHandled && !isCallback;
-              if (activeTab === 'לחזור אליהם') return !isHandled && isCallback;
-              if (activeTab === 'לא ענו') return false;
-              if (activeTab === 'עדיין לא חתם') return false;
-              return isHandled; // 'טופלו'
-            })
-            .map((s, i) => {
-            const phone = s["Real Phone"] || s["phone"];
-            const state = supplierStates[phone] || { status: null };
-
-            return (
-                <motion.div 
-                key={phone}
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="glass-card"
+          {searchQuery && (
+            <div style={{ 
+              background: 'var(--accent-soft)', 
+              border: '1px solid rgba(139, 92, 246, 0.2)',
+              color: 'var(--accent)', 
+              padding: '10px 16px', 
+              borderRadius: '10px', 
+              marginBottom: '20px',
+              fontSize: '0.9rem',
+              fontWeight: '700',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              animation: 'fadeIn 0.3s ease-out'
+            }}>
+              <span>
+                🔎 מציג תוצאות חיפוש עבור: "{searchQuery}" (מכל הלשוניות)
+              </span>
+              <button 
+                onClick={() => setSearchQuery('')}
                 style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  justifyContent: 'space-between',
-                  borderRight: state.status === 'not-available' ? '4px solid #f97316' : 
-                               state.status === 'contract' ? '4px solid #10b981' : 
-                               state.status === 'not-signed' ? '4px solid #3b82f6' : 
-                               state.callbackScheduled ? '4px solid #0ea5e9' : '1px solid var(--border)'
+                  background: 'transparent', 
+                  border: 'none', 
+                  color: 'var(--accent)', 
+                  fontWeight: '800', 
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
                 }}
               >
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span className="category-tag">{s["Category"] || "כללי"}</span>
-                      {state.reminder && (
-                        <div style={{ 
-                          fontSize: '0.75rem', color: '#8b5cf6', background: '#f5f3ff', 
-                          padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold',
-                          border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', gap: '6px'
-                        }}>
-                          <Calendar size={12} />
-                          <span>{state.agent}, יש ספק שצריך לתזכר ולבדוק מה איתו מיידית ({state.reminder})</span>
-                        </div>
-                      )}
-                    </div>
-                    <div 
-                      className="date-trigger" 
-                      onClick={() => toggleDatePicker(phone)}
-                      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--primary)' }}
-                    >
-                      <Calendar size={16} />
-                      <span>{state.closingDate || 'תאריך'}</span>
-                    </div>
-                  </div>
+                בטל חיפוש
+              </button>
+            </div>
+          )}
 
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '6px', color: 'var(--primary)' }}>{s["Supplier Name"]}</h3>
-                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '20px' }}>{s["Address"] || "מיקום לא צוין"}</p>
-                </div>
+          <div className="suppliers-grid">
+            {filteredSuppliers.length === 0 ? (
+              <div style={{ 
+                gridColumn: '1 / -1', 
+                textAlign: 'center', 
+                padding: '60px 20px', 
+                color: 'var(--text-muted)',
+                background: 'white',
+                borderRadius: '16px',
+                border: '1px dashed var(--border)',
+                width: '100%'
+              }}>
+                <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔍</div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '8px', color: 'var(--primary)' }}>לא נמצאו ספקים תואמים</h3>
+                <p style={{ fontSize: '0.9rem' }}>נסה לחפש לפי שם אחר, מספר טלפון מלא או מספר ספק תקין.</p>
+              </div>
+            ) : (
+              filteredSuppliers.map((s) => {
+                const phone = s["Real Phone"] || s["phone"];
+                const state = supplierStates[phone] || { status: null };
+                const supplierNumber = suppliers.indexOf(s) + 1;
 
-                <div>
-                  {/* Notes Input */}
-                  <textarea
-                    placeholder="✍️ הערות מיוחדות לדיווח..."
-                    value={state.notes || ""}
-                    onChange={(e) => updateSupplierState(phone, { notes: e.target.value })}
-                    style={{
-                      width: '100%',
-                      height: '50px',
-                      padding: '8px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--border)',
-                      background: '#f8fafc',
-                      fontSize: '0.8rem',
-                      resize: 'none',
-                      marginBottom: '10px',
-                      fontFamily: 'inherit',
-                      outline: 'none',
-                      transition: 'border-color 0.2s',
-                      direction: 'rtl'
+                return (
+                  <motion.div 
+                    key={phone}
+                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="glass-card"
+                    style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      justifyContent: 'space-between',
+                      borderRight: state.status === 'not-interested' ? '4px solid #ef4444' :
+                                   state.status === 'not-available' ? '4px solid #f97316' : 
+                                   state.status === 'contract' ? '4px solid #10b981' : 
+                                   state.status === 'not-signed' ? '4px solid #3b82f6' : 
+                                   state.callbackScheduled ? '4px solid #0ea5e9' : '1px solid var(--border)'
                     }}
-                    onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
-                    onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
-                  />
-
-                  {/* Action Buttons */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px' }}>
-                    <button
-                      onClick={() => setStatus(phone, 'contract')}
-                      style={{
-                        padding: '9px 6px', borderRadius: '10px', border: '1px solid #10b981',
-                        background: state.status === 'contract' ? '#10b981' : 'transparent',
-                        color: state.status === 'contract' ? 'white' : '#10b981',
-                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
-                      }}
-                    >
-                      ✅ נשלח חוזה ונחתם
-                    </button>
-                    <button
-                      onClick={() => setStatus(phone, 'not-interested')}
-                      style={{
-                        padding: '9px 6px', borderRadius: '10px', border: '1px solid #ef4444',
-                        background: state.status === 'not-interested' ? '#ef4444' : 'transparent',
-                        color: state.status === 'not-interested' ? 'white' : '#ef4444',
-                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
-                      }}
-                    >
-                      ❌ לא מעוניין
-                    </button>
-                    <button
-                      onClick={() => {
-                        setStatus(phone, 'not-available');
-                        setActiveTab('לא ענו');
-                      }}
-                      style={{
-                        padding: '9px 6px', borderRadius: '10px', border: '1px solid #f97316',
-                        background: state.status === 'not-available' ? '#f97316' : 'transparent',
-                        color: state.status === 'not-available' ? 'white' : '#f97316',
-                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
-                      }}
-                    >
-                      📵 לא זמין / לא ענו
-                    </button>
-                    <button
-                      onClick={() => {
-                        setStatus(phone, 'not-signed');
-                        setActiveTab('עדיין לא חתם');
-                      }}
-                      style={{
-                        padding: '9px 6px', borderRadius: '10px', border: '1px solid #3b82f6',
-                        background: state.status === 'not-signed' ? '#3b82f6' : 'transparent',
-                        color: state.status === 'not-signed' ? 'white' : '#3b82f6',
-                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
-                      }}
-                    >
-                      ⏳ עדיין לא חתם
-                    </button>
-                    <button
-                      onClick={() => setActiveCallbackPicker(activeCallbackPicker === phone ? null : phone)}
-                      style={{
-                        padding: '9px 6px', borderRadius: '10px',
-                        border: `1px solid ${state.callbackScheduled ? '#0ea5e9' : '#0284c7'}`,
-                        background: state.callbackScheduled ? '#0ea5e9' : (activeCallbackPicker === phone ? '#0284c7' : 'transparent'),
-                        color: state.callbackScheduled ? 'white' : (activeCallbackPicker === phone ? 'white' : '#0284c7'),
-                        fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer',
-                        gridColumn: 'span 2'
-                      }}
-                    >
-                      {state.callbackScheduled ? `⏰ ${state.callbackScheduled}` : '⏰ לחזור מאוחר יותר'}
-                    </button>
-                  </div>
-
-                  <AnimatePresence>
-                    {activeCallbackPicker === phone && (
-                      <motion.div
-                        key="callback-picker"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        style={{ background: '#f0f9ff', padding: '14px', borderRadius: '12px', marginBottom: '12px', overflow: 'hidden', border: '1px solid #bae6fd' }}
-                      >
-                        <p style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1', marginBottom: '10px' }}>⏰ בחר שעה לחזרה לספק:</p>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                          {[
-                            { label: 'עוד דקה (בדיקה)', minutes: 1 },
-                            { label: 'עוד 30 דק׳', minutes: 30 },
-                            { label: 'עוד שעה', minutes: 60 },
-                            { label: 'עוד 2 שעות', minutes: 120 },
-                            { label: 'מחר 9:00', minutes: minutesUntilTomorrow() },
-                            { label: 'עוד יומיים', minutes: 2880 },
-                          ].map(opt => (
-                            <button
-                              key={opt.label}
-                              onClick={() => scheduleCallback(phone, s, opt.minutes)}
-                              style={{
-                                padding: '8px 4px', borderRadius: '8px',
-                                border: '1px solid #bae6fd', background: 'white',
-                                color: '#0369a1', fontSize: '0.7rem', fontWeight: '700', cursor: 'pointer'
-                              }}
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
-                        </div>
-
-                        <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #bae6fd' }}>
-                          <p style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1', marginBottom: '8px' }}>📅 או בחר מועד מותאם אישית:</p>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <input 
-                              type="datetime-local" 
-                              id={`custom-date-${phone}`}
-                              style={{
-                                flex: 1,
-                                padding: '8px',
-                                borderRadius: '8px',
-                                border: '1px solid #bae6fd',
-                                fontSize: '0.8rem',
-                                color: '#0369a1',
-                                outline: 'none',
-                                background: 'white',
-                                fontFamily: 'inherit'
-                              }}
-                            />
-                            <button
-                              onClick={() => {
-                                const val = document.getElementById(`custom-date-${phone}`).value;
-                                if (val) {
-                                  scheduleCustomCallback(phone, val);
-                                } else {
-                                  alert('אנא בחר תאריך ושעה');
-                                }
-                              }}
-                              style={{
-                                padding: '8px 14px',
-                                borderRadius: '8px',
-                                background: '#0284c7',
-                                color: 'white',
-                                border: 'none',
-                                fontWeight: '700',
-                                fontSize: '0.75rem',
-                                cursor: 'pointer',
-                                transition: 'background 0.2s'
-                              }}
-                              onMouseOver={(e) => e.target.style.background = '#0369a1'}
-                              onMouseOut={(e) => e.target.style.background = '#0284c7'}
-                            >
-                              אישור
-                            </button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  <AnimatePresence mode="wait">
-
-                    {state.status === 'contract' && (
-                      <motion.div
-                        key="closed-menu"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                      >
-                        <div 
-                          className="upload-zone"
-                          onClick={() => document.getElementById(`file-${phone}`).click()}
-                          style={{ marginBottom: '16px', background: state.uploadedImage ? '#f0fdf4' : 'transparent', borderColor: state.uploadedImage ? '#bbf7d0' : 'var(--border)', cursor: 'pointer' }}
-                        >
-                          <input 
-                            id={`file-${phone}`}
-                            type="file" 
-                            onChange={(e) => handleFileChange(phone, e.target.files[0])}
-                            style={{ display: 'none' }}
-                            accept="image/*"
-                          />
-                          {state.uploadedImage ? (
-                            <div style={{ color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: '600' }}>
-                              <CheckCircle2 size={18} />
-                              <span>חוזה/צילום מסך צורף</span>
-                            </div>
-                          ) : (
-                            <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem' }}>
-                              <Upload size={18} />
-                              <span>צרף חוזה או צילום מסך</span>
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span className="category-tag">{s["Category"] || "כללי"}</span>
+                          {state.reminder && (
+                            <div style={{ 
+                              fontSize: '0.75rem', color: '#8b5cf6', background: '#f5f3ff', 
+                              padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold',
+                              border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', gap: '6px'
+                            }}>
+                              <Calendar size={12} />
+                              <span>{state.agent}, יש ספק שצריך לתזכר ולבדוק מה איתו מיידית ({state.reminder})</span>
                             </div>
                           )}
                         </div>
-
-                        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                          <button 
-                            onClick={() => sendToWhatsApp(phone, s)}
-                            className="btn-primary btn-whatsapp" 
-                            style={{ 
-                              flex: 1, padding: '12px',
-                              opacity: state.uploadedImage ? 1 : 0.5,
-                              cursor: state.uploadedImage ? 'pointer' : 'not-allowed'
-                            }}
-                          >
-                            <MessageCircle size={20} />
-                            <span>דיווח בוואטצאפ</span>
-                          </button>
+                        <div 
+                          className="date-trigger" 
+                          onClick={() => toggleDatePicker(phone)}
+                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--primary)' }}
+                        >
+                          <Calendar size={16} />
+                          <span>{state.closingDate || 'תאריך'}</span>
                         </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                      </div>
 
-                  {/* Date Picker (hidden by default) */}
-                  <AnimatePresence>
-                    {state.showDatePicker && (
-                      <motion.div 
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        style={{ overflow: 'hidden', marginTop: '10px' }}
-                      >
-                        <input 
-                          type="date" 
-                          value={state.closingDate}
-                          onChange={(e) => handleDateChange(phone, e.target.value)}
-                          style={{ 
-                            width: '100%', padding: '10px', borderRadius: '8px', 
-                            border: '1px solid var(--border)', fontFamily: 'inherit', fontSize: '0.9rem'
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px', flexWrap: 'wrap', gap: '8px' }}>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--primary)', margin: 0, maxWidth: '70%' }}>
+                          {s["Supplier Name"]}
+                        </h3>
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          color: 'var(--accent)', 
+                          fontWeight: '800', 
+                          background: 'var(--accent-soft)', 
+                          padding: '4px 10px', 
+                          borderRadius: '8px',
+                          border: '1px solid rgba(139, 92, 246, 0.2)'
+                        }}>
+                          ספק #{supplierNumber}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '20px' }}>{s["Address"] || "מיקום לא צוין"}</p>
+                    </div>
+
+                    <div>
+                      {/* Notes Input */}
+                      <textarea
+                        placeholder="✍️ הערות מיוחדות לדיווח..."
+                        value={state.notes || ""}
+                        onChange={(e) => updateSupplierState(phone, { notes: e.target.value })}
+                        style={{
+                          width: '100%',
+                          height: '50px',
+                          padding: '8px 12px',
+                          borderRadius: '10px',
+                          border: '1px solid var(--border)',
+                          background: '#f8fafc',
+                          fontSize: '0.8rem',
+                          resize: 'none',
+                          marginBottom: '10px',
+                          fontFamily: 'inherit',
+                          outline: 'none',
+                          transition: 'border-color 0.2s',
+                          direction: 'rtl'
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                        onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                      />
+
+                      {/* Action Buttons */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px' }}>
+                        <button
+                          onClick={() => setStatus(phone, 'contract')}
+                          style={{
+                            padding: '9px 6px', borderRadius: '10px', border: '1px solid #10b981',
+                            background: state.status === 'contract' ? '#10b981' : 'transparent',
+                            color: state.status === 'contract' ? 'white' : '#10b981',
+                            fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
                           }}
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                        >
+                          ✅ נשלח חוזה ונחתם
+                        </button>
+                        <button
+                          onClick={() => setStatus(phone, 'not-interested')}
+                          style={{
+                            padding: '9px 6px', borderRadius: '10px', border: '1px solid #ef4444',
+                            background: state.status === 'not-interested' ? '#ef4444' : 'transparent',
+                            color: state.status === 'not-interested' ? 'white' : '#ef4444',
+                            fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
+                          }}
+                        >
+                          ❌ לא מעוניין
+                        </button>
+                        <button
+                          onClick={() => {
+                            setStatus(phone, 'not-available');
+                            setActiveTab('לא ענו');
+                          }}
+                          style={{
+                            padding: '9px 6px', borderRadius: '10px', border: '1px solid #f97316',
+                            background: state.status === 'not-available' ? '#f97316' : 'transparent',
+                            color: state.status === 'not-available' ? 'white' : '#f97316',
+                            fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
+                          }}
+                        >
+                          📵 לא זמין / לא ענו
+                        </button>
+                        <button
+                          onClick={() => {
+                            setStatus(phone, 'not-signed');
+                            setActiveTab('עדיין לא חתם');
+                          }}
+                          style={{
+                            padding: '9px 6px', borderRadius: '10px', border: '1px solid #3b82f6',
+                            background: state.status === 'not-signed' ? '#3b82f6' : 'transparent',
+                            color: state.status === 'not-signed' ? 'white' : '#3b82f6',
+                            fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
+                          }}
+                        >
+                          ⏳ עדיין לא חתם
+                        </button>
+                        <button
+                          onClick={() => setActiveCallbackPicker(activeCallbackPicker === phone ? null : phone)}
+                          style={{
+                            padding: '9px 6px', borderRadius: '10px',
+                            border: `1px solid ${state.callbackScheduled ? '#0ea5e9' : '#0284c7'}`,
+                            background: state.callbackScheduled ? '#0ea5e9' : (activeCallbackPicker === phone ? '#0284c7' : 'transparent'),
+                            color: state.callbackScheduled ? 'white' : (activeCallbackPicker === phone ? 'white' : '#0284c7'),
+                            fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer',
+                            gridColumn: 'span 2'
+                          }}
+                        >
+                          {state.callbackScheduled ? `⏰ ${state.callbackScheduled}` : '⏰ לחזור מאוחר יותר'}
+                        </button>
+                      </div>
 
-                  <div style={{ display: 'flex', gap: '8px', marginTop: state.status === 'closed' ? '8px' : '0' }}>
-                    <a href={`tel:${s["Real Phone"]}`} className="btn-primary" style={{ flex: 1, padding: '12px' }}>
-                      <Phone size={20} />
-                      <span>התקשר עכשיו</span>
-                    </a>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+                      <AnimatePresence>
+                        {activeCallbackPicker === phone && (
+                          <motion.div
+                            key="callback-picker"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            style={{ background: '#f0f9ff', padding: '14px', borderRadius: '12px', marginBottom: '12px', overflow: 'hidden', border: '1px solid #bae6fd' }}
+                          >
+                            <p style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1', marginBottom: '10px' }}>⏰ בחר שעה לחזרה לספק:</p>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                              {[
+                                { label: 'עוד דקה (בדיקה)', minutes: 1 },
+                                { label: 'עוד 30 דק׳', minutes: 30 },
+                                { label: 'עוד שעה', minutes: 60 },
+                                { label: 'עוד 2 שעות', minutes: 120 },
+                                { label: 'מחר 9:00', minutes: minutesUntilTomorrow() },
+                                { label: 'עוד יומיים', minutes: 2880 },
+                              ].map(opt => (
+                                <button
+                                  key={opt.label}
+                                  onClick={() => scheduleCallback(phone, s, opt.minutes)}
+                                  style={{
+                                    padding: '8px 4px', borderRadius: '8px',
+                                    border: '1px solid #bae6fd', background: 'white',
+                                    color: '#0369a1', fontSize: '0.7rem', fontWeight: '700', cursor: 'pointer'
+                                  }}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+
+                            <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #bae6fd' }}>
+                              <p style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1', marginBottom: '8px' }}>📅 או בחר מועד מותאם אישית:</p>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <input 
+                                  type="datetime-local" 
+                                  id={`custom-date-${phone}`}
+                                  style={{
+                                    flex: 1,
+                                    padding: '8px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #bae6fd',
+                                    fontSize: '0.8rem',
+                                    color: '#0369a1',
+                                    outline: 'none',
+                                    background: 'white',
+                                    fontFamily: 'inherit'
+                                  }}
+                                />
+                                <button
+                                  onClick={() => {
+                                    const val = document.getElementById(`custom-date-${phone}`).value;
+                                    if (val) {
+                                      scheduleCustomCallback(phone, val);
+                                    } else {
+                                      alert('אנא בחר תאריך ושעה');
+                                    }
+                                  }}
+                                  style={{
+                                    padding: '8px 14px',
+                                    borderRadius: '8px',
+                                    background: '#0284c7',
+                                    color: 'white',
+                                    border: 'none',
+                                    fontWeight: '700',
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer',
+                                    transition: 'background 0.2s'
+                                  }}
+                                  onMouseOver={(e) => e.target.style.background = '#0369a1'}
+                                  onMouseOut={(e) => e.target.style.background = '#0284c7'}
+                                >
+                                  אישור
+                                </button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <AnimatePresence mode="wait">
+
+                        {state.status === 'contract' && (
+                          <motion.div
+                            key="closed-menu"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                          >
+                            <div 
+                              className="upload-zone"
+                              onClick={() => document.getElementById(`file-${phone}`).click()}
+                              style={{ marginBottom: '16px', background: state.uploadedImage ? '#f0fdf4' : 'transparent', borderColor: state.uploadedImage ? '#bbf7d0' : 'var(--border)', cursor: 'pointer' }}
+                            >
+                              <input 
+                                id={`file-${phone}`}
+                                type="file" 
+                                onChange={(e) => handleFileChange(phone, e.target.files[0])}
+                                style={{ display: 'none' }}
+                                accept="image/*"
+                              />
+                              {state.uploadedImage ? (
+                                <div style={{ color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: '600' }}>
+                                  <CheckCircle2 size={18} />
+                                  <span>חוזה/צילום מסך צורף</span>
+                                </div>
+                              ) : (
+                                <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem' }}>
+                                  <Upload size={18} />
+                                  <span>צרף חוזה או צילום מסך</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                              <button 
+                                onClick={() => sendToWhatsApp(phone, s)}
+                                className="btn-primary btn-whatsapp" 
+                                style={{ 
+                                  flex: 1, padding: '12px',
+                                  opacity: state.uploadedImage ? 1 : 0.5,
+                                  cursor: state.uploadedImage ? 'pointer' : 'not-allowed'
+                                }}
+                              >
+                                <MessageCircle size={20} />
+                                <span>דיווח בוואטצאפ</span>
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Date Picker (hidden by default) */}
+                      <AnimatePresence>
+                        {state.showDatePicker && (
+                          <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            style={{ overflow: 'hidden', marginTop: '10px' }}
+                          >
+                            <input 
+                              type="date" 
+                              value={state.closingDate}
+                              onChange={(e) => handleDateChange(phone, e.target.value)}
+                              style={{ 
+                                width: '100%', padding: '10px', borderRadius: '8px', 
+                                border: '1px solid var(--border)', fontFamily: 'inherit', fontSize: '0.9rem'
+                              }}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <div style={{ display: 'flex', gap: '8px', marginTop: state.status === 'closed' ? '8px' : '0' }}>
+                        <a href={`tel:${s["Real Phone"]}`} className="btn-primary" style={{ flex: 1, padding: '12px' }}>
+                          <Phone size={20} />
+                          <span>התקשר עכשיו</span>
+                        </a>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+          </div>
+        </>
       )}
 
       <footer style={{ marginTop: '60px', textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
