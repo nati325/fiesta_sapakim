@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const filePath = path.join(process.cwd(), 'engaged_suppliers_final_production.csv');
+        const filePath = path.join(process.cwd(), 'scraping', 'engaged_suppliers_final_production.csv');
         
         if (!fs.existsSync(filePath)) {
             console.log("File not found at:", filePath);
