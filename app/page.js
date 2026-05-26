@@ -645,6 +645,8 @@ export default function SuppliersDashboard() {
 
   const filteredSuppliers = suppliers
     .filter((s, i) => {
+      if (searchQuery) return true; // Bypasses category restrictions so they can search globally across all categories!
+      
       if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
       const allowedCategories = agentCategoryMap[activeAgent] || [];
       
@@ -691,17 +693,28 @@ export default function SuppliersDashboard() {
       
       const query = searchQuery.trim().toLowerCase();
       
-      // 1. Supplier Name
-      const nameMatches = s["Supplier Name"] && s["Supplier Name"].toLowerCase().includes(query);
+      // 1. Supplier Name Matches (extremely resilient)
+      const nameMatches = (s["Supplier Name"] && s["Supplier Name"].toLowerCase().includes(query)) ||
+                          (s["name"] && s["name"].toLowerCase().includes(query)) ||
+                          (s["Name"] && s["Name"].toLowerCase().includes(query));
       
-      // 2. Supplier Number (original index in the CSV / suppliers list)
+      // 2. Category matches
+      const categoryMatches = s["Category"] && s["Category"].toLowerCase().includes(query);
+      
+      // 3. Address matches
+      const addressMatches = s["Address"] && s["Address"].toLowerCase().includes(query);
+      
+      // 4. Website matches
+      const websiteMatches = s["Website"] && s["Website"].toLowerCase().includes(query);
+      
+      // 5. Supplier Number (original index in the CSV / suppliers list)
       const originalIndex = suppliers.indexOf(s) + 1;
       const indexMatches = originalIndex.toString() === query || 
                            `#${originalIndex}` === query || 
                            `ספק ${originalIndex}` === query || 
                            originalIndex.toString().includes(query);
       
-      // 3. Phone number matches (Real Phone, Phone Number, etc.)
+      // 6. Phone number matches (Real Phone, Phone Number, etc.)
       const cleanQuery = query.replace(/[-\s]/g, '');
       const realPhoneClean = (s["Real Phone"] || "").replace(/[-\s]/g, '');
       const phoneClean = (s["Phone Number"] || s["phone"] || "").replace(/[-\s]/g, '');
@@ -709,7 +722,7 @@ export default function SuppliersDashboard() {
       const phoneMatches = (realPhoneClean && realPhoneClean.includes(cleanQuery)) || 
                            (phoneClean && phoneClean.includes(cleanQuery));
                            
-      return nameMatches || indexMatches || phoneMatches;
+      return nameMatches || categoryMatches || addressMatches || websiteMatches || indexMatches || phoneMatches;
     });
 
   return (
