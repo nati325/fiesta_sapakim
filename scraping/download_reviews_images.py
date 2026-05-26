@@ -8,9 +8,9 @@ from google import genai
 from google.genai import types
 
 # --- Configuration ---
+# Only use the verified working API key
 API_KEYS = [
-    "AIzaSyDLga3BzXoRCc3XyoyBmxmT2egg--IAyzM",
-    "AIzaSyD3o1yPhkCfS8RaEbvUJgeDVed_eYCEcgY"
+    "AIzaSyDLga3BzXoRCc3XyoyBmxmT2egg--IAyzM"
 ]
 INPUT_FILE = "engaged_suppliers_final_production.csv"
 OUTPUT_JSON = "../data/reviews_and_images.json"
@@ -18,10 +18,12 @@ MEDIA_DIR = "../public/media/suppliers"
 
 current_key_index = 0
 current_model_index = 0
+
+# Model names WITHOUT 'models/' prefix
 MODELS_TO_TRY = [
-    "models/gemini-2.5-flash",
-    "models/gemini-1.5-flash",
-    "models/gemini-1.5-pro",
+    "gemini-2.5-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
 ]
 
 def get_next_client():
@@ -41,7 +43,6 @@ def download_image(url, save_path):
         }
         res = requests.get(url, headers=headers, timeout=15)
         if res.status_code == 200:
-            # Check content type is image
             content_type = res.headers.get('Content-Type', '')
             if 'image' in content_type:
                 with open(save_path, 'wb') as f:
@@ -81,6 +82,8 @@ def get_reviews_and_image_urls(supplier_name, category, address):
     """
     
     max_attempts = 6
+    base_delay = 5
+    
     for attempt in range(max_attempts):
         model_to_use = MODELS_TO_TRY[current_model_index % len(MODELS_TO_TRY)]
         current_model_index += 1
@@ -115,16 +118,24 @@ def get_reviews_and_image_urls(supplier_name, category, address):
             
             return json.loads(text)
         except Exception as e:
-            print(f"Failed ({str(e)[:40]})")
+            err_msg = str(e)
+            is_503 = "503" in err_msg or "UNAVAILABLE" in err_msg or "429" in err_msg
+            status_label = "BUSY (503/429)" if is_503 else f"ERROR: {err_msg[:60]}..."
+            print(f"Failed ({status_label})")
+            
             if attempt < max_attempts - 1:
-                time.sleep(3)
+                sleep_time = (base_delay * (2 ** (attempt % 3))) + 2
+                if is_503:
+                    sleep_time += 15
+                print(f"        [!] Retrying in {sleep_time:.1f}s...")
+                time.sleep(sleep_time)
                 continue
                 
     return {"reviews": [], "image_urls": []}
 
 def main():
     print("\n" + "="*60)
-    print("--- [GOOGLE REVIEWS & IMAGES DOWNLOADER V1.0] ---")
+    print("--- [GOOGLE REVIEWS & IMAGES DOWNLOADER V1.1] ---")
     print("="*60 + "\n")
     
     # Ensure directories exist
@@ -137,7 +148,9 @@ def main():
         try:
             with open(OUTPUT_JSON, 'r', encoding='utf-8') as f:
                 existing_data = json.load(f)
-            print(f"[*] Loaded existing reviews data for {len(existing_data)} suppliers.")
+            # Remove keys that only contain failed/empty runs so we re-try them
+            existing_data = {k: v for k, v in existing_data.items() if len(v.get("downloaded_images", [])) > 0 or len(v.get("reviews", [])) > 0}
+            print(f"[*] Loaded existing reviews data for {len(existing_data)} successfully processed suppliers.")
         except Exception as e:
             print(f"[!] Error loading existing data: {e}")
             
@@ -148,17 +161,15 @@ def main():
         supplier_name = row["Supplier Name"]
         phone = str(row["Real Phone"]) if not pd.isna(row["Real Phone"]) else f"index_{i}"
         
-        # Unique identifier key
         key = supplier_name
         
-        # Check if already has download completed with 5 images or at least some content
-        if key in existing_data and len(existing_data[key].get("downloaded_images", [])) > 0:
+        # Check if already processed
+        if key in existing_data:
             print(f"[-] ({i+1}/{len(df)}) Already processed: {supplier_name}. Skipping.")
             continue
             
         print(f"\n[*] ({i+1}/{len(df)}) Researching: {supplier_name}...")
         
-        # Research
         data = get_reviews_and_image_urls(supplier_name, row.get("Category", ""), row.get("Address", ""))
         
         reviews = data.get("reviews", [])
@@ -167,7 +178,6 @@ def main():
         # Download images
         downloaded_local_paths = []
         if image_urls:
-            # Create subfolder for this supplier
             folder_name = clean_filename(phone)
             supplier_folder = os.path.join(MEDIA_DIR, folder_name)
             os.makedirs(supplier_folder, exist_ok=True)
@@ -180,7 +190,6 @@ def main():
                 save_path = os.path.join(supplier_folder, f"img_{img_idx}.jpg")
                 success = download_image(url, save_path)
                 if success:
-                    # Save relative path for Next.js (relative to /public)
                     relative_path = f"/media/suppliers/{folder_name}/img_{img_idx}.jpg"
                     downloaded_local_paths.append(relative_path)
                     print("Success.")
@@ -188,20 +197,21 @@ def main():
                 else:
                     print("Failed.")
                     
-        # Update JSON DB
-        existing_data[key] = {
-            "reviews": reviews,
-            "downloaded_images": downloaded_local_paths,
-            "google_rating": row.get("Google Rating", "N/A"),
-            "reviews_count": row.get("Reviews Count", "N/A"),
-            "last_updated": time.strftime("%Y-%m-%d %H:%M:%S")
-        }
-        
-        # Save progress
-        with open(OUTPUT_JSON, 'w', encoding='utf-8') as f:
-            json.dump(existing_data, f, ensure_ascii=False, indent=2)
+        if reviews or downloaded_local_paths:
+            existing_data[key] = {
+                "reviews": reviews,
+                "downloaded_images": downloaded_local_paths,
+                "google_rating": row.get("Google Rating", "N/A"),
+                "reviews_count": row.get("Reviews Count", "N/A"),
+                "last_updated": time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+            # Save progress immediately
+            with open(OUTPUT_JSON, 'w', encoding='utf-8') as f:
+                json.dump(existing_data, f, ensure_ascii=False, indent=2)
+            print(f"    [+] Saved: {len(reviews)} reviews and {len(downloaded_local_paths)} images.")
+        else:
+            print("    [!] No reviews or images found for this supplier.")
             
-        print(f"    [+] Saved: {len(reviews)} reviews and {len(downloaded_local_paths)} images.")
         time.sleep(2)
 
 if __name__ == "__main__":
