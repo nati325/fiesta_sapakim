@@ -247,10 +247,18 @@ export async function GET() {
 
 export async function POST(req) {
     try {
-        const { phone, images } = await req.json();
+        const { phone, name, images, description } = await req.json();
         
         if (!phone) {
             return NextResponse.json({ error: "Missing supplier phone" }, { status: 400 });
+        }
+        
+        const updateFields = {};
+        if (images !== undefined) updateFields.images = images;
+        if (description !== undefined) updateFields.description = description;
+        
+        if (Object.keys(updateFields).length === 0) {
+            return NextResponse.json({ error: "No fields to update" }, { status: 400 });
         }
         
         // 1. Update in MongoDB
@@ -261,9 +269,9 @@ export async function POST(req) {
             
             const result = await collection.updateOne(
                 { phone: phone },
-                { $set: { images: images } }
+                { $set: updateFields }
             );
-            console.log(`Updated supplier ${phone} images in MongoDB. Matched: ${result.matchedCount}, Modified: ${result.modifiedCount}`);
+            console.log(`Updated supplier ${phone} fields in MongoDB:`, Object.keys(updateFields));
         } catch (dbError) {
             console.error("MongoDB update failed:", dbError.message);
         }
@@ -280,17 +288,37 @@ export async function POST(req) {
                     const itemPhone = item.real_phone || item.phone || "";
                     if (itemPhone === phone) {
                         updated = true;
-                        return { ...item, images: images };
+                        return { ...item, ...updateFields };
                     }
                     return item;
                 });
                 
                 if (updated) {
                     fs.writeFileSync(jsonPath, JSON.stringify(updatedData, null, 2), 'utf-8');
-                    console.log(`Updated supplier ${phone} images in local suppliers_complete.json.`);
+                    console.log(`Updated supplier ${phone} fields in local suppliers_complete.json.`);
                 }
             } catch (jsonError) {
                 console.error("Failed to update local JSON fallback:", jsonError.message);
+            }
+        }
+        
+        // 3. Update data/supplier_descriptions.json if description was updated and name was provided
+        if (description !== undefined && name) {
+            const descPath = path.join(process.cwd(), 'data', 'supplier_descriptions.json');
+            if (fs.existsSync(descPath)) {
+                try {
+                    const fileContent = fs.readFileSync(descPath, 'utf-8');
+                    const descData = JSON.parse(fileContent);
+                    descData[name] = {
+                        description: description,
+                        source: "agent_edited",
+                        last_updated: new Date().toISOString().replace('T', ' ').substring(0, 19)
+                    };
+                    fs.writeFileSync(descPath, JSON.stringify(descData, null, 2), 'utf-8');
+                    console.log(`Updated supplier ${name} description in supplier_descriptions.json.`);
+                } catch (descError) {
+                    console.error("Failed to update supplier_descriptions.json:", descError.message);
+                }
             }
         }
         
