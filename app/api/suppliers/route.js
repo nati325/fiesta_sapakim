@@ -27,35 +27,55 @@ function parseCSVLine(line) {
 
 function ensureJunction(src, dest) {
     try {
-        if (fs.existsSync(src)) {
-            if (fs.existsSync(dest)) {
-                const stat = fs.lstatSync(dest);
-                if (stat.isDirectory() && !stat.isSymbolicLink()) {
-                    const files = fs.readdirSync(dest);
-                    if (files.length === 0) {
-                        fs.rmdirSync(dest);
-                    } else {
-                        // Directory is not empty. Rename it to backup.
-                        fs.renameSync(dest, dest + '_backup_' + Date.now());
-                    }
-                } else if (stat.isSymbolicLink()) {
-                    // Symbolic link already exists, no action needed.
-                    return;
+        if (!fs.existsSync(src)) {
+            console.warn(`Junction source directory does not exist: ${src}`);
+            return;
+        }
+
+        let exists = false;
+        let isSymlink = false;
+        let isDir = false;
+
+        try {
+            const stat = fs.lstatSync(dest);
+            exists = true;
+            isSymlink = stat.isSymbolicLink();
+            isDir = stat.isDirectory();
+        } catch (err) {
+            // Dest does not exist
+        }
+
+        if (exists) {
+            if (isSymlink) {
+                try {
+                    fs.unlinkSync(dest);
+                } catch (e) {
+                    console.error(`Failed to unlink existing symlink at ${dest}:`, e.message);
                 }
-            }
-            if (!fs.existsSync(dest)) {
-                const parentDir = path.dirname(dest);
-                if (!fs.existsSync(parentDir)) {
-                    fs.mkdirSync(parentDir, { recursive: true });
+            } else if (isDir) {
+                const files = fs.readdirSync(dest);
+                if (files.length === 0) {
+                    fs.rmdirSync(dest);
+                } else {
+                    fs.renameSync(dest, dest + '_backup_' + Date.now());
                 }
-                fs.symlinkSync(src, dest, 'junction');
-                console.log(`Junction link created successfully from ${src} to ${dest}`);
+            } else {
+                fs.unlinkSync(dest);
             }
         }
+
+        const parentDir = path.dirname(dest);
+        if (!fs.existsSync(parentDir)) {
+            fs.mkdirSync(parentDir, { recursive: true });
+        }
+        
+        fs.symlinkSync(src, dest, 'junction');
+        console.log(`Junction link created successfully from ${src} to ${dest}`);
     } catch (e) {
         console.error(`Failed to ensure junction for ${dest}:`, e.message);
     }
 }
+
 
 function ensureResourcesLinked() {
     try {

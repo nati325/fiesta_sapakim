@@ -22,3 +22,15 @@ google_profile/
 # OS files
 Thumbs.db
 desktop.ini
+
+# Media directories (junctions / downloads)
+public/media/suppliers/
+public/media/portfolios/
+public/media/
+
+# Local utility scripts
+sync_db.js
+test_link.js
+test_email.js
+check_mongo.js
+
