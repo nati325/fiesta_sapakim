@@ -244,3 +244,60 @@ export async function GET() {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+
+export async function POST(req) {
+    try {
+        const { phone, images } = await req.json();
+        
+        if (!phone) {
+            return NextResponse.json({ error: "Missing supplier phone" }, { status: 400 });
+        }
+        
+        // 1. Update in MongoDB
+        try {
+            const client = await getMongoClient();
+            const db = client.db('fiesta_crm');
+            const collection = db.collection('suppliers');
+            
+            const result = await collection.updateOne(
+                { phone: phone },
+                { $set: { images: images } }
+            );
+            console.log(`Updated supplier ${phone} images in MongoDB. Matched: ${result.matchedCount}, Modified: ${result.modifiedCount}`);
+        } catch (dbError) {
+            console.error("MongoDB update failed:", dbError.message);
+        }
+        
+        // 2. Update local fallback JSON file suppliers_complete.json
+        const jsonPath = path.join(process.cwd(), 'data', 'suppliers_complete.json');
+        if (fs.existsSync(jsonPath)) {
+            try {
+                const fileContent = fs.readFileSync(jsonPath, 'utf-8');
+                const rawData = JSON.parse(fileContent);
+                let updated = false;
+                
+                const updatedData = rawData.map(item => {
+                    const itemPhone = item.real_phone || item.phone || "";
+                    if (itemPhone === phone) {
+                        updated = true;
+                        return { ...item, images: images };
+                    }
+                    return item;
+                });
+                
+                if (updated) {
+                    fs.writeFileSync(jsonPath, JSON.stringify(updatedData, null, 2), 'utf-8');
+                    console.log(`Updated supplier ${phone} images in local suppliers_complete.json.`);
+                }
+            } catch (jsonError) {
+                console.error("Failed to update local JSON fallback:", jsonError.message);
+            }
+        }
+        
+        return NextResponse.json({ success: true });
+        
+    } catch (error) {
+        console.error("API Error during POST:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
