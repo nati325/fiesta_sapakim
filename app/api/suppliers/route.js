@@ -1,62 +1,226 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import getMongoClient from '../../../lib/mongodb';
 
 export const dynamic = 'force-dynamic';
 
+function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    result.push(current.trim());
+    return result;
+}
+
+function ensureJunction(src, dest) {
+    try {
+        if (fs.existsSync(src)) {
+            if (fs.existsSync(dest)) {
+                const stat = fs.lstatSync(dest);
+                if (stat.isDirectory() && !stat.isSymbolicLink()) {
+                    const files = fs.readdirSync(dest);
+                    if (files.length === 0) {
+                        fs.rmdirSync(dest);
+                    } else {
+                        // Directory is not empty. Rename it to backup.
+                        fs.renameSync(dest, dest + '_backup_' + Date.now());
+                    }
+                } else if (stat.isSymbolicLink()) {
+                    // Symbolic link already exists, no action needed.
+                    return;
+                }
+            }
+            if (!fs.existsSync(dest)) {
+                const parentDir = path.dirname(dest);
+                if (!fs.existsSync(parentDir)) {
+                    fs.mkdirSync(parentDir, { recursive: true });
+                }
+                fs.symlinkSync(src, dest, 'junction');
+                console.log(`Junction link created successfully from ${src} to ${dest}`);
+            }
+        }
+    } catch (e) {
+        console.error(`Failed to ensure junction for ${dest}:`, e.message);
+    }
+}
+
+function ensureResourcesLinked() {
+    try {
+        const srcData = 'C:\\Users\\123\\Desktop\\scarping_for_fiesta\\data';
+        const srcSuppliersMedia = 'C:\\Users\\123\\Desktop\\scarping_for_fiesta\\public\\media\\suppliers';
+        const srcPortfoliosMedia = 'C:\\Users\\123\\Desktop\\scarping_for_fiesta\\public\\media\\portfolios';
+        
+        const destData = path.join(process.cwd(), 'data');
+        const destSuppliersMedia = path.join(process.cwd(), 'public', 'media', 'suppliers');
+        const destPortfoliosMedia = path.join(process.cwd(), 'public', 'media', 'portfolios');
+
+        // 1. Copy JSON files from Data folder (fast, small)
+        if (fs.existsSync(srcData)) {
+            if (!fs.existsSync(destData)) {
+                fs.mkdirSync(destData, { recursive: true });
+            }
+            const files = fs.readdirSync(srcData);
+            files.forEach(file => {
+                const srcFilePath = path.join(srcData, file);
+                const destFilePath = path.join(destData, file);
+                if (!fs.existsSync(destFilePath) || fs.statSync(srcFilePath).size !== fs.statSync(destFilePath).size) {
+                    fs.copyFileSync(srcFilePath, destFilePath);
+                }
+            });
+        }
+
+        // 2. Ensure junctions for media directories
+        ensureJunction(srcSuppliersMedia, destSuppliersMedia);
+        ensureJunction(srcPortfoliosMedia, destPortfoliosMedia);
+
+    } catch (e) {
+        console.error("Error setting up resource links:", e.message);
+    }
+}
+
 export async function GET() {
     try {
-        const filePath = path.join(process.cwd(), 'scraping', 'engaged_suppliers_final_production.csv');
-        
-        if (!fs.existsSync(filePath)) {
-            console.log("File not found at:", filePath);
+        // Run resource linking first (takes < 5ms if already linked)
+        ensureResourcesLinked();
+
+        console.log("GET /api/suppliers: Fetching from MongoDB...");
+
+        // 1. Try reading from MongoDB first
+        try {
+            const client = await getMongoClient();
+            const db = client.db('fiesta_crm');
+            const collection = db.collection('suppliers');
+
+            const dbSuppliers = await collection.find({}).toArray();
+            console.log(`Fetched ${dbSuppliers.length} suppliers from MongoDB.`);
+
+            if (dbSuppliers && dbSuppliers.length > 0) {
+                const data = dbSuppliers.map(item => ({
+                    "Supplier Name": item.name || "",
+                    "Phone Number": item.phone || "",
+                    "Category": item.category || "",
+                    "URL": item.engaged_url || "",
+                    "Main Image": item.main_image || "",
+                    "Gallery": item.gallery || "",
+                    "Real Phone": item.real_phone || "",
+                    "Website": item.website || "",
+                    "Google Rating": item.google_rating || "",
+                    "Reviews Count": item.reviews_count || "",
+                    "Address": item.address || "",
+                    "description": item.description || "",
+                    "reviews": item.reviews || [],
+                    "images": item.images || []
+                }));
+                return NextResponse.json(data);
+            }
+        } catch (dbError) {
+            console.error("MongoDB fetch failed, falling back to local files:", dbError.message);
+        }
+
+        // 2. Fallback: Try JSON (enriched data)
+        const jsonPath = path.join(process.cwd(), 'data', 'suppliers_complete.json');
+        if (fs.existsSync(jsonPath)) {
+            console.log("Reading from fallback suppliers_complete.json");
+            const fileContent = fs.readFileSync(jsonPath, 'utf-8');
+            const rawData = JSON.parse(fileContent);
+            const data = rawData.map(item => ({
+                "Supplier Name": item.name || "",
+                "Phone Number": item.phone || "",
+                "Category": item.category || "",
+                "URL": item.engaged_url || "",
+                "Main Image": item.images && item.images.length > 0 ? item.images[0] : (item.google_image || ""),
+                "Gallery": item.images ? item.images.join(",") : "",
+                "Real Phone": item.real_phone || "",
+                "Website": item.website || "",
+                "Google Rating": item.google_rating === "nan" ? "" : item.google_rating,
+                "Reviews Count": item.reviews_count === "nan" ? "" : item.reviews_count,
+                "Address": item.address || "",
+                "description": item.description || "",
+                "reviews": item.reviews || [],
+                "images": item.images || []
+            })).filter(item => {
+                const phone = item["Real Phone"] || item["Phone Number"];
+                return phone && phone !== "FAILED" && phone !== "N/A" && phone !== "";
+            });
+            return NextResponse.json(data);
+        }
+
+        // 3. Fallback: Try CSV
+        const csvPath = path.join(process.cwd(), 'scraping', 'engaged_suppliers_final_production.csv');
+        if (!fs.existsSync(csvPath)) {
+            console.log("No CSV fallback data source found");
             return NextResponse.json([]);
         }
 
-        const fileContent = fs.readFileSync(filePath, 'utf-8');
-        const lines = fileContent.split(/\r?\n/).filter(line => line.trim() !== "");
-        
-        if (lines.length < 2) return NextResponse.json([]);
-
-        // More robust CSV parsing to handle commas inside quotes
-        const parseCSVLine = (text) => {
-            const result = [];
-            let cell = '';
-            let inQuotes = false;
-            for (let i = 0; i < text.length; i++) {
-                const char = text[i];
-                if (char === '"') inQuotes = !inQuotes;
-                else if (char === ',' && !inQuotes) {
-                    result.push(cell.trim());
-                    cell = '';
-                } else {
-                    cell += char;
-                }
-            }
-            result.push(cell.trim());
-            return result;
-        };
-
+        console.log("Falling back to CSV");
+        const fileContent = fs.readFileSync(csvPath, 'utf-8');
+        const lines = fileContent.split('\n').filter(line => line.trim());
         const headers = parseCSVLine(lines[0]);
-        console.log("Headers found:", headers);
 
         const data = lines.slice(1).map(line => {
             const values = parseCSVLine(line);
             const obj = {};
-            headers.forEach((header, index) => {
-                const key = header.replace(/^"|"$/g, '').trim();
-                obj[key] = values[index] ? values[index].replace(/^"|"$/g, '').trim() : "";
+            headers.forEach((header, i) => {
+                obj[header] = values[i] || '';
             });
             return obj;
         }).filter(item => {
-            const phone = item["Real Phone"] || item["phone"]; // check both case variants
+            const phone = item["Real Phone"] || item["Phone Number"];
             return phone && phone !== "FAILED" && phone !== "N/A" && phone !== "";
         });
 
-        console.log(`Parsed ${data.length} valid suppliers`);
-        return NextResponse.json(data);
+        // Load enriched data for reviews/images
+        let reviewsMap = {};
+        let imagesMap = {};
+        let descriptionsMap = {};
+        
+        const reviewsPath = path.join(process.cwd(), 'data', 'supplier_reviews.json');
+        const imagesPath = path.join(process.cwd(), 'data', 'supplier_images.json');
+        const descPath = path.join(process.cwd(), 'data', 'supplier_descriptions.json');
+
+        if (fs.existsSync(reviewsPath)) reviewsMap = JSON.parse(fs.readFileSync(reviewsPath, 'utf-8'));
+        if (fs.existsSync(imagesPath)) imagesMap = JSON.parse(fs.readFileSync(imagesPath, 'utf-8'));
+        if (fs.existsSync(descPath)) descriptionsMap = JSON.parse(fs.readFileSync(descPath, 'utf-8'));
+
+        const enriched = data.map(item => {
+            const name = item["Supplier Name"] || "";
+            
+            // Clean up image fields (avoid broken "nan" values)
+            let mainImg = item["Main Image"] || "";
+            if (mainImg === "nan") mainImg = "";
+            let googleImg = item["Google Image"] || "";
+            if (googleImg === "nan") googleImg = "";
+
+            const rawImages = imagesMap[name]?.downloaded_images || [];
+            const cleanImages = rawImages.filter(img => img && img !== "nan");
+
+            return {
+                ...item,
+                "Main Image": mainImg,
+                "Google Image": googleImg,
+                "description": descriptionsMap[name] || "",
+                "reviews": reviewsMap[name] || [],
+                "images": cleanImages
+            };
+        });
+
+        return NextResponse.json(enriched);
+
     } catch (error) {
-        console.error("API Error:", error);
+        console.error("API Error during GET:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

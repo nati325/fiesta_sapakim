@@ -18,6 +18,7 @@ export default function SuppliersDashboard() {
   const [activeTab, setActiveTab] = useState('לטיפול');
   const [showReminderSuccess, setShowReminderSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSupplierProfile, setSelectedSupplierProfile] = useState(null);
   
   // Categories mapping
   const agentCategoryMap = {
@@ -1296,7 +1297,32 @@ export default function SuppliersDashboard() {
                           ספק #{supplierNumber}
                         </span>
                       </div>
-                      <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '20px' }}>{s["Address"] || "מיקום לא צוין"}</p>
+                      <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '10px' }}>{s["Address"] || "מיקום לא צוין"}</p>
+
+                      {/* Full Profile Button */}
+                      <button 
+                        onClick={() => setSelectedSupplierProfile(s)}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          marginBottom: '20px',
+                          background: 'linear-gradient(135deg, var(--primary), var(--accent))',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '10px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          gap: '8px',
+                          transition: 'all 0.2s',
+                          fontFamily: 'inherit',
+                          fontSize: '0.9rem'
+                        }}
+                      >
+                        📄 הצג פרופיל ספק מורחב
+                      </button>
                     </div>
 
                     <div>
@@ -1561,6 +1587,90 @@ export default function SuppliersDashboard() {
           </div>
         </>
       )}
+
+      <AnimatePresence>
+        {selectedSupplierProfile && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 10000, padding: '20px', direction: 'rtl'
+          }}>
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass-card"
+              style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '30px', position: 'relative' }}
+            >
+              <button 
+                onClick={() => setSelectedSupplierProfile(null)}
+                style={{ position: 'absolute', top: '15px', left: '15px', background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                ✕
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
+                {(selectedSupplierProfile["Google Image"] || selectedSupplierProfile["Main Image"]) && (
+                  <img 
+                    src={selectedSupplierProfile["Google Image"] || selectedSupplierProfile["Main Image"]} 
+                    style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--primary)' }} 
+                    alt="" 
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                )}
+                <div>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--primary)', margin: 0 }}>{selectedSupplierProfile["Supplier Name"]}</h2>
+                  <span className="category-tag" style={{ display: 'inline-block', marginTop: '5px' }}>{selectedSupplierProfile["Category"]}</span>
+                </div>
+              </div>
+
+              {selectedSupplierProfile.description && (
+                <div style={{ marginBottom: '25px', background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '10px', color: 'var(--accent)' }}>📝 אודות העסק</h3>
+                  <p style={{ lineHeight: '1.6', fontSize: '0.95rem' }}>{selectedSupplierProfile.description}</p>
+                </div>
+              )}
+
+              {selectedSupplierProfile.images && selectedSupplierProfile.images.length > 0 && (
+                <div style={{ marginBottom: '25px' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '15px', color: 'var(--accent)' }}>📸 תמונות גלריה</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px' }}>
+                    {selectedSupplierProfile.images.map((img, idx) => (
+                      <div key={idx} style={{ borderRadius: '10px', overflow: 'hidden', height: '120px', background: '#f1f5f9', border: '1px solid var(--border)' }}>
+                        <img 
+                          src={img} 
+                          alt="" 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedSupplierProfile.reviews && selectedSupplierProfile.reviews.length > 0 && (
+                <div style={{ marginBottom: '25px' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '15px', color: 'var(--accent)' }}>⭐ ביקורות נבחרות</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {selectedSupplierProfile.reviews.map((rev, idx) => (
+                      <div key={idx} style={{ background: 'white', padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span style={{ fontWeight: 'bold' }}>{rev.reviewer}</span>
+                          <span style={{ color: '#f59e0b' }}>{'⭐'.repeat(Math.min(5, Math.max(1, Math.round(Number(rev.rating) || 5))))}</span>
+                        </div>
+                        <p style={{ fontSize: '0.9rem', color: '#475569', margin: 0 }}>"{rev.text}"</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <footer style={{ marginTop: '60px', textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
         <p>&copy; {new Date().getFullYear()} Fiesta Admin Dashboard</p>
