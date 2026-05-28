@@ -270,6 +270,30 @@ export default function SuppliersDashboard() {
     const regionMatch = address.match(/[\u05D0-\u05EA]{2,}/);
     const region = regionMatch ? regionMatch[0] : '';
 
+    // Collect all unique images for this supplier
+    let supplierImages = [];
+    if (supplier.images && Array.isArray(supplier.images)) {
+      supplierImages = [...supplier.images];
+    }
+    
+    if (supplier['Main Image'] && supplier['Main Image'] !== 'N/A' && supplier['Main Image'] !== 'nan' && !supplierImages.includes(supplier['Main Image'])) {
+      supplierImages.unshift(supplier['Main Image']);
+    }
+    if (supplier['Google Image'] && supplier['Google Image'] !== 'N/A' && supplier['Google Image'] !== 'nan' && !supplierImages.includes(supplier['Google Image'])) {
+      supplierImages.push(supplier['Google Image']);
+    }
+    if (supplier['Gallery'] && supplier['Gallery'] !== 'N/A' && supplier['Gallery'] !== 'nan') {
+      const galleryParts = supplier['Gallery'].split('|').filter(img => img && img !== 'N/A' && img !== 'nan');
+      galleryParts.forEach(img => {
+        if (!supplierImages.includes(img)) {
+          supplierImages.push(img);
+        }
+      });
+    }
+
+    // Filter out invalid/empty image URLs
+    supplierImages = supplierImages.filter(img => img && img.trim() !== '' && img !== 'N/A' && img !== 'nan');
+
     setFiestaPushSupplier(supplier);
     setFiestaPushResult(null);
     setFiestaPushError('');
@@ -283,7 +307,8 @@ export default function SuppliersDashboard() {
       agentCommission: '',
       commissionAmount: '',
       discountDisplayType: 'percent',
-      agreementSigned: false
+      agreementSigned: false,
+      selectedImages: supplierImages // Store all images initially
     });
     setShowFiestaPushModal(true);
   };
@@ -2179,7 +2204,85 @@ export default function SuppliersDashboard() {
 
                     </div>
 
-                    {/* Agreement signed */}
+                     {/* ── Manage Images Section ───────────────────────────── */}
+                     <div style={{ marginTop: '5px', textAlign: 'right' }}>
+                       <label style={{ fontSize: '0.8rem', fontWeight: '800', display: 'block', marginBottom: '6px', color: '#555' }}>
+                         📷 תמונות שיועלו לאתר פייסטה ({fiestaPushForm.selectedImages?.length || 0})
+                       </label>
+                       {fiestaPushForm.selectedImages && fiestaPushForm.selectedImages.length > 0 ? (
+                         <div style={{ 
+                           display: 'grid', 
+                           gridTemplateColumns: 'repeat(4, 1fr)', 
+                           gap: '8px', 
+                           background: '#f8fafc', 
+                           padding: '12px', 
+                           borderRadius: '10px', 
+                           border: '1.5px solid var(--border)', 
+                           maxHeight: '135px', 
+                           overflowY: 'auto' 
+                         }}>
+                           {fiestaPushForm.selectedImages.map((imgUrl, idx) => (
+                             <div 
+                               key={idx} 
+                               style={{ 
+                                 position: 'relative', 
+                                 width: '100%', 
+                                 aspectRatio: '1', 
+                                 borderRadius: '8px', 
+                                 overflow: 'hidden', 
+                                 border: '1px solid var(--border)',
+                                 boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                 transition: 'transform 0.15s ease'
+                               }}
+                             >
+                               <img 
+                                 src={imgUrl} 
+                                 alt={`img-${idx}`} 
+                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                               />
+                               <button
+                                 onClick={() => {
+                                   setFiestaPushForm(f => ({
+                                     ...f,
+                                     selectedImages: f.selectedImages.filter(url => url !== imgUrl)
+                                   }));
+                                 }}
+                                 type="button"
+                                 style={{
+                                   position: 'absolute', top: '3px', left: '3px',
+                                   width: '18px', height: '18px', borderRadius: '50%',
+                                   background: '#ef4444', color: 'white', border: 'none',
+                                   cursor: 'pointer', fontSize: '9px', fontWeight: '900',
+                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                   boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'all 0.15s'
+                                 }}
+                                 title="הסר תמונה"
+                                 onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.15)'; e.currentTarget.style.background = '#dc2626'; }}
+                                 onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = '#ef4444'; }}
+                               >
+                                 ✕
+                               </button>
+                             </div>
+                           ))}
+                         </div>
+                       ) : (
+                         <div style={{ 
+                           padding: '12px', 
+                           textAlign: 'center', 
+                           background: '#fff1f2', 
+                           border: '1.5px dashed #fecdd3', 
+                           color: '#e11d48', 
+                           borderRadius: '10px', 
+                           fontSize: '0.8rem', 
+                           fontWeight: '700' 
+                         }}>
+                           ⚠️ לא נבחרו תמונות לספק זה. האתר יציג תמונת ברירת מחדל.
+                         </div>
+                       )}
+                     </div>
+
+                     {/* Agreement signed */}
                     <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem' }}>
                       <input
                         type="checkbox"

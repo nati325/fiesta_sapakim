@@ -38,12 +38,19 @@ export async function POST(req) {
     }
 
     // ── 2. Build vendor document matching Fiesta's Vendor schema ───────────
+    const selectedImages = fiestaData.selectedImages || [];
+    
+    // Set main image to the first selected image if available, else fall back
+    const mainImg = selectedImages.length > 0 
+      ? selectedImages[0] 
+      : (supplier['Main Image'] || supplier['Google Image'] || '');
+
     const vendorDoc = {
       name: supplierName,
       type: fiestaData.type || 'design',
       description: fiestaData.description || '',
       contact: supplier['Real Phone'] || supplier['phone'] || '',
-      image: supplier['Main Image'] || supplier['Google Image'] || '',
+      image: mainImg,
       region: fiestaData.region || '',
       price: fiestaData.price || '0',
       originalPrice: fiestaData.originalPrice || fiestaData.price || '0',
@@ -61,14 +68,19 @@ export async function POST(req) {
         `🌐 אתר: ${supplier['Website'] || 'אין'}`,
         `🏷️ קטגוריה מקורית: ${supplier['Category'] || 'לא צוין'}`,
         `💼 עמלת סוכן: ₪${fiestaData.agentCommission || '0'}`,
-        `🏢 עמלת Fiesta: ₪${fiestaData.commissionAmount || '0'}`
+        `🏢 עמלת Fiesta: ₪${fiestaData.commissionAmount || '0'}`,
+        `📸 תמונות שנבחרו: ${selectedImages.length}`
       ].join('\n'),
       instagramLink: '',
       priceIncludesVat: true,
       eventTypes: ['חתונה'],
       videos: [],
       products: [],
-      portfolio: [],
+      portfolio: selectedImages.map(imgUrl => ({
+        title: '',
+        image: imgUrl,
+        price: ''
+      })),
       mainProductId: '',
       createdAt: new Date()
     };
