@@ -94,6 +94,32 @@ async function callGemini(prompt) {
   throw new Error("All Gemini API keys failed.");
 }
 
+function isProxyNumber(phone) {
+  if (!phone) return true;
+  // Clean all non-digit characters
+  const digits = phone.replace(/[^0-9]/g, '');
+  
+  // Normalized digits check (if it starts with 972, replace with 0)
+  let normalized = digits;
+  if (normalized.startsWith('972')) {
+    normalized = '0' + normalized.substring(3);
+  }
+  
+  // Mit4Mit / Easywed / WedPlanner commonly use 072... and 073... proxy numbers
+  if (normalized.startsWith('072') || normalized.startsWith('073')) {
+    return true;
+  }
+  
+  // Specific directory proxy blocks:
+  // 03-637-xxxx (mit4mit routing pool)
+  // 03-522-xxxx (often used as routing pools)
+  if (normalized.startsWith('03637') || normalized.startsWith('03522')) {
+    return true;
+  }
+  
+  return false;
+}
+
 async function run() {
   console.log(`[🚀] Starting researcher script. Limit: ${limit}`);
   
@@ -180,48 +206,64 @@ If not found or no valid phone is found, set "found": false.`;
       
       if (result.found && result.phone && result.phone.replace(/[^0-9]/g, '').length >= 7) {
         const phoneVal = result.phone.trim();
-        console.log(`[✨] SUCCESS: Found Phone: ${phoneVal}, Website: ${result.website_url}, Address: ${result.address}`);
         
-        // Update local JSON array
-        localData = localData.map(item => {
-          if (item.id === s.id) {
-            return {
-              ...item,
-              real_phone: phoneVal,
-              phone: phoneVal,
-              website: result.website_url || null,
-              address: result.address || item.address,
-              google_rating: result.rating ? String(result.rating) : 'nan',
-              reviews_count: result.reviews_count ? String(result.reviews_count) : 'nan'
-            };
-          }
-          return item;
-        });
-        
-        // Sync to MongoDB
-        await collection.updateOne(
-          { phone: phoneVal },
-          {
-            $set: {
-              name: s.name,
-              phone: phoneVal,
-              category: s.category || "",
-              engaged_url: s.engaged_url || "",
-              main_image: s.images && s.images.length > 0 ? s.images[0] : "",
-              gallery: s.images ? s.images.join(",") : "",
-              real_phone: phoneVal,
-              website: result.website_url || "",
-              google_rating: result.rating ? String(result.rating) : "",
-              reviews_count: result.reviews_count ? String(result.reviews_count) : "",
-              address: result.address || s.address || "",
-              description: s.description || "",
-              reviews: s.reviews || [],
-              images: s.images || []
+        if (isProxyNumber(phoneVal)) {
+          console.log(`[⚠️] REJECTED: Extracted phone is a proxy/commission number: ${phoneVal}`);
+          // Mark as FAILED so we don't try it again
+          localData = localData.map(item => {
+            if (item.id === s.id) {
+              return {
+                ...item,
+                real_phone: 'FAILED',
+                phone: 'FAILED'
+              };
             }
-          },
-          { upsert: true }
-        );
-        console.log(`[💾] Synced to MongoDB (Upserted).`);
+            return item;
+          });
+        } else {
+          console.log(`[✨] SUCCESS: Found Phone: ${phoneVal}, Website: ${result.website_url}, Address: ${result.address}`);
+          
+          // Update local JSON array
+          localData = localData.map(item => {
+            if (item.id === s.id) {
+              return {
+                ...item,
+                real_phone: phoneVal,
+                phone: phoneVal,
+                website: result.website_url || null,
+                address: result.address || item.address,
+                google_rating: result.rating ? String(result.rating) : 'nan',
+                reviews_count: result.reviews_count ? String(result.reviews_count) : 'nan'
+              };
+            }
+            return item;
+          });
+          
+          // Sync to MongoDB
+          await collection.updateOne(
+            { phone: phoneVal },
+            {
+              $set: {
+                name: s.name,
+                phone: phoneVal,
+                category: s.category || "",
+                engaged_url: s.engaged_url || "",
+                main_image: s.images && s.images.length > 0 ? s.images[0] : "",
+                gallery: s.images ? s.images.join(",") : "",
+                real_phone: phoneVal,
+                website: result.website_url || "",
+                google_rating: result.rating ? String(result.rating) : "",
+                reviews_count: result.reviews_count ? String(result.reviews_count) : "",
+                address: result.address || s.address || "",
+                description: s.description || "",
+                reviews: s.reviews || [],
+                images: s.images || []
+              }
+            },
+            { upsert: true }
+          );
+          console.log(`[💾] Synced to MongoDB (Upserted).`);
+        }
         
       } else {
         console.log(`[❌] FAILED: Phone number could not be found.`);
