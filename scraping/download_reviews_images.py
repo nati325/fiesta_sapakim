@@ -8,7 +8,6 @@ from google import genai
 from google.genai import types
 
 # --- Configuration ---
-# Only use the verified working API key
 API_KEYS = [
     "AIzaSyDLga3BzXoRCc3XyoyBmxmT2egg--IAyzM"
 ]
@@ -19,9 +18,8 @@ MEDIA_DIR = "../public/media/suppliers"
 current_key_index = 0
 current_model_index = 0
 
-# Model names WITHOUT 'models/' prefix
+# Limit to 1.5 models which are widely accessible and support v1beta Google Search grounding
 MODELS_TO_TRY = [
-    "gemini-2.5-flash",
     "gemini-1.5-flash",
     "gemini-1.5-pro",
 ]
@@ -30,7 +28,8 @@ def get_next_client():
     global current_key_index
     key = API_KEYS[current_key_index % len(API_KEYS)]
     current_key_index += 1
-    return genai.Client(api_key=key)
+    # Force api_version to 'v1beta' which is required for Google Search grounding tool
+    return genai.Client(api_key=key, http_options={'api_version': 'v1beta'})
 
 def clean_filename(name):
     # Keep only english, numbers, and basic symbols to avoid Windows file system errors
@@ -135,7 +134,7 @@ def get_reviews_and_image_urls(supplier_name, category, address):
 
 def main():
     print("\n" + "="*60)
-    print("--- [GOOGLE REVIEWS & IMAGES DOWNLOADER V1.1] ---")
+    print("--- [GOOGLE REVIEWS & IMAGES DOWNLOADER V1.2] ---")
     print("="*60 + "\n")
     
     # Ensure directories exist
@@ -148,7 +147,7 @@ def main():
         try:
             with open(OUTPUT_JSON, 'r', encoding='utf-8') as f:
                 existing_data = json.load(f)
-            # Remove keys that only contain failed/empty runs so we re-try them
+            # Remove failed runs to retry them
             existing_data = {k: v for k, v in existing_data.items() if len(v.get("downloaded_images", [])) > 0 or len(v.get("reviews", [])) > 0}
             print(f"[*] Loaded existing reviews data for {len(existing_data)} successfully processed suppliers.")
         except Exception as e:
@@ -205,7 +204,6 @@ def main():
                 "reviews_count": row.get("Reviews Count", "N/A"),
                 "last_updated": time.strftime("%Y-%m-%d %H:%M:%S")
             }
-            # Save progress immediately
             with open(OUTPUT_JSON, 'w', encoding='utf-8') as f:
                 json.dump(existing_data, f, ensure_ascii=False, indent=2)
             print(f"    [+] Saved: {len(reviews)} reviews and {len(downloaded_local_paths)} images.")
