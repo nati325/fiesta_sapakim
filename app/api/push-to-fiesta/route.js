@@ -68,7 +68,8 @@ export async function POST(req) {
       eventTypes: ['חתונה'],
       videos: [],
       products: [],
-      portfolio: [],
+      portfolio: fiestaData.images || [],
+      reviews: fiestaData.reviews || [],
       mainProductId: '',
       createdAt: new Date()
     };
