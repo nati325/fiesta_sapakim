@@ -92,6 +92,35 @@ html, body {
   width: 100%;
 }
 
+.suppliers-grid .glass-card {
+  height: 100%; /* Force card to match container height */
+}
+
+.category-tag {
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.card-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 480px) {
+  .card-actions-grid {
+    grid-template-columns: 1fr; /* Stack buttons vertically on small mobile viewports */
+  }
+}
+
 .suppliers-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));

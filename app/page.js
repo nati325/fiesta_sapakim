@@ -30,6 +30,7 @@ export default function SuppliersDashboard() {
   const [fiestaPushResult, setFiestaPushResult] = useState(null); // 'success' | 'exists' | 'error'
   const [fiestaPushError, setFiestaPushError] = useState('');
   const [fiestaPushStep, setFiestaPushStep] = useState(1);
+  const [pendingStatusChange, setPendingStatusChange] = useState(null);
   const [fiestaPushForm, setFiestaPushForm] = useState({
     type: '',
     description: '',
@@ -300,7 +301,7 @@ export default function SuppliersDashboard() {
     const phone = supplier['Real Phone'] || supplier['phone'] || '';
     const state = supplierStates[phone];
     const uploadedImage = state ? state.uploadedImage : '';
-    const isSigned = state ? (state.status === 'contract') : false;
+    const isSigned = targetStatus ? (targetStatus === 'contract') : (state ? (state.status === 'contract') : false);
 
     setFiestaPushSupplier(supplier);
     setFiestaPushResult(null);
@@ -356,6 +357,19 @@ export default function SuppliersDashboard() {
         setFiestaPushResult('exists');
       } else if (data.success) {
         setFiestaPushResult('success');
+        
+        // Save the status and contract image to database when successful
+        const phone = fiestaPushSupplier['Real Phone'] || fiestaPushSupplier['phone'] || '';
+        const statusToSave = pendingStatusChange ? pendingStatusChange.status : (fiestaPushForm.agreementSigned ? 'contract' : 'not-signed');
+        
+        updateSupplierState(phone, {
+          status: statusToSave,
+          reminder: null,
+          agent: activeAgent,
+          uploadedImage: fiestaPushForm.agreementImage
+        });
+        
+        setPendingStatusChange(null);
       } else {
         setFiestaPushResult('error');
         setFiestaPushError(data.error || 'שגיאה לא ידועה');
@@ -366,6 +380,79 @@ export default function SuppliersDashboard() {
     } finally {
       setFiestaPushLoading(false);
     }
+  };
+
+  const handleCloseFiestaPushModal = () => {
+    setShowFiestaPushModal(false);
+    setFiestaPushResult(null);
+    setFiestaPushStep(1);
+    setPendingStatusChange(null);
+  };
+
+  const handleSkipFiestaPush = () => {
+    if (pendingStatusChange) {
+      const phone = fiestaPushSupplier['Real Phone'] || fiestaPushSupplier['phone'] || '';
+      updateSupplierState(phone, {
+        status: pendingStatusChange.status,
+        reminder: null,
+        agent: activeAgent,
+        uploadedImage: fiestaPushForm.agreementImage
+      });
+    }
+    setShowFiestaPushModal(false);
+    setFiestaPushResult(null);
+    setFiestaPushStep(1);
+    setPendingStatusChange(null);
+  };
+
+  const handleModalFileChange = (file) => {
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFiestaPushForm(f => ({ ...f, agreementImage: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const renderWizardHeader = (step, title) => {
+    const progress = (step / 6) * 100;
+    return (
+      <div style={{ marginBottom: '24px', textAlign: 'center' }}>
+        {/* Step dots */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+          {[1, 2, 3, 4, 5, 6].map(s => (
+            <div 
+              key={s} 
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.75rem',
+                fontWeight: '800',
+                background: s === step ? 'var(--accent)' : (s < step ? '#10b981' : '#e2e8f0'),
+                color: s === step || s < step ? 'white' : 'var(--text-muted)',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              {s < step ? '✓' : s}
+            </div>
+          ))}
+        </div>
+        
+        {/* Progress bar */}
+        <div style={{ width: '100%', height: '4px', background: '#e2e8f0', borderRadius: '2px', overflow: 'hidden', marginBottom: '14px' }}>
+          <div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.3s ease' }}></div>
+        </div>
+
+        <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: 'var(--primary)', margin: 0 }}>
+          {title}
+        </h2>
+      </div>
+    );
   };
 
   const deleteSupplierImage = async (phone, imgUrl) => {
@@ -660,14 +747,14 @@ export default function SuppliersDashboard() {
   };
 
   const setStatus = (phone, status) => {
-    updateSupplierState(phone, { status, reminder: null, agent: activeAgent });
-    // Auto-trigger Fiesta push when agent reports contract or not-signed
     if (status === 'contract' || status === 'not-signed') {
       const supplier = suppliers.find(s => (s['Real Phone'] || s['phone']) === phone);
       if (supplier) {
-        // Small delay so the status save completes first
-        setTimeout(() => triggerFiestaPush(supplier), 400);
+        setPendingStatusChange({ phone, status });
+        triggerFiestaPush(supplier, status);
       }
+    } else {
+      updateSupplierState(phone, { status, reminder: null, agent: activeAgent });
     }
   };
 
@@ -1518,6 +1605,7 @@ export default function SuppliersDashboard() {
                       display: 'flex', 
                       flexDirection: 'column', 
                       justifyContent: 'space-between',
+                      height: '100%',
                       borderRight: state.status === 'not-interested' ? '4px solid #ef4444' :
                                    state.status === 'not-available' ? '4px solid #f97316' : 
                                    state.status === 'contract' ? '4px solid #10b981' : 
@@ -1660,7 +1748,7 @@ export default function SuppliersDashboard() {
                       />
 
                       {/* Action Buttons */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px' }}>
+                      <div className="card-actions-grid">
                         <button
                           onClick={() => setStatus(phone, 'contract')}
                           style={{
@@ -1920,7 +2008,7 @@ export default function SuppliersDashboard() {
                 ✕
               </button>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
                 {(selectedSupplierProfile["Google Image"] || selectedSupplierProfile["Main Image"]) && (
                   <img 
                     src={selectedSupplierProfile["Google Image"] || selectedSupplierProfile["Main Image"]} 
@@ -2166,7 +2254,7 @@ export default function SuppliersDashboard() {
                     תודה רבה על המאמץ {activeAgent}! 💜
                   </p>
                   <button
-                    onClick={() => { setShowFiestaPushModal(false); setFiestaPushResult(null); }}
+                    onClick={handleCloseFiestaPushModal}
                     className="btn-primary"
                     style={{ width: '100%', padding: '14px' }}
                   >
@@ -2184,7 +2272,7 @@ export default function SuppliersDashboard() {
                     <strong>{fiestaPushSupplier['Supplier Name']}</strong> נוסף בהצלחה לאתר Fiesta. כל הכבוד {activeAgent}! 🚀
                   </p>
                   <button
-                    onClick={() => { setShowFiestaPushModal(false); setFiestaPushResult(null); }}
+                    onClick={handleCloseFiestaPushModal}
                     className="btn-primary"
                     style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #10b981, #059669)' }}
                   >
@@ -2201,27 +2289,21 @@ export default function SuppliersDashboard() {
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '28px' }}>{fiestaPushError}</p>
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button onClick={submitToFiesta} className="btn-primary" style={{ flex: 1, padding: '12px' }}>נסה שוב</button>
-                    <button onClick={() => setShowFiestaPushModal(false)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700' }}>סגור</button>
+                    <button onClick={handleCloseFiestaPushModal} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white' }}>סגור</button>
                   </div>
                 </>
               ) : fiestaPushStep === 1 ? (
                 // ── Step 1: Category Picker ─────────────────────────
                 <>
-                  <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⭐</div>
-                  <h2 style={{ fontSize: '1.3rem', fontWeight: '900', marginBottom: '4px', color: 'var(--primary)' }}>
-                    באיזה קטגוריה לשים את הספק?
-                  </h2>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px' }}>
-                    <strong>{fiestaPushSupplier['Supplier Name']}</strong>
-                  </p>
-
+                  {renderWizardHeader(1, "בחר קטגוריה")}
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
                     gap: '8px',
-                    maxHeight: '55vh',
+                    maxHeight: '40vh',
                     overflowY: 'auto',
-                    paddingLeft: '4px'
+                    paddingLeft: '4px',
+                    marginBottom: '20px'
                   }}>
                     {FIESTA_CATEGORIES.map(cat => (
                       <button
@@ -2261,43 +2343,33 @@ export default function SuppliersDashboard() {
                     ))}
                   </div>
 
-                  <button
-                    onClick={() => setShowFiestaPushModal(false)}
-                    style={{ marginTop: '16px', width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white', fontFamily: 'inherit' }}
-                  >
-                    דלג
-                  </button>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={handleSkipFiestaPush}
+                      className="btn-primary"
+                      style={{ flex: 1, padding: '12px', background: '#64748b' }}
+                      title="דלג על העלאה לפייסטה ושמור רק בתוך CRM"
+                    >
+                      דלג (שמור ל-CRM)
+                    </button>
+                    <button
+                      onClick={handleCloseFiestaPushModal}
+                      style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white', fontFamily: 'inherit' }}
+                    >
+                      ביטול
+                    </button>
+                  </div>
                 </>
-              ) : (
+              ) : fiestaPushStep === 2 ? (
                 // ── Step 2: Details Form ────────────────────────────
                 <>
-                  {/* Header with selected category + back button */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                    <button
-                      onClick={() => setFiestaPushStep(1)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: 'var(--text-muted)' }}
-                      title="חזור לבחירת קטגוריה"
-                    >
-                      ←
-                    </button>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '1.8rem' }}>
-                        {FIESTA_CATEGORIES.find(c => c.value === fiestaPushForm.type)?.emoji}
-                      </div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--accent)' }}>
-                        {FIESTA_CATEGORIES.find(c => c.value === fiestaPushForm.type)?.label}
-                      </div>
-                    </div>
-                    <div style={{ width: '30px' }} />
-                  </div>
-
+                  {renderWizardHeader(2, "פרטי העסק")}
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '18px', textAlign: 'center' }}>
                     <strong>{fiestaPushSupplier['Supplier Name']}</strong>
                   </p>
 
-                  <div style={{ textAlign: 'right', display: 'grid', gap: '14px' }}>
-
-                    {/* Type */}
+                  <div style={{ textAlign: 'right', display: 'grid', gap: '14px', marginBottom: '24px' }}>
+                    {/* Type selection dropdown */}
                     <div>
                       <label style={{ fontSize: '0.8rem', fontWeight: '700', display: 'block', marginBottom: '5px' }}>קטגוריה באתר Fiesta</label>
                       <select
@@ -2305,16 +2377,9 @@ export default function SuppliersDashboard() {
                         onChange={e => setFiestaPushForm(f => ({ ...f, type: e.target.value }))}
                         style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.95rem' }}
                       >
-                        <option value="venue">אולם / גן אירועים</option>
-                        <option value="design">עיצוב אירועים</option>
-                        <option value="catering">קייטרינג</option>
-                        <option value="bar">שירותי בר</option>
-                        <option value="photography">צילום</option>
-                        <option value="music">מוזיקה / DJ</option>
-                        <option value="suits">חליפות חתן</option>
-                        <option value="dresses">שמלות כלה</option>
-                        <option value="makeup">איפור</option>
-                        <option value="alcohol">בר אלכוהול</option>
+                        {FIESTA_CATEGORIES.map(c => (
+                          <option key={c.value} value={c.value}>{c.label}</option>
+                        ))}
                       </select>
                     </div>
 
@@ -2324,7 +2389,7 @@ export default function SuppliersDashboard() {
                       <textarea
                         value={fiestaPushForm.description}
                         onChange={e => setFiestaPushForm(f => ({ ...f, description: e.target.value }))}
-                        rows={2}
+                        rows={3}
                         style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem', resize: 'none', fontFamily: 'inherit' }}
                         placeholder="תיאור קצר של הספק..."
                       />
@@ -2340,210 +2405,366 @@ export default function SuppliersDashboard() {
                         placeholder="לדוגמה: מרכז, תל אביב..."
                       />
                     </div>
+                  </div>
 
-                    {/* ── Pricing Section ───────────────────────────── */}
-                    <div style={{ background: '#f8f7ff', borderRadius: '12px', padding: '14px', display: 'grid', gap: '10px' }}>
-                      <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        💰 תמחור
-                      </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={() => setFiestaPushStep(3)}
+                      className="btn-primary"
+                      style={{ flex: 2, padding: '12px' }}
+                    >
+                      המשך
+                    </button>
+                    <button
+                      onClick={() => setFiestaPushStep(1)}
+                      style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white', fontFamily: 'inherit' }}
+                    >
+                      חזור
+                    </button>
+                  </div>
+                </>
+              ) : fiestaPushStep === 3 ? (
+                // ── Step 3: Pricing & Discounts ────────────────────────────
+                <>
+                  {renderWizardHeader(3, "תמחור ועמלות")}
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '18px', textAlign: 'center' }}>
+                    <strong>{fiestaPushSupplier['Supplier Name']}</strong>
+                  </p>
 
-                      {/* Row 1: Original price + Customer price */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#666' }}>מחיר מחירון (₪)</label>
-                          <input
-                            type="number"
-                            value={fiestaPushForm.originalPrice}
-                            onChange={e => setFiestaPushForm(f => ({ ...f, originalPrice: e.target.value }))}
-                            style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem' }}
-                            placeholder="מה הספק לוקח בשוק"
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#666' }}>מחיר ללקוח Fiesta (₪)</label>
-                          <input
-                            type="number"
-                            value={fiestaPushForm.price}
-                            onChange={e => setFiestaPushForm(f => ({ ...f, price: e.target.value }))}
-                            style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem' }}
-                            placeholder="אחרי ההנחה"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Auto-calculated discount preview */}
-                      {fiestaPushForm.originalPrice && fiestaPushForm.price && parseFloat(fiestaPushForm.price) < parseFloat(fiestaPushForm.originalPrice) && (
-                        <div style={{ background: '#dcfce7', borderRadius: '8px', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#166534' }}>
-                            🏷️ הנחה אוטומטית:
-                          </span>
-                          <span style={{ fontWeight: '900', color: '#166534', fontSize: '0.95rem' }}>
-                            {fiestaPushForm.discountDisplayType === 'percent'
-                              ? `${Math.round((1 - parseFloat(fiestaPushForm.price) / parseFloat(fiestaPushForm.originalPrice)) * 100)}%`
-                              : `₪${Math.round(parseFloat(fiestaPushForm.originalPrice) - parseFloat(fiestaPushForm.price))}`
-                            }
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Discount display type */}
+                  <div style={{ textAlign: 'right', display: 'grid', gap: '14px', marginBottom: '24px' }}>
+                    {/* Row 1: Original price + Customer price */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                       <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '6px', color: '#666' }}>איך להציג את ההנחה ללקוח?</label>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          {[
-                            { value: 'percent', label: '% אחוזים', emoji: '📊' },
-                            { value: 'amount',  label: '₪ שקלים',  emoji: '💵' }
-                          ].map(opt => (
-                            <button
-                              key={opt.value}
-                              onClick={() => setFiestaPushForm(f => ({ ...f, discountDisplayType: opt.value }))}
-                              style={{
-                                flex: 1, padding: '9px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit',
-                                fontWeight: '700', fontSize: '0.85rem', transition: 'all 0.15s',
-                                border: fiestaPushForm.discountDisplayType === opt.value ? '2px solid #7c3aed' : '1.5px solid var(--border)',
-                                background: fiestaPushForm.discountDisplayType === opt.value ? '#ede9fe' : 'white',
-                                color: fiestaPushForm.discountDisplayType === opt.value ? '#7c3aed' : '#555'
-                              }}
-                            >
-                              {opt.emoji} {opt.label}
-                            </button>
-                          ))}
-                        </div>
+                        <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#666' }}>מחיר מחירון (₪)</label>
+                        <input
+                          type="number"
+                          value={fiestaPushForm.originalPrice}
+                          onChange={e => setFiestaPushForm(f => ({ ...f, originalPrice: e.target.value }))}
+                          style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem' }}
+                          placeholder="מה הספק לוקח בשוק"
+                        />
                       </div>
-
-                      {/* Company commission + Customer discount % */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#666' }}>עמלת החברה (₪)</label>
-                          <input
-                            type="number"
-                            value={fiestaPushForm.commissionAmount}
-                            onChange={e => setFiestaPushForm(f => ({ ...f, commissionAmount: e.target.value }))}
-                            style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem' }}
-                            placeholder="כמה Fiesta מקבלת"
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#166534' }}>הנחה ללקוח (%)</label>
-                          <div style={{
-                            padding: '9px', borderRadius: '8px', border: '2px solid #86efac',
-                            background: '#f0fdf4', fontSize: '1rem', fontWeight: '900',
-                            color: '#166534', textAlign: 'center'
-                          }}>
-                            {fiestaPushForm.originalPrice && fiestaPushForm.price && parseFloat(fiestaPushForm.originalPrice) > 0
-                              ? `${Math.round((1 - parseFloat(fiestaPushForm.price || 0) / parseFloat(fiestaPushForm.originalPrice)) * 100)}%`
-                              : '—'}
-                          </div>
-                        </div>
+                      <div>
+                        <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#666' }}>מחיר לקוח (₪)</label>
+                        <input
+                          type="number"
+                          value={fiestaPushForm.price}
+                          onChange={e => setFiestaPushForm(f => ({ ...f, price: e.target.value }))}
+                          style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem' }}
+                          placeholder="מחיר מיוחד ללקוח"
+                        />
                       </div>
-
                     </div>
 
-                     {/* ── Manage Images Section ───────────────────────────── */}
-                     <div style={{ marginTop: '5px', textAlign: 'right' }}>
-                       <label style={{ fontSize: '0.8rem', fontWeight: '800', display: 'block', marginBottom: '6px', color: '#555' }}>
-                         📷 תמונות שיועלו לאתר פייסטה ({fiestaPushForm.selectedImages?.length || 0})
-                       </label>
-                       {fiestaPushForm.selectedImages && fiestaPushForm.selectedImages.length > 0 ? (
-                         <div style={{ 
-                           display: 'grid', 
-                           gridTemplateColumns: 'repeat(4, 1fr)', 
-                           gap: '8px', 
-                           background: '#f8fafc', 
-                           padding: '12px', 
-                           borderRadius: '10px', 
-                           border: '1.5px solid var(--border)', 
-                           maxHeight: '135px', 
-                           overflowY: 'auto' 
-                         }}>
-                           {fiestaPushForm.selectedImages.map((imgUrl, idx) => (
-                             <div 
-                               key={idx} 
-                               style={{ 
-                                 position: 'relative', 
-                                 width: '100%', 
-                                 aspectRatio: '1', 
-                                 borderRadius: '8px', 
-                                 overflow: 'hidden', 
-                                 border: '1px solid var(--border)',
-                                 boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                                 transition: 'transform 0.15s ease'
-                               }}
-                             >
-                               <img 
-                                 src={imgUrl} 
-                                 alt={`img-${idx}`} 
-                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                               />
-                               <button
-                                 onClick={() => {
-                                   setFiestaPushForm(f => ({
-                                     ...f,
-                                     selectedImages: f.selectedImages.filter(url => url !== imgUrl)
-                                   }));
-                                 }}
-                                 type="button"
-                                 style={{
-                                   position: 'absolute', top: '3px', left: '3px',
-                                   width: '18px', height: '18px', borderRadius: '50%',
-                                   background: '#ef4444', color: 'white', border: 'none',
-                                   cursor: 'pointer', fontSize: '9px', fontWeight: '900',
-                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                   boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'all 0.15s'
-                                 }}
-                                 title="הסר תמונה"
-                                 onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.15)'; e.currentTarget.style.background = '#dc2626'; }}
-                                 onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = '#ef4444'; }}
-                               >
-                                 ✕
-                               </button>
-                             </div>
-                           ))}
-                         </div>
-                       ) : (
-                         <div style={{ 
-                           padding: '12px', 
-                           textAlign: 'center', 
-                           background: '#fff1f2', 
-                           border: '1.5px dashed #fecdd3', 
-                           color: '#e11d48', 
-                           borderRadius: '10px', 
-                           fontSize: '0.8rem', 
-                           fontWeight: '700' 
-                         }}>
-                           ⚠️ לא נבחרו תמונות לספק זה. האתר יציג תמונת ברירת מחדל.
-                         </div>
-                       )}
-                     </div>
+                    {/* Auto-calculated discount preview */}
+                    {fiestaPushForm.originalPrice && fiestaPushForm.price && parseFloat(fiestaPushForm.price) < parseFloat(fiestaPushForm.originalPrice) && (
+                      <div style={{ background: '#dcfce7', borderRadius: '8px', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#166534' }}>
+                          🏷️ הנחה אוטומטית:
+                        </span>
+                        <span style={{ fontWeight: '900', color: '#166534', fontSize: '0.95rem' }}>
+                          {fiestaPushForm.discountDisplayType === 'percent'
+                            ? `${Math.round((1 - parseFloat(fiestaPushForm.price) / parseFloat(fiestaPushForm.originalPrice)) * 100)}%`
+                            : `₪${Math.round(parseFloat(fiestaPushForm.originalPrice) - parseFloat(fiestaPushForm.price))}`
+                          }
+                        </span>
+                      </div>
+                    )}
 
-                     {/* Agreement signed */}
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem' }}>
+                    {/* Discount display type */}
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '6px', color: '#666' }}>איך להציג את ההנחה ללקוח?</label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {[
+                          { value: 'percent', label: '% אחוזים', emoji: '📊' },
+                          { value: 'amount',  label: '₪ שקלים',  emoji: '💵' }
+                        ].map(opt => (
+                          <button
+                            key={opt.value}
+                            onClick={() => setFiestaPushForm(f => ({ ...f, discountDisplayType: opt.value }))}
+                            style={{
+                              flex: 1, padding: '9px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit',
+                              fontWeight: '700', fontSize: '0.85rem', transition: 'all 0.15s',
+                              border: fiestaPushForm.discountDisplayType === opt.value ? '2px solid #7c3aed' : '1.5px solid var(--border)',
+                              background: fiestaPushForm.discountDisplayType === opt.value ? '#ede9fe' : 'white',
+                              color: fiestaPushForm.discountDisplayType === opt.value ? '#7c3aed' : '#555'
+                            }}
+                          >
+                            {opt.emoji} {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Company commission + Customer discount % */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#666' }}>עמלת החברה (₪)</label>
+                        <input
+                          type="number"
+                          value={fiestaPushForm.commissionAmount}
+                          onChange={e => setFiestaPushForm(f => ({ ...f, commissionAmount: e.target.value }))}
+                          style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem' }}
+                          placeholder="עמלה ל-Fiesta"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#166534' }}>הנחה ללקוח (%)</label>
+                        <div style={{
+                          padding: '9px', borderRadius: '8px', border: '2px solid #86efac',
+                          background: '#f0fdf4', fontSize: '1rem', fontWeight: '900',
+                          color: '#166534', textAlign: 'center'
+                        }}>
+                          {fiestaPushForm.originalPrice && fiestaPushForm.price && parseFloat(fiestaPushForm.originalPrice) > 0
+                            ? `${Math.round((1 - parseFloat(fiestaPushForm.price || 0) / parseFloat(fiestaPushForm.originalPrice)) * 100)}%`
+                            : '—'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={() => setFiestaPushStep(4)}
+                      className="btn-primary"
+                      style={{ flex: 2, padding: '12px' }}
+                    >
+                      המשך
+                    </button>
+                    <button
+                      onClick={() => setFiestaPushStep(2)}
+                      style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white', fontFamily: 'inherit' }}
+                    >
+                      חזור
+                    </button>
+                  </div>
+                </>
+              ) : fiestaPushStep === 4 ? (
+                // ── Step 4: Contract Upload & Status ────────────────────────────
+                <>
+                  {renderWizardHeader(4, "העלאת חוזה או צילום שיחה")}
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '18px', textAlign: 'center' }}>
+                    <strong>{fiestaPushSupplier['Supplier Name']}</strong>
+                  </p>
+
+                  <div style={{ textAlign: 'right', display: 'grid', gap: '14px', marginBottom: '24px' }}>
+                    {/* Styled upload area */}
+                    <div 
+                      className="upload-zone"
+                      onClick={() => document.getElementById(`modal-file-upload`).click()}
+                      style={{ 
+                        border: '2.5px dashed var(--border)',
+                        borderRadius: '12px',
+                        padding: '24px',
+                        textAlign: 'center',
+                        background: fiestaPushForm.agreementImage ? '#f0fdf4' : 'transparent',
+                        borderColor: fiestaPushForm.agreementImage ? '#86efac' : 'var(--border)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <input 
+                        id="modal-file-upload"
+                        type="file" 
+                        onChange={(e) => handleModalFileChange(e.target.files[0])}
+                        style={{ display: 'none' }}
+                        accept="image/*"
+                      />
+                      {fiestaPushForm.agreementImage ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                          <CheckCircle2 size={30} color="#16a34a" />
+                          <span style={{ color: '#16a34a', fontWeight: '700', fontSize: '0.85rem' }}>חוזה / צילום מסך צורף בהצלחה!</span>
+                          <div style={{ marginTop: '8px', width: '100%', height: '110px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #16a34a' }}>
+                            <img src={fiestaPushForm.agreementImage} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFiestaPushForm(f => ({ ...f, agreementImage: '' }));
+                            }}
+                            style={{ background: '#ef4444', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', marginTop: '6px' }}
+                          >
+                            הסר תמונה
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
+                          <Upload size={32} />
+                          <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>לחץ כאן להעלאת חוזה או צילום מסך מוואטסאפ</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Agreement signed checkbox */}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', marginTop: '8px' }}>
                       <input
                         type="checkbox"
                         checked={fiestaPushForm.agreementSigned}
                         onChange={e => setFiestaPushForm(f => ({ ...f, agreementSigned: e.target.checked }))}
                         style={{ width: '18px', height: '18px' }}
                       />
-                      הסכם עבודה חתום
+                      הסכם עבודה חתום ומאושר
                     </label>
-
                   </div>
 
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={() => setFiestaPushStep(5)}
+                      className="btn-primary"
+                      style={{ flex: 2, padding: '12px' }}
+                    >
+                      המשך
+                    </button>
+                    <button
+                      onClick={() => setFiestaPushStep(3)}
+                      style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white', fontFamily: 'inherit' }}
+                    >
+                      חזור
+                    </button>
+                  </div>
+                </>
+              ) : fiestaPushStep === 5 ? (
+                // ── Step 5: Portfolio Gallery Selection ────────────────────────────
+                <>
+                  {renderWizardHeader(5, "בחירת תמונות גלריה")}
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '18px', textAlign: 'center' }}>
+                    <strong>{fiestaPushSupplier['Supplier Name']}</strong>
+                  </p>
+
+                  <div style={{ textAlign: 'right', marginBottom: '24px' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: '800', display: 'block', marginBottom: '8px', color: '#555' }}>
+                      📷 תמונות גלריה שיועלו לאתר ({fiestaPushForm.selectedImages?.length || 0})
+                    </label>
+                    {fiestaPushForm.selectedImages && fiestaPushForm.selectedImages.length > 0 ? (
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(4, 1fr)', 
+                        gap: '8px', 
+                        background: '#f8fafc', 
+                        padding: '12px', 
+                        borderRadius: '10px', 
+                        border: '1.5px solid var(--border)', 
+                        maxHeight: '160px', 
+                        overflowY: 'auto' 
+                      }}>
+                        {fiestaPushForm.selectedImages.map((imgUrl, idx) => (
+                          <div 
+                            key={idx} 
+                            style={{ 
+                              position: 'relative', 
+                              width: '100%', 
+                              aspectRatio: '1', 
+                              borderRadius: '8px', 
+                              overflow: 'hidden', 
+                              border: '1px solid var(--border)'
+                            }}
+                          >
+                            <img 
+                              src={imgUrl} 
+                              alt={`img-${idx}`} 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                            <button
+                              onClick={() => {
+                                setFiestaPushForm(f => ({
+                                  ...f,
+                                  selectedImages: f.selectedImages.filter(url => url !== imgUrl)
+                                }));
+                              }}
+                              type="button"
+                              style={{
+                                position: 'absolute', top: '3px', left: '3px',
+                                width: '18px', height: '18px', borderRadius: '50%',
+                                background: '#ef4444', color: 'white', border: 'none',
+                                cursor: 'pointer', fontSize: '9px', fontWeight: '900',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                              }}
+                              title="הסר תמונה"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ 
+                        padding: '12px', 
+                        textAlign: 'center', 
+                        background: '#fff1f2', 
+                        border: '1.5px dashed #fecdd3', 
+                        color: '#e11d48', 
+                        borderRadius: '10px', 
+                        fontSize: '0.8rem', 
+                        fontWeight: '700' 
+                      }}>
+                        ⚠️ לא נבחרו תמונות. האתר יציג תמונת ברירת מחדל.
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={() => setFiestaPushStep(6)}
+                      className="btn-primary"
+                      style={{ flex: 2, padding: '12px' }}
+                    >
+                      המשך
+                    </button>
+                    <button
+                      onClick={() => setFiestaPushStep(4)}
+                      style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white', fontFamily: 'inherit' }}
+                    >
+                      חזור
+                    </button>
+                  </div>
+                </>
+              ) : (
+                // ── Step 6: Confirmation & Submit ────────────────────────────
+                <>
+                  {renderWizardHeader(6, "אישור ושליחה")}
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '18px', textAlign: 'center' }}>
+                    <strong>{fiestaPushSupplier['Supplier Name']}</strong>
+                  </p>
+
+                  <div style={{ 
+                    textAlign: 'right', 
+                    background: '#f8fafc', 
+                    padding: '16px', 
+                    borderRadius: '12px', 
+                    border: '1px solid var(--border)', 
+                    display: 'grid', 
+                    gap: '8px', 
+                    fontSize: '0.88rem', 
+                    marginBottom: '20px',
+                    lineHeight: '1.4'
+                  }}>
+                    <div><strong>ספק:</strong> {fiestaPushSupplier['Supplier Name']}</div>
+                    <div><strong>קטגוריה פייסטה:</strong> {FIESTA_CATEGORIES.find(c => c.value === fiestaPushForm.type)?.label || fiestaPushForm.type}</div>
+                    <div><strong>אזור:</strong> {fiestaPushForm.region || 'לא צוין'}</div>
+                    {fiestaPushForm.price && <div><strong>מחיר ללקוח:</strong> ₪{fiestaPushForm.price} {fiestaPushForm.originalPrice && `(מחירון: ₪${fiestaPushForm.originalPrice})`}</div>}
+                    <div><strong>עמלת חברה:</strong> ₪{fiestaPushForm.commissionAmount || '0'}</div>
+                    <div><strong>חוזה/שיחה:</strong> {fiestaPushForm.agreementImage ? '✅ צורף' : '❌ לא צורף'}</div>
+                    <div><strong>חתימת חוזה:</strong> {fiestaPushForm.agreementSigned ? '✍️ חתום' : '⏳ טרם נחתם'}</div>
+                    <div><strong>תמונות גלריה:</strong> {fiestaPushForm.selectedImages?.length || 0} תמונות נבחרו</div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
                     <button
                       onClick={submitToFiesta}
                       disabled={fiestaPushLoading}
                       className="btn-primary"
                       style={{ flex: 2, padding: '14px', opacity: fiestaPushLoading ? 0.7 : 1 }}
                     >
-                      {fiestaPushLoading ? '⏳ שולח...' : '⭐ שלח לפייסטה'}
+                      {fiestaPushLoading ? '⏳ שולח לפייסטה...' : '🚀 שלח לפייסטה'}
                     </button>
                     <button
-                      onClick={() => setShowFiestaPushModal(false)}
+                      onClick={() => setFiestaPushStep(5)}
+                      disabled={fiestaPushLoading}
                       style={{ flex: 1, padding: '14px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white', fontFamily: 'inherit' }}
                     >
-                      דלג
+                      חזור
                     </button>
                   </div>
                 </>
