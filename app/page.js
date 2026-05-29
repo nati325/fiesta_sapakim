@@ -297,6 +297,11 @@ export default function SuppliersDashboard() {
     // Filter out invalid/empty image URLs
     supplierImages = supplierImages.filter(img => img && img.trim() !== '' && img !== 'N/A' && img !== 'nan');
 
+    const phone = supplier['Real Phone'] || supplier['phone'] || '';
+    const state = supplierStates[phone];
+    const uploadedImage = state ? state.uploadedImage : '';
+    const isSigned = state ? (state.status === 'contract') : false;
+
     setFiestaPushSupplier(supplier);
     setFiestaPushResult(null);
     setFiestaPushError('');
@@ -310,8 +315,9 @@ export default function SuppliersDashboard() {
       agentCommission: '',
       commissionAmount: '',
       discountDisplayType: 'percent',
-      agreementSigned: false,
-      selectedImages: supplierImages // Store all images initially
+      agreementSigned: isSigned,
+      selectedImages: supplierImages, // Store all images initially
+      agreementImage: uploadedImage // Store the uploaded contract/screenshot here!
     });
     setShowFiestaPushModal(true);
   };
@@ -396,6 +402,47 @@ export default function SuppliersDashboard() {
       }
     } catch (err) {
       console.error("Error saving image deletion on server:", err);
+    }
+  };
+
+  const deleteSupplierReview = async (phone, reviewIdx) => {
+    // Find supplier
+    const supplier = suppliers.find(s => (s["Real Phone"] || s["Phone Number"]) === phone);
+    if (!supplier) return;
+    
+    // Filter out target review by index
+    const updatedReviews = (supplier.reviews || []).filter((_, idx) => idx !== reviewIdx);
+    
+    // Update local state suppliers list
+    setSuppliers(prev => prev.map(s => {
+      if ((s["Real Phone"] || s["Phone Number"]) === phone) {
+        return { ...s, reviews: updatedReviews };
+      }
+      return s;
+    }));
+    
+    // Update active supplier profile modal view
+    if (selectedSupplierProfile && (selectedSupplierProfile["Real Phone"] || selectedSupplierProfile["Phone Number"]) === phone) {
+      setSelectedSupplierProfile(prev => ({ ...prev, reviews: updatedReviews }));
+    }
+    
+    // Persist changes to server
+    try {
+      const res = await fetch('/api/suppliers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          phone, 
+          name: supplier["Supplier Name"], 
+          reviews: updatedReviews 
+        })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        console.error("Failed to save review deletion on server:", data.error);
+      }
+    } catch (err) {
+      console.error("Error saving review deletion on server:", err);
     }
   };
 
@@ -1882,10 +1929,24 @@ export default function SuppliersDashboard() {
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
                 )}
-                <div>
+                <div style={{ flex: 1 }}>
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--primary)', margin: 0 }}>{selectedSupplierProfile["Supplier Name"]}</h2>
                   <span className="category-tag" style={{ display: 'inline-block', marginTop: '5px' }}>{selectedSupplierProfile["Category"]}</span>
                 </div>
+                <button
+                  onClick={() => triggerFiestaPush(selectedSupplierProfile)}
+                  style={{
+                    background: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)',
+                    color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px',
+                    fontSize: '0.95rem', fontWeight: '800', cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)', transition: 'all 0.2s',
+                    display: 'flex', alignItems: 'center', gap: '6px'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.35)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.25)'; }}
+                >
+                  🚀 העלה לפייסטה
+                </button>
               </div>
 
               <div style={{ marginBottom: '25px', background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid var(--border)' }}>
@@ -2029,12 +2090,35 @@ export default function SuppliersDashboard() {
                   <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '15px', color: 'var(--accent)' }}>⭐ ביקורות נבחרות</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {selectedSupplierProfile.reviews.map((rev, idx) => (
-                      <div key={idx} style={{ background: 'white', padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <div key={idx} style={{ 
+                        position: 'relative',
+                        background: 'white', padding: '15px', borderRadius: '10px', 
+                        border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' 
+                      }}>
+                        <button
+                          onClick={() => {
+                            if (confirm("האם אתה בטוח שברצונך למחוק חוות דעת זו?")) {
+                              deleteSupplierReview(selectedSupplierProfile["Real Phone"] || selectedSupplierProfile["Phone Number"], idx);
+                            }
+                          }}
+                          style={{
+                            position: 'absolute', top: '12px', left: '12px',
+                            background: 'none', border: 'none', color: '#ef4444',
+                            cursor: 'pointer', fontSize: '14px', padding: '4px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            opacity: 0.6, transition: 'all 0.15s', zIndex: 5
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1.1)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.transform = 'scale(1)'; }}
+                          title="מחק חוות דעת"
+                        >
+                          ✕
+                        </button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', paddingLeft: '20px' }}>
                           <span style={{ fontWeight: 'bold' }}>{rev.reviewer}</span>
                           <span style={{ color: '#f59e0b' }}>{'⭐'.repeat(Math.min(5, Math.max(1, Math.round(Number(rev.rating) || 5))))}</span>
                         </div>
-                        <p style={{ fontSize: '0.9rem', color: '#475569', margin: 0 }}>"{rev.text}"</p>
+                        <p style={{ fontSize: '0.9rem', color: '#475569', margin: 0, paddingLeft: '20px' }}>"{rev.text}"</p>
                       </div>
                     ))}
                   </div>

@@ -105,16 +105,29 @@ function isProxyNumber(phone) {
     normalized = '0' + normalized.substring(3);
   }
   
-  // Mit4Mit / Easywed / WedPlanner commonly use 072... and 073... proxy numbers
-  if (normalized.startsWith('072') || normalized.startsWith('073')) {
+  // Direct mobile numbers in Israel (starts with 05) are never proxy numbers.
+  // Whitelist them immediately to avoid false positives.
+  const isMobile = /^05\d{8}$/.test(normalized);
+  if (isMobile) {
+    return false;
+  }
+  
+  // Block standard directory proxy prefixes (072, 073, 074)
+  if (normalized.startsWith('072') || normalized.startsWith('073') || normalized.startsWith('074')) {
     return true;
   }
   
-  // Specific directory proxy blocks:
-  // 03-637-xxxx (mit4mit routing pool)
-  // 03-522-xxxx (often used as routing pools)
-  if (normalized.startsWith('03637') || normalized.startsWith('03522')) {
-    return true;
+  // Specific directory routing pools in geographic ranges
+  const proxyPrefixes = [
+    '03637', '03522', '03607', '03919', '03915', '03308',
+    '03372', '03373', '03374', '03375', '03376', '03379',
+    '04811', '04617', '09838', '08684', '02372'
+  ];
+  
+  for (const prefix of proxyPrefixes) {
+    if (normalized.startsWith(prefix)) {
+      return true;
+    }
   }
   
   return false;
@@ -159,8 +172,9 @@ async function run() {
     console.log(`[${i+1}/${toProcess.length}] Researching: "${name}" (${category})`);
     
     try {
-      // 1. Google search via Serper
-      const searchData = await callSerper(`${name} ${category} טלפון אתר`);
+      // 1. Google search via Serper using clean_name to reduce noise
+      const searchName = s.clean_name || name.split('|')[0].trim();
+      const searchData = await callSerper(`${searchName} ${category} טלפון אתר`);
       if (!searchData || !searchData.organic || searchData.organic.length === 0) {
         console.warn(`  - No search results found.`);
         continue;
@@ -172,8 +186,13 @@ async function run() {
       
       // 2. Query Gemini
       const prompt = `Based on these Google results for "${name}" (Category: "${category}"), extract the business details:
-1. phone: MUST be the official business number (05x mobile or local landline, e.g., 03-xxxxxxx, 09-xxxxxxx, etc.).
-   - CRITICAL RULE: DO NOT use proxy or directory service numbers starting with 072, 073, or 03-637 (e.g. 03-637-xxxx, 072-xxxxxxx are proxy lines). Look for a direct mobile or landline.
+1. phone: MUST be the official direct business number.
+   - CRITICAL RULE: DO NOT use proxy or directory service numbers (virtual routing numbers).
+   - Directory proxy/commission numbers commonly start with 072, 073, 074, 03-637, 03-522, 03-607, 03-915, 03-919, 03-308, 03-372, etc. (e.g., 072-xxxxxxx, 073-xxxxxxx, 03-637-xxxx, etc.).
+   - These numbers are used by directory portals like mit4mit, mitchatnim, easywed, wedreviews, etc., to charge commissions and track calls.
+   - Look for a direct mobile number (starting with 05, e.g., 050, 052, 053, 054, 055, 058) or a direct geographic landline (starting with 02, 03, 04, 08, 09, but not one of the proxy prefixes).
+   - Prioritize numbers found on the business's own website, official Facebook page, Instagram bio, or official Google listing.
+   - If the only phone number you can find in the search snippets is a directory proxy number (e.g. from mit4mit, mitchatnim, easywed, etc. starting with 072, 073, etc.), you MUST set "found": false (or if you find a direct mobile/landline in another snippet, use that instead).
 2. website_url: Official website link.
 3. rating: Google rating (number).
 4. reviews_count: Number of reviews.
@@ -211,7 +230,7 @@ If not found or no valid phone is found, set "found": false.`;
           console.log(`[⚠️] REJECTED: Extracted phone is a proxy/commission number: ${phoneVal}`);
           // Mark as FAILED so we don't try it again
           localData = localData.map(item => {
-            if (item.id === s.id) {
+            if (item.engaged_url === s.engaged_url) {
               return {
                 ...item,
                 real_phone: 'FAILED',
@@ -220,12 +239,25 @@ If not found or no valid phone is found, set "found": false.`;
             }
             return item;
           });
+          
+          // Sync FAILED to MongoDB matching by engaged_url
+          await collection.updateOne(
+            { engaged_url: s.engaged_url },
+            {
+              $set: {
+                phone: 'FAILED',
+                real_phone: 'FAILED'
+              }
+            },
+            { upsert: true }
+          );
+          console.log(`[💾] Synced FAILED to MongoDB.`);
         } else {
           console.log(`[✨] SUCCESS: Found Phone: ${phoneVal}, Website: ${result.website_url}, Address: ${result.address}`);
           
-          // Update local JSON array
+          // Update local JSON array matching by engaged_url
           localData = localData.map(item => {
-            if (item.id === s.id) {
+            if (item.engaged_url === s.engaged_url) {
               return {
                 ...item,
                 real_phone: phoneVal,
@@ -239,9 +271,9 @@ If not found or no valid phone is found, set "found": false.`;
             return item;
           });
           
-          // Sync to MongoDB
+          // Sync to MongoDB matching by engaged_url to prevent duplicate documents
           await collection.updateOne(
-            { phone: phoneVal },
+            { engaged_url: s.engaged_url },
             {
               $set: {
                 name: s.name,
@@ -262,14 +294,14 @@ If not found or no valid phone is found, set "found": false.`;
             },
             { upsert: true }
           );
-          console.log(`[💾] Synced to MongoDB (Upserted).`);
+          console.log(`[💾] Synced to MongoDB (Updated ${s.name}).`);
         }
         
       } else {
         console.log(`[❌] FAILED: Phone number could not be found.`);
         // Mark as FAILED so we don't waste requests on it again in future runs
         localData = localData.map(item => {
-          if (item.id === s.id) {
+          if (item.engaged_url === s.engaged_url) {
             return {
               ...item,
               real_phone: 'FAILED',
@@ -278,6 +310,19 @@ If not found or no valid phone is found, set "found": false.`;
           }
           return item;
         });
+        
+        // Also sync FAILED to MongoDB matching by engaged_url
+        await collection.updateOne(
+          { engaged_url: s.engaged_url },
+          {
+            $set: {
+              phone: 'FAILED',
+              real_phone: 'FAILED'
+            }
+          },
+          { upsert: true }
+        );
+        console.log(`[💾] Synced FAILED to MongoDB.`);
       }
       
       // Save JSON file in each loop iteration so progress is not lost

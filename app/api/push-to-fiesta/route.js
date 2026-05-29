@@ -58,7 +58,7 @@ export async function POST(req) {
       discountType: 'percent',
       commissionAmount: Number(fiestaData.commissionAmount) || 0,
       agreementSigned: fiestaData.agreementSigned || false,
-      agreementImage: '',
+      agreementImage: fiestaData.agreementImage || '',
       googleReviewsLink: supplier['Google Reviews Link'] || '',
       googleRating: parseFloat(supplier['Google Rating']) || 5,
       googleReviewsCount: parseInt(supplier['Reviews Count']) || 0,

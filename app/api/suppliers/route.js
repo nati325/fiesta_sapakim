@@ -247,7 +247,7 @@ export async function GET() {
 
 export async function POST(req) {
     try {
-        const { phone, name, images, description } = await req.json();
+        const { phone, name, images, description, reviews } = await req.json();
         
         if (!phone) {
             return NextResponse.json({ error: "Missing supplier phone" }, { status: 400 });
@@ -256,6 +256,7 @@ export async function POST(req) {
         const updateFields = {};
         if (images !== undefined) updateFields.images = images;
         if (description !== undefined) updateFields.description = description;
+        if (reviews !== undefined) updateFields.reviews = reviews;
         
         if (Object.keys(updateFields).length === 0) {
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });
@@ -318,6 +319,22 @@ export async function POST(req) {
                     console.log(`Updated supplier ${name} description in supplier_descriptions.json.`);
                 } catch (descError) {
                     console.error("Failed to update supplier_descriptions.json:", descError.message);
+                }
+            }
+        }
+
+        // 4. Update data/supplier_reviews.json if reviews were updated and name was provided
+        if (reviews !== undefined && name) {
+            const reviewsPath = path.join(process.cwd(), 'data', 'supplier_reviews.json');
+            if (fs.existsSync(reviewsPath)) {
+                try {
+                    const fileContent = fs.readFileSync(reviewsPath, 'utf-8');
+                    const reviewsData = JSON.parse(fileContent);
+                    reviewsData[name] = reviews;
+                    fs.writeFileSync(reviewsPath, JSON.stringify(reviewsData, null, 2), 'utf-8');
+                    console.log(`Updated supplier ${name} reviews in supplier_reviews.json.`);
+                } catch (reviewsError) {
+                    console.error("Failed to update supplier_reviews.json:", reviewsError.message);
                 }
             }
         }
