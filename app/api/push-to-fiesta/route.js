@@ -23,8 +23,8 @@ export async function POST(req) {
     const vendors = db.collection('vendors');
 
     // ── 1. Check if vendor already exists ──────────────────────────────────
-    const supplierName = ((supplier['Supplier Name'] || supplier['name']) || '').trim();
-    const supplierPhone = ((supplier['Real Phone'] || supplier['real_phone'] || supplier['phone']) || supplier['phone'] || '').replace(/\D/g, '');
+    const supplierName = (supplier['Supplier Name'] || '').trim();
+    const supplierPhone = (supplier['Real Phone'] || supplier['phone'] || '').replace(/\D/g, '');
 
     const existing = await vendors.findOne({
       $or: [
@@ -43,13 +43,13 @@ export async function POST(req) {
     // Set main image to the first selected image if available, else fall back
     const mainImg = selectedImages.length > 0 
       ? selectedImages[0] 
-      : ((supplier['Main Image'] || (supplier['images'] && supplier['images'][0])) || (supplier['Google Image'] || (supplier['images'] && supplier['images'][1])) || '');
+      : (supplier['Main Image'] || supplier['Google Image'] || '');
 
     const vendorDoc = {
       name: supplierName,
       type: fiestaData.type || 'design',
       description: fiestaData.description || '',
-      contact: (supplier['Real Phone'] || supplier['real_phone'] || supplier['phone']) || supplier['phone'] || '',
+      contact: supplier['Real Phone'] || supplier['phone'] || '',
       image: mainImg,
       region: fiestaData.region || '',
       price: fiestaData.price || '0',
@@ -60,13 +60,13 @@ export async function POST(req) {
       agreementSigned: fiestaData.agreementSigned || false,
       agreementImage: fiestaData.agreementImage || '',
       googleReviewsLink: supplier['Google Reviews Link'] || '',
-      googleRating: parseFloat((supplier['Google Rating'] || supplier['google_rating'])) || 5,
-      googleReviewsCount: parseInt((supplier['Reviews Count'] || supplier['reviews_count'])) || 0,
+      googleRating: parseFloat(supplier['Google Rating']) || 5,
+      googleReviewsCount: parseInt(supplier['Reviews Count']) || 0,
       adminNotes: [
         `✅ נוסף אוטומטית על ידי סוכן: ${fiestaData.agentName || 'לא ידוע'}`,
-        `📍 כתובת: ${(supplier['Address'] || supplier['address']) || 'אין'}`,
-        `🌐 אתר: ${(supplier['Website'] || supplier['website']) || 'אין'}`,
-        `🏷️ קטגוריה מקורית: ${(supplier['Category'] || supplier['category']) || 'לא צוין'}`,
+        `📍 כתובת: ${supplier['Address'] || 'אין'}`,
+        `🌐 אתר: ${supplier['Website'] || 'אין'}`,
+        `🏷️ קטגוריה מקורית: ${supplier['Category'] || 'לא צוין'}`,
         `💼 עמלת סוכן: ₪${fiestaData.agentCommission || '0'}`,
         `🏢 עמלת Fiesta: ₪${fiestaData.commissionAmount || '0'}`,
         `📸 תמונות שנבחרו: ${selectedImages.length}`
@@ -93,4 +93,3 @@ export async function POST(req) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-

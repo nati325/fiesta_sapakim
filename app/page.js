@@ -99,7 +99,7 @@ export default function SuppliersDashboard() {
         const today = new Date().toISOString().split('T')[0];
         const initialStates = {};
         processedData.forEach((s) => {
-          const phone = (s["Real Phone"] || s["real_phone"] || s["phone"]) || s["phone"];
+          const phone = s["Real Phone"] || s["phone"];
           initialStates[phone] = {
             uploadedImage: null,
             closingDate: today,
@@ -160,7 +160,7 @@ export default function SuppliersDashboard() {
       const allowedCategories = agentCategoryMap[activeAgent] || [];
 
       suppliers.forEach((s, index) => {
-        const phone = (s["Real Phone"] || s["real_phone"] || s["phone"]) || s["phone"];
+        const phone = s["Real Phone"] || s["phone"];
         const state = supplierStates[phone];
         if (!state) return;
 
@@ -193,8 +193,8 @@ export default function SuppliersDashboard() {
           if (isAllowed) {
             newAlerts.push({
               id: phone,
-              supplierName: (s["Supplier Name"] || s["name"]),
-              phone: (s["Real Phone"] || s["real_phone"] || s["phone"]) || s["phone"],
+              supplierName: s["Supplier Name"],
+              phone: s["Real Phone"] || s["phone"],
               phoneKey: phone,
               scheduledTime: state.callbackScheduled || 'הזמן שנבחר'
             });
@@ -457,7 +457,7 @@ export default function SuppliersDashboard() {
 
   const deleteSupplierImage = async (phone, imgUrl) => {
     // Find supplier
-    const supplier = suppliers.find(s => ((s["Real Phone"] || s["real_phone"] || s["phone"]) || s["Phone Number"]) === phone);
+    const supplier = suppliers.find(s => (s["Real Phone"] || s["Phone Number"]) === phone);
     if (!supplier) return;
     
     // Filter out target image
@@ -465,7 +465,7 @@ export default function SuppliersDashboard() {
     
     // Update local state suppliers list
     setSuppliers(prev => prev.map(s => {
-      if (((s["Real Phone"] || s["real_phone"] || s["phone"]) || s["Phone Number"]) === phone) {
+      if ((s["Real Phone"] || s["Phone Number"]) === phone) {
         return { ...s, images: updatedImages };
       }
       return s;
@@ -494,7 +494,7 @@ export default function SuppliersDashboard() {
 
   const deleteSupplierReview = async (phone, reviewIdx) => {
     // Find supplier
-    const supplier = suppliers.find(s => ((s["Real Phone"] || s["real_phone"] || s["phone"]) || s["Phone Number"]) === phone);
+    const supplier = suppliers.find(s => (s["Real Phone"] || s["Phone Number"]) === phone);
     if (!supplier) return;
     
     // Filter out target review by index
@@ -502,7 +502,7 @@ export default function SuppliersDashboard() {
     
     // Update local state suppliers list
     setSuppliers(prev => prev.map(s => {
-      if (((s["Real Phone"] || s["real_phone"] || s["phone"]) || s["Phone Number"]) === phone) {
+      if ((s["Real Phone"] || s["Phone Number"]) === phone) {
         return { ...s, reviews: updatedReviews };
       }
       return s;
@@ -520,7 +520,7 @@ export default function SuppliersDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           phone, 
-          name: (supplier["Supplier Name"] || supplier["name"]), 
+          name: supplier["Supplier Name"], 
           reviews: updatedReviews 
         })
       });
@@ -778,8 +778,8 @@ export default function SuppliersDashboard() {
 
     const formatDate = (date) => date.toISOString().replace(/-|:|\.\d+/g, '');
     
-    const title = encodeURIComponent(`חזרה לספק: ${(supplier["Supplier Name"] || supplier["name"])}`);
-    const details = encodeURIComponent(`סוכן: ${activeAgent}\nטלפון: ${(supplier["Real Phone"] || supplier["real_phone"] || supplier["phone"])}\nקטגוריה: ${(supplier["Category"] || supplier["category"])}`);
+    const title = encodeURIComponent(`חזרה לספק: ${supplier["Supplier Name"]}`);
+    const details = encodeURIComponent(`סוכן: ${activeAgent}\nטלפון: ${supplier["Real Phone"]}\nקטגוריה: ${supplier["Category"]}`);
     const dates = `${formatDate(startTime)}/${formatDate(endTime)}`;
 
     const calendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&sf=true&output=xml`;
@@ -833,7 +833,7 @@ export default function SuppliersDashboard() {
     const closingDate = state.closingDate || new Date().toISOString().split('T')[0];
 
     // Format google rating stars
-    const ratingVal = parseFloat((supplier["Google Rating"] || supplier["google_rating"]));
+    const ratingVal = parseFloat(supplier["Google Rating"]);
     let ratingStars = "אין דירוג";
     if (!isNaN(ratingVal) && ratingVal > 0) {
       ratingStars = `${"⭐".repeat(Math.round(ratingVal))} (${ratingVal} מתוך 5)`;
@@ -842,19 +842,19 @@ export default function SuppliersDashboard() {
     const message = encodeURIComponent(
       `*דיווח סגירה - Fiesta* 📝\n\n` +
       `👤 סוכן: *${activeAgent}*\n` +
-      `🏢 ספק: *${(supplier["Supplier Name"] || supplier["name"])}*\n` +
-      `📞 טלפון: ${(supplier["Real Phone"] || supplier["real_phone"] || supplier["phone"]) || 'לא צוין'}\n` +
-      `📍 כתובת: ${(supplier["Address"] || supplier["address"]) || 'לא צוין'}\n` +
+      `🏢 ספק: *${supplier["Supplier Name"]}*\n` +
+      `📞 טלפון: ${supplier["Real Phone"] || 'לא צוין'}\n` +
+      `📍 כתובת: ${supplier["Address"] || 'לא צוין'}\n` +
       `🗓️ תאריך סגירה: ${closingDate}\n\n` +
       (state.notes ? `✍️ *הערות הסוכן:*\n${state.notes}\n\n` : '') +
       `⭐ *דירוג ופרטים מהאינטרנט:*\n` +
       `- דירוג גוגל: ${ratingStars}\n` +
-      `- כמות ביקורות: ${(supplier["Reviews Count"] || supplier["reviews_count"]) || '0'}\n` +
+      `- כמות ביקורות: ${supplier["Reviews Count"] || '0'}\n` +
       `- קישור לביקורות בגוגל: ${supplier["Google Reviews Link"] || 'אין קישור'}\n` +
-      `- אתר אינטרנט: ${(supplier["Website"] || supplier["website"]) || 'אין אתר'}\n\n` +
+      `- אתר אינטרנט: ${supplier["Website"] || 'אין אתר'}\n\n` +
       `🖼️ *תמונות שנסרקו:*\n` +
-      `- תמונה ראשית: ${(supplier["Main Image"] || (supplier["images"] && supplier["images"][0])) || 'אין תמונה ראשית'}\n` +
-      `- תמונת גוגל: ${(supplier["Google Image"] || (supplier["images"] && supplier["images"][1])) || 'אין תמונת גוגל'}\n\n` +
+      `- תמונה ראשית: ${supplier["Main Image"] || 'אין תמונה ראשית'}\n` +
+      `- תמונת גוגל: ${supplier["Google Image"] || 'אין תמונת גוגל'}\n\n` +
       `📋 *חוזה/צילום מסך:*\n` +
       `תמונת החוזה הועתקה אוטומטית ללוח שלך! 📋\n` +
       `אנא לחץ *Ctrl+V* (הדבק) בצ'אט הווטסאפ שייפתח כעת כדי לשלוח את החוזה.\n\n` +
@@ -1027,7 +1027,7 @@ export default function SuppliersDashboard() {
     .filter((s) => {
       if (searchQuery) return true; // Bypass tab filtering if searching!
       
-      const phone = (s["Real Phone"] || s["real_phone"] || s["phone"]) || s["phone"];
+      const phone = s["Real Phone"] || s["phone"];
       const state = supplierStates[phone] || { status: null };
       const isHandled = state.status === 'not-interested' || state.status === 'contract';
       const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
@@ -1051,18 +1051,18 @@ export default function SuppliersDashboard() {
       const query = searchQuery.trim().toLowerCase();
       
       // 1. Supplier Name Matches (extremely resilient)
-      const nameMatches = ((s["Supplier Name"] || s["name"]) && (s["Supplier Name"] || s["name"]).toLowerCase().includes(query)) ||
+      const nameMatches = (s["Supplier Name"] && s["Supplier Name"].toLowerCase().includes(query)) ||
                           (s["name"] && s["name"].toLowerCase().includes(query)) ||
                           (s["Name"] && s["Name"].toLowerCase().includes(query));
       
       // 2. Category matches
-      const categoryMatches = (s["Category"] || s["category"]) && (s["Category"] || s["category"]).toLowerCase().includes(query);
+      const categoryMatches = s["Category"] && s["Category"].toLowerCase().includes(query);
       
       // 3. Address matches
-      const addressMatches = (s["Address"] || s["address"]) && (s["Address"] || s["address"]).toLowerCase().includes(query);
+      const addressMatches = s["Address"] && s["Address"].toLowerCase().includes(query);
       
       // 4. Website matches
-      const websiteMatches = (s["Website"] || s["website"]) && (s["Website"] || s["website"]).toLowerCase().includes(query);
+      const websiteMatches = s["Website"] && s["Website"].toLowerCase().includes(query);
       
       // 5. Supplier Number (original index in the CSV / suppliers list)
       const originalIndex = suppliers.indexOf(s) + 1;
@@ -1073,7 +1073,7 @@ export default function SuppliersDashboard() {
       
       // 6. Phone number matches (Real Phone, Phone Number, etc.)
       const cleanQuery = query.replace(/[-\s]/g, '');
-      const realPhoneClean = ((s["Real Phone"] || s["real_phone"] || s["phone"]) || "").replace(/[-\s]/g, '');
+      const realPhoneClean = (s["Real Phone"] || "").replace(/[-\s]/g, '');
       const phoneClean = (s["Phone Number"] || s["phone"] || "").replace(/[-\s]/g, '');
       
       const phoneMatches = (realPhoneClean && realPhoneClean.includes(cleanQuery)) || 
@@ -1590,7 +1590,7 @@ export default function SuppliersDashboard() {
               </div>
             ) : (
               filteredSuppliers.map((s) => {
-                const phone = (s["Real Phone"] || s["real_phone"] || s["phone"]) || s["phone"];
+                const phone = s["Real Phone"] || s["phone"];
                 const state = supplierStates[phone] || { status: null };
                 const supplierNumber = suppliers.indexOf(s) + 1;
 
@@ -1616,7 +1616,7 @@ export default function SuppliersDashboard() {
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                          <span className="category-tag">{(s["Category"] || s["category"]) || "כללי"}</span>
+                          <span className="category-tag">{s["Category"] || "כללי"}</span>
                           {state.reminder && (
                             <div style={{ 
                               fontSize: '0.75rem', color: '#8b5cf6', background: '#f5f3ff', 
@@ -1640,7 +1640,7 @@ export default function SuppliersDashboard() {
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px', flexWrap: 'wrap', gap: '8px' }}>
                         <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--primary)', margin: 0, maxWidth: '70%' }}>
-                          {(s["Supplier Name"] || s["name"])}
+                          {s["Supplier Name"]}
                         </h3>
                         <span style={{ 
                           fontSize: '0.75rem', 
@@ -1654,7 +1654,7 @@ export default function SuppliersDashboard() {
                           ספק #{supplierNumber}
                         </span>
                       </div>
-                      <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '10px' }}>{(s["Address"] || s["address"]) || "מיקום לא צוין"}</p>
+                      <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '10px' }}>{s["Address"] || "מיקום לא צוין"}</p>
 
                       {/* Full Profile Button */}
                       <button 
@@ -1682,11 +1682,11 @@ export default function SuppliersDashboard() {
                       </button>
 
                        {/* Supplier Image from Google */}
-                       {((s["Google Image"] || (s["images"] && s["images"][1])) || (s["Main Image"] || (s["images"] && s["images"][0]))) && (
+                       {(s["Google Image"] || s["Main Image"]) && (
                          <div style={{ marginBottom: '12px', borderRadius: '10px', overflow: 'hidden', height: '110px', background: '#f1f5f9' }}>
                            <img
-                             src={(s["Google Image"] || (s["images"] && s["images"][1])) || (s["Main Image"] || (s["images"] && s["images"][0]))}
-                             alt={(s["Supplier Name"] || s["name"])}
+                             src={s["Google Image"] || s["Main Image"]}
+                             alt={s["Supplier Name"]}
                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                              onError={(e) => { e.target.parentElement.style.display = 'none'; }}
                            />
@@ -1695,12 +1695,12 @@ export default function SuppliersDashboard() {
 
                        {/* Google Rating + Reviews + Website */}
                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px', flexWrap: 'wrap' }}>
-                         {(s["Google Rating"] || s["google_rating"]) && parseFloat((s["Google Rating"] || s["google_rating"])) > 0 && parseFloat((s["Google Rating"] || s["google_rating"])) <= 10 && (
+                         {s["Google Rating"] && parseFloat(s["Google Rating"]) > 0 && parseFloat(s["Google Rating"]) <= 10 && (
                            <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.8rem', fontWeight: '700' }}>
-                             <span style={{ color: '#f59e0b' }}>{'⭐'.repeat(Math.min(5, Math.round(parseFloat((s["Google Rating"] || s["google_rating"])))))}</span>
-                             <span style={{ color: 'var(--text)' }}>{parseFloat((s["Google Rating"] || s["google_rating"])).toFixed(1)}</span>
-                             {(s["Reviews Count"] || s["reviews_count"]) && parseInt((s["Reviews Count"] || s["reviews_count"])) > 0 && (
-                               <span style={{ color: 'var(--text-muted)', fontWeight: '500', fontSize: '0.75rem' }}>({(s["Reviews Count"] || s["reviews_count"])} ביקורות)</span>
+                             <span style={{ color: '#f59e0b' }}>{'⭐'.repeat(Math.min(5, Math.round(parseFloat(s["Google Rating"]))))}</span>
+                             <span style={{ color: 'var(--text)' }}>{parseFloat(s["Google Rating"]).toFixed(1)}</span>
+                             {s["Reviews Count"] && parseInt(s["Reviews Count"]) > 0 && (
+                               <span style={{ color: 'var(--text-muted)', fontWeight: '500', fontSize: '0.75rem' }}>({s["Reviews Count"]} ביקורות)</span>
                              )}
                            </div>
                          )}
@@ -1711,8 +1711,8 @@ export default function SuppliersDashboard() {
                              🔗 ביקורות גוגל
                            </a>
                          )}
-                         {(s["Website"] || s["website"]) && (
-                           <a href={(s["Website"] || s["website"]).startsWith('http') ? (s["Website"] || s["website"]) : `https://${(s["Website"] || s["website"])}`}
+                         {s["Website"] && (
+                           <a href={s["Website"].startsWith('http') ? s["Website"] : `https://${s["Website"]}`}
                              target="_blank" rel="noopener noreferrer"
                              style={{ fontSize: '0.72rem', fontWeight: '700', color: '#10b981', textDecoration: 'none',
                                background: '#f0fdf4', padding: '2px 8px', borderRadius: '5px', border: '1px solid #bbf7d0' }}>
@@ -1971,7 +1971,7 @@ export default function SuppliersDashboard() {
                       </AnimatePresence>
 
                       <div style={{ display: 'flex', gap: '8px', marginTop: state.status === 'closed' ? '8px' : '0' }}>
-                        <a href={`tel:${(s["Real Phone"] || s["real_phone"] || s["phone"])}`} className="btn-primary" style={{ flex: 1, padding: '12px' }}>
+                        <a href={`tel:${s["Real Phone"]}`} className="btn-primary" style={{ flex: 1, padding: '12px' }}>
                           <Phone size={20} />
                           <span>התקשר עכשיו</span>
                         </a>
@@ -2009,17 +2009,17 @@ export default function SuppliersDashboard() {
               </button>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                {((selectedSupplierProfile["Google Image"] || (selectedSupplierProfile["images"] && selectedSupplierProfile["images"][1])) || (selectedSupplierProfile["Main Image"] || (selectedSupplierProfile["images"] && selectedSupplierProfile["images"][0]))) && (
+                {(selectedSupplierProfile["Google Image"] || selectedSupplierProfile["Main Image"]) && (
                   <img 
-                    src={(selectedSupplierProfile["Google Image"] || (selectedSupplierProfile["images"] && selectedSupplierProfile["images"][1])) || (selectedSupplierProfile["Main Image"] || (selectedSupplierProfile["images"] && selectedSupplierProfile["images"][0]))} 
+                    src={selectedSupplierProfile["Google Image"] || selectedSupplierProfile["Main Image"]} 
                     style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--primary)' }} 
                     alt="" 
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
                 )}
                 <div style={{ flex: 1 }}>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--primary)', margin: 0 }}>{(selectedSupplierProfile["Supplier Name"] || selectedSupplierProfile["name"])}</h2>
-                  <span className="category-tag" style={{ display: 'inline-block', marginTop: '5px' }}>{(selectedSupplierProfile["Category"] || selectedSupplierProfile["category"])}</span>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--primary)', margin: 0 }}>{selectedSupplierProfile["Supplier Name"]}</h2>
+                  <span className="category-tag" style={{ display: 'inline-block', marginTop: '5px' }}>{selectedSupplierProfile["Category"]}</span>
                 </div>
                 <button
                   onClick={() => triggerFiestaPush(selectedSupplierProfile)}
@@ -2077,7 +2077,7 @@ export default function SuppliersDashboard() {
                         onClick={async () => {
                           setDescriptionSaving(true);
                           const phone = selectedSupplierProfile["Real Phone"] || selectedSupplierProfile["Phone Number"];
-                          const name = (selectedSupplierProfile["Supplier Name"] || selectedSupplierProfile["name"]);
+                          const name = selectedSupplierProfile["Supplier Name"];
                           
                           try {
                             const res = await fetch('/api/suppliers', {
@@ -2088,7 +2088,7 @@ export default function SuppliersDashboard() {
                             const data = await res.json();
                             if (data.success) {
                               setSuppliers(prev => prev.map(s => {
-                                if (((s["Real Phone"] || s["real_phone"] || s["phone"]) || s["Phone Number"]) === phone) {
+                                if ((s["Real Phone"] || s["Phone Number"]) === phone) {
                                   return { ...s, description: editedDescriptionText };
                                 }
                                 return s;
@@ -2786,4 +2786,3 @@ export default function SuppliersDashboard() {
     </div>
   );
 }
-
