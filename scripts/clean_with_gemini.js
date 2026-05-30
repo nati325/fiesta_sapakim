@@ -31,6 +31,7 @@ if (envKeys.length === 0) {
 // Arguments parsing
 const args = process.argv.slice(2);
 const isDryRun = args.includes('--dry-run');
+const isForce = args.includes('--force');
 const limitArgIdx = args.indexOf('--limit');
 let limit = limitArgIdx !== -1 ? parseInt(args[limitArgIdx + 1], 10) : 10;
 if (isNaN(limit)) limit = 10;
@@ -81,7 +82,7 @@ async function callGemini(prompt) {
 }
 
 async function run() {
-  console.log(`[🚀] Starting clean-up script. Mode: ${isDryRun ? 'DRY-RUN' : 'LIVE UPDATE'}. Limit: ${limit}`);
+  console.log(`[🚀] Starting clean-up script. Mode: ${isDryRun ? 'DRY-RUN' : 'LIVE UPDATE'}. Limit: ${limit}. Force Reset: ${isForce}`);
   
   // Connect to DB
   console.log('[ℹ️] Connecting to MongoDB...');
@@ -90,6 +91,14 @@ async function run() {
   const db = client.db('fiesta_crm');
   const collection = db.collection('suppliers');
   
+  if (isForce) {
+    console.log("[ℹ️] --force flag detected. Resetting cleaned_by_gemini flag for all suppliers in MongoDB...");
+    if (!isDryRun) {
+      await collection.updateMany({}, { $unset: { cleaned_by_gemini: "" } });
+      console.log("[✅] Reset completed in MongoDB.");
+    }
+  }
+
   // Find suppliers that need cleaning (cleaned_by_gemini !== true)
   const query = { cleaned_by_gemini: { $ne: true } };
   const suppliers = await collection.find(query).limit(limit).toArray();
@@ -109,6 +118,14 @@ async function run() {
     try {
       localData = JSON.parse(fs.readFileSync(completeJsonPath, 'utf-8'));
       console.log(`[ℹ️] Loaded ${localData.length} suppliers from suppliers_complete.json for local sync.`);
+      if (isForce && !isDryRun) {
+        localData = localData.map(item => {
+          delete item.cleaned_by_gemini;
+          return item;
+        });
+        fs.writeFileSync(completeJsonPath, JSON.stringify(localData, null, 2), 'utf-8');
+        console.log("[✅] Reset completed in suppliers_complete.json.");
+      }
     } catch (jsonErr) {
       console.error(`[⚠️] Error reading suppliers_complete.json:`, jsonErr.message);
     }
@@ -126,16 +143,22 @@ async function run() {
     // 1. Process description
     if (s.description && s.description.trim()) {
       console.log(`[📝] Original description: "${s.description.substring(0, 120)}..."`);
-      const prompt = `שפר את תיאור העסק הבא בעברית עבור אתר ספקים.
-הסר סוגריים מרובעים כגון [ ] או שלוש נקודות בסוף, תקן שגיאות כתיב ודקדוק, סדר את הפיסוק, ושפר את הניסוח שייראה שיווקי, מקצועי ואיכותי.
-חוק נוקשה: אל תאריך מדי, אם אתה מוסיף מידע הוא חייב להיות מינימלי בלבד כדי שלא ייראה ארוך או מוגזם (לא ספר!). אל תמציא פרטים שלא קשורים לעסק.
-החזר אך ורק את התיאור המשופר בעברית ללא הקדמות, מרקאפ או תוספות.
+      const prompt = `שפר ונסח מחדש את תיאור העסק הבא בעברית עבור אתר ספקים לאירועים.
+הנחיות חשובות:
+- התשובה חייבת להיות בעברית תקנית בלבד. אם התיאור המקורי באנגלית או שפה אחרת, תרגם אותו לעברית מלאה ורהוטה.
+- אל תשתמש בשום פנים ואופן בכוכביות (כמו ** או *) או בכל עיצוב מארקדאון (Markdown). החזר טקסט נקי לחלוטין.
+- התיאור צריך להיות עשיר, שיווקי ומקצועי. אל תעשה אותו קצר מדי - דאג שהוא יהיה באורך של 3 עד 5 משפטים (בין 40 ל-80 מילים), כדי שיראה מכובד ורציני.
+- הסר סוגריים מרובעים כגון [ ] או שלוש נקודות בסוף, תקן שגיאות כתיב ודקדוק וסדר את הפיסוק.
+- אל תמציא פרטים לא נכונים על העסק, אלא השתמש במידע הקיים ונסח אותו מחדש בצורה יוקרתית.
+- החזר אך ורק את התיאור המשופר ללא שום הקדמה, סימונים, או הערות.
 
 התיאור לעריכה:
 ${s.description}`;
 
       try {
-        const cleanedDesc = await callGemini(prompt);
+        let cleanedDesc = await callGemini(prompt);
+        // Clean any markdown formatting like bold asterisks
+        cleanedDesc = cleanedDesc.replace(/\*/g, '').replace(/[\r\n]+/g, ' ').trim();
         console.log(`[✨] Cleaned description: "${cleanedDesc}"`);
         updatedFields.description = cleanedDesc;
       } catch (err) {
@@ -144,12 +167,16 @@ ${s.description}`;
     } else {
       // If there is no description, generate a minimal placeholder based on category
       const category = s.category || "אירועים";
-      console.log(`[📝] No description found. Generating a minimal one for category "${category}"...`);
-      const prompt = `צור תיאור עסק קצרצר, מקצועי ומשכנע בעברית עבור ספק אירועים בשם "${name}" בקטגוריה "${category}".
-התיאור צריך להיות באורך של משפט אחד או שניים בלבד (מינימלי!).
-אל תוסיף הקדמות כמו "הנה התיאור:" אלא החזר רק את הטקסט עצמו.`;
+      console.log(`[📝] No description found. Generating description for category "${category}"...`);
+      const prompt = `צור תיאור עסק מקצועי, משכנע ושיווקי בעברית עבור ספק אירועים בשם "${name}" בקטגוריה "${category}".
+הנחיות:
+- התשובה חייבת להיות בעברית בלבד. ללא אנגלית.
+- אל תשתמש בכוכביות (**) או בעיצוב מארקדאון (Markdown). החזר טקסט נקי בלבד.
+- התיאור צריך להיות באורך של 3 עד 4 משפטים מקיפים ומכובדים (כ-40-60 מילים) שמתארים את השירות המקצועי, האיכות והיחס האישי של הספק.
+- אל תוסיף הקדמות כמו "הנה התיאור:" אלא החזר רק את הטקסט עצמו.`;
       try {
-        const generatedDesc = await callGemini(prompt);
+        let generatedDesc = await callGemini(prompt);
+        generatedDesc = generatedDesc.replace(/\*/g, '').replace(/[\r\n]+/g, ' ').trim();
         console.log(`[✨] Generated description: "${generatedDesc}"`);
         updatedFields.description = generatedDesc;
       } catch (err) {
@@ -165,18 +192,20 @@ ${s.description}`;
       for (let rIdx = 0; rIdx < s.reviews.length; rIdx++) {
         const r = s.reviews[rIdx];
         if (r.text && r.text.trim()) {
-          const rPrompt = `נקה ושפר את חוות הדעת הבאה בעברית של לקוח על עסק.
+          const rPrompt = `נקה, שפר ונסח מחדש את חוות הדעת הבאה של לקוח על עסק.
 הנחיות:
-- אם חוות הדעת מכילה רק קידום מכירות עצמי, פרסומות, טקסט גנרי של אתרים (כמו "mit4mit חוות דעת", "השאירו פרטים", "מספר ספק"), או מידע טכני בלבד - החזר בדיוק מחרוזת ריקה "" כדי להשמיט אותה.
-- הסר סוגריים מרובעים [ ], שלוש נקודות בסוף, ותקן שגיאות כתיב ודקדוק.
-- נסח מחדש כך שישמע כחוות דעת טבעית, חיובית או עניינית של לקוח (עד 2-3 משפטים קצרים).
-- אל תוסיף הקדמות או מרקאפ. החזר רק את הטקסט הנקי (או מחרוזת ריקה אם יש להשמיט).
+- התשובה חייבת להיות בעברית בלבד. אם חוות הדעת המקורית נכתבה באנגלית או שפה אחרת, תרגם אותה לעברית.
+- אל תשתמש בשום פנים ואופן בכוכביות (**) או בעיצוב מארקדאון (Markdown). החזר טקסט נקי.
+- אם חוות הדעת מכילה רק קידום מכירות עצמי, פרסומות, טקסט גנרי של אתרים (כמו "mit4mit חוות דעת", "השאירו פרטים"), או שהיא בלתי מובנת לחלוטין - החזר בדיוק מחרוזת ריקה "" כדי להשמיט אותה.
+- נסח מחדש כך שישמע כחוות דעת טבעית, חיובית ומנוסחת היטב של לקוח אמיתי (כ-2-3 משפטים ברורים).
+- החזר אך ורק את חוות הדעת הנקייה ללא שום הקדמה או הערות.
 
 חוות הדעת לניקוי:
 ${r.text}`;
 
           try {
-            const cleanedText = await callGemini(rPrompt);
+            let cleanedText = await callGemini(rPrompt);
+            cleanedText = cleanedText.replace(/\*/g, '').trim();
             if (cleanedText && cleanedText.replace(/['"']/g, '').trim() !== "") {
               cleanedReviews.push({
                 ...r,
