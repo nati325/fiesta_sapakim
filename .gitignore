@@ -6,6 +6,7 @@ build/
 *.pyc
 __pycache__/
 .env*
+!.env.example
 
 # Scraping scripts
 researcher*.py

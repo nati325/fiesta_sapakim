@@ -36,7 +36,9 @@ export default function SuppliersDashboard() {
     agentCommission: '',  // עמלת הסוכן
     commissionAmount: '', // עמלת Fiesta
     discountDisplayType: 'percent', // 'percent' | 'amount'
-    agreementSigned: false
+    agreementSigned: false,
+    images: [],
+    reviews: []
   });
 
   // All Fiesta categories — exact slugs from categoryData in /category/[type]/page.jsx
@@ -262,34 +264,54 @@ export default function SuppliersDashboard() {
     return 'design';
   };
 
-  // ── Trigger Fiesta Push Modal ─────────────────────────────────────────────
-  const triggerFiestaPush = (supplier) => {
+  const getSupplierImage = (supplier) => {
+    if (!supplier) return null;
+    if (supplier.images?.length) return supplier.images[0];
+    if (supplier['Google Image'] && supplier['Google Image'] !== 'nan') return supplier['Google Image'];
+    if (supplier['Main Image'] && supplier['Main Image'] !== 'nan') return supplier['Main Image'];
+    return null;
+  };
+
+  const openFiestaPushModal = (supplier, overrides = {}) => {
     const mappedType = mapCategoryToFiesta(supplier.Category);
     const address = supplier['Address'] || '';
-    // Extract first Hebrew word as a rough region
     const regionMatch = address.match(/[\u05D0-\u05EA]{2,}/);
     const region = regionMatch ? regionMatch[0] : '';
 
     setFiestaPushSupplier(supplier);
     setFiestaPushResult(null);
     setFiestaPushError('');
+    setFiestaPushLoading(false);
     setFiestaPushStep(1);
     setFiestaPushForm({
       type: mappedType,
-      description: `${supplier['Category'] || ''} באזור ${address}`.trim(),
+      description: supplier.description || `${supplier['Category'] || ''} באזור ${address}`.trim(),
       region,
       originalPrice: '',
       price: '',
       agentCommission: '',
       commissionAmount: '',
       discountDisplayType: 'percent',
-      agreementSigned: false
+      agreementSigned: false,
+      images: supplier.images || [],
+      reviews: supplier.reviews || [],
+      ...overrides,
     });
     setShowFiestaPushModal(true);
   };
 
+  const triggerFiestaPush = (supplier) => {
+    openFiestaPushModal(supplier);
+  };
+
   // ── Submit to Fiesta API ──────────────────────────────────────────────────
   const submitToFiesta = async () => {
+    if (!fiestaPushForm.type) {
+      setFiestaPushError('יש לבחור קטגוריה לפני השליחה');
+      setFiestaPushStep(1);
+      return;
+    }
+
     setFiestaPushLoading(true);
     setFiestaPushResult(null);
     setFiestaPushError('');
@@ -313,11 +335,18 @@ export default function SuppliersDashboard() {
             ...fiestaPushForm,
             discount,
             discountType: fiestaPushForm.discountDisplayType,
-            agentName: activeAgent
+            agentName: activeAgent,
+            images: fiestaPushForm.images?.length ? fiestaPushForm.images : (fiestaPushSupplier?.images || []),
+            reviews: fiestaPushForm.reviews?.length ? fiestaPushForm.reviews : (fiestaPushSupplier?.reviews || []),
           }
         })
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setFiestaPushResult('error');
+        setFiestaPushError(data.error || `שגיאת שרת (${res.status})`);
+        return;
+      }
       if (data.exists) {
         setFiestaPushResult('exists');
       } else if (data.success) {
@@ -1457,10 +1486,10 @@ export default function SuppliersDashboard() {
                       <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '8px' }}>{s["Address"] || "מיקום לא צוין"}</p>
 
                        {/* Supplier Image from Google */}
-                       {(s["Google Image"] || s["Main Image"]) && (
+                       {getSupplierImage(s) && (
                          <div style={{ marginBottom: '12px', borderRadius: '10px', overflow: 'hidden', height: '110px', background: '#f1f5f9' }}>
                            <img
-                             src={s["Google Image"] || s["Main Image"]}
+                             src={getSupplierImage(s)}
                              alt={s["Supplier Name"]}
                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                              onError={(e) => { e.target.parentElement.style.display = 'none'; }}
@@ -1796,7 +1825,7 @@ export default function SuppliersDashboard() {
               position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
               background: 'rgba(15,23,42,0.75)', backdropFilter: 'blur(8px)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              zIndex: 4000, padding: '20px'
+              zIndex: 11000, padding: '20px'
             }}
           >
             <motion.div
@@ -2109,6 +2138,12 @@ export default function SuppliersDashboard() {
 
                   </div>
 
+                  {fiestaPushError && (
+                    <p style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '12px', textAlign: 'center' }}>
+                      {fiestaPushError}
+                    </p>
+                  )}
+
                   <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                     <button
                       onClick={submitToFiesta}
@@ -2155,8 +2190,8 @@ export default function SuppliersDashboard() {
               </button>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
-                {(selectedSupplierProfile["Google Image"] || selectedSupplierProfile["Main Image"]) && (
-                  <img src={selectedSupplierProfile["Google Image"] || selectedSupplierProfile["Main Image"]} style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--primary)' }} alt="" />
+                {getSupplierImage(selectedSupplierProfile) && (
+                  <img src={getSupplierImage(selectedSupplierProfile)} style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--primary)' }} alt="" />
                 )}
                 <div>
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--primary)', margin: 0 }}>{selectedSupplierProfile["Supplier Name"]}</h2>
@@ -2210,22 +2245,7 @@ export default function SuppliersDashboard() {
               <button 
                 className="btn-primary" 
                 onClick={() => {
-                  setFiestaPushForm({
-                    type: '',
-                    description: selectedSupplierProfile.description || `${selectedSupplierProfile['Category'] || ''} באזור ${selectedSupplierProfile['Address'] || ''}`.trim(),
-                    region: '',
-                    originalPrice: '',
-                    price: '',
-                    agentCommission: '',
-                    commissionAmount: '',
-                    discountDisplayType: 'percent',
-                    agreementSigned: false,
-                    images: selectedSupplierProfile.images || [],
-                    reviews: selectedSupplierProfile.reviews || []
-                  });
-                  setFiestaPushSupplier(selectedSupplierProfile);
-                  setFiestaPushStep(1);
-                  setShowFiestaPushModal(true);
+                  openFiestaPushModal(selectedSupplierProfile);
                   setSelectedSupplierProfile(null);
                 }}
                 style={{ width: '100%', padding: '15px', fontSize: '1.1rem', marginTop: '10px' }}

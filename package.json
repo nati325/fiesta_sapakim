@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "fix-vendors": "node scripts/fix-pushed-vendors.mjs",
+    "deploy": "node scripts/deploy-all.mjs"
   },
   "dependencies": {
     "framer-motion": "^11.2.10",
