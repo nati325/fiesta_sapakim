@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    reactStrictMode: true,
+  reactStrictMode: true,
+  experimental: {
+    outputFileTracingExcludes: {
+      '*': ['public/media/**/*'],
+    },
+  },
 };
 
 export default nextConfig;

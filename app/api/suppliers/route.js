@@ -29,23 +29,8 @@ function parseCSVLine(line) {
 function ensureResourcesLinked() {
   try {
     const destData = path.join(process.cwd(), 'data');
-    const destSuppliersMedia = path.join(process.cwd(), 'public', 'media', 'suppliers');
-    const destPortfoliosMedia = path.join(process.cwd(), 'public', 'media', 'portfolios');
-    const srcData = path.join(process.cwd(), 'data');
-    const srcSuppliersMedia = path.join(process.cwd(), 'public', 'media', 'suppliers');
-    const srcPortfoliosMedia = path.join(process.cwd(), 'public', 'media', 'portfolios');
-
-    if (fs.existsSync(srcData)) {
-      if (!fs.existsSync(destData)) {
-        fs.mkdirSync(destData, { recursive: true });
-      }
-    }
-
-    if (!fs.existsSync(destSuppliersMedia) && fs.existsSync(srcSuppliersMedia)) {
-      fs.mkdirSync(path.dirname(destSuppliersMedia), { recursive: true });
-    }
-    if (!fs.existsSync(destPortfoliosMedia) && fs.existsSync(srcPortfoliosMedia)) {
-      fs.mkdirSync(path.dirname(destPortfoliosMedia), { recursive: true });
+    if (!fs.existsSync(destData)) {
+      fs.mkdirSync(destData, { recursive: true });
     }
   } catch (e) {
     console.error('Error setting up resource links:', e.message);
@@ -125,6 +110,94 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (error) {
     console.error('API Error during GET:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function POST(req) {
+  try {
+    const { phone, name, images, description, reviews } = await req.json();
+
+    if (!phone) {
+      return NextResponse.json({ error: 'Missing supplier phone' }, { status: 400 });
+    }
+
+    const updateFields = {};
+    if (images !== undefined) updateFields.images = images;
+    if (description !== undefined) updateFields.description = description;
+    if (reviews !== undefined) updateFields.reviews = reviews;
+
+    if (Object.keys(updateFields).length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    }
+
+    try {
+      const client = await getMongoClient();
+      const db = client.db('fiesta_crm');
+      const collection = db.collection('suppliers');
+
+      await collection.updateOne({ phone }, { $set: updateFields });
+      console.log(`Updated supplier ${phone} fields in MongoDB:`, Object.keys(updateFields));
+    } catch (dbError) {
+      console.error('MongoDB update failed:', dbError.message);
+    }
+
+    const jsonPath = path.join(process.cwd(), 'data', 'suppliers_complete.json');
+    if (fs.existsSync(jsonPath)) {
+      try {
+        const rawData = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+        let updated = false;
+
+        const updatedData = rawData.map((item) => {
+          const itemPhone = item.real_phone || item.phone || '';
+          if (itemPhone === phone) {
+            updated = true;
+            return { ...item, ...updateFields };
+          }
+          return item;
+        });
+
+        if (updated) {
+          fs.writeFileSync(jsonPath, JSON.stringify(updatedData, null, 2), 'utf-8');
+        }
+      } catch (jsonError) {
+        console.error('Failed to update local JSON fallback:', jsonError.message);
+      }
+    }
+
+    if (description !== undefined && name) {
+      const descPath = path.join(process.cwd(), 'data', 'supplier_descriptions.json');
+      if (fs.existsSync(descPath)) {
+        try {
+          const descData = JSON.parse(fs.readFileSync(descPath, 'utf-8'));
+          descData[name] = {
+            description,
+            source: 'agent_edited',
+            last_updated: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          };
+          fs.writeFileSync(descPath, JSON.stringify(descData, null, 2), 'utf-8');
+        } catch (descError) {
+          console.error('Failed to update supplier_descriptions.json:', descError.message);
+        }
+      }
+    }
+
+    if (reviews !== undefined && name) {
+      const reviewsPath = path.join(process.cwd(), 'data', 'supplier_reviews.json');
+      if (fs.existsSync(reviewsPath)) {
+        try {
+          const reviewsData = JSON.parse(fs.readFileSync(reviewsPath, 'utf-8'));
+          reviewsData[name] = reviews;
+          fs.writeFileSync(reviewsPath, JSON.stringify(reviewsData, null, 2), 'utf-8');
+        } catch (reviewsError) {
+          console.error('Failed to update supplier_reviews.json:', reviewsError.message);
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('API Error during POST:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -2,13 +2,15 @@
   "name": "fiesta-dashboard",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "fix-vendors": "node scripts/fix-pushed-vendors.mjs",
-    "deploy": "node scripts/deploy-all.mjs"
+    "deploy": "node scripts/deploy-all.mjs",
+    "push-fix": "node scripts/push-fix.mjs"
   },
   "dependencies": {
     "framer-motion": "^11.2.10",

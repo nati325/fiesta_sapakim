@@ -46,10 +46,13 @@ export async function POST(req) {
       return NextResponse.json({ exists: true });
     }
 
-    const imageList = fiestaData.images?.length ? fiestaData.images : supplier.images || [];
-    const reviewList = fiestaData.reviews?.length ? fiestaData.reviews : supplier.reviews || [];
-    const mainImage = pickMainImage(supplier, origin);
-    const portfolio = toPortfolioItems(imageList, origin);
+    const selectedImages = fiestaData.selectedImages || fiestaData.images || supplier.images || [];
+    const reviewList = fiestaData.reviews || supplier.reviews || [];
+    const mainImage =
+      pickMainImage({ ...supplier, images: selectedImages }, origin) ||
+      pickMainImage(supplier, origin);
+
+    const portfolio = toPortfolioItems(selectedImages.length ? selectedImages : supplier.images || [], origin);
 
     const vendorDoc = {
       name: supplierName,
@@ -64,7 +67,7 @@ export async function POST(req) {
       discountType: fiestaData.discountType || 'percent',
       commissionAmount: Number(fiestaData.commissionAmount) || 0,
       agreementSigned: fiestaData.agreementSigned || false,
-      agreementImage: '',
+      agreementImage: fiestaData.agreementImage || '',
       googleReviewsLink: supplier['Google Reviews Link'] || '',
       googleRating: parseFloat(supplier['Google Rating']) || 5,
       googleReviewsCount: parseInt(supplier['Reviews Count']) || 0,
@@ -75,6 +78,7 @@ export async function POST(req) {
         `🏷️ קטגוריה מקורית: ${supplier['Category'] || 'לא צוין'}`,
         `💼 עמלת סוכן: ₪${fiestaData.agentCommission || '0'}`,
         `🏢 עמלת Fiesta: ₪${fiestaData.commissionAmount || '0'}`,
+        `📸 תמונות שנבחרו: ${selectedImages.length}`,
       ].join('\n'),
       instagramLink: '',
       priceIncludesVat: true,
