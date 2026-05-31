@@ -15,6 +15,10 @@ export async function GET() {
     allStatesArray.forEach(doc => {
       const { _id, phone, ...stateData } = doc;
       if (phone) {
+        // Don't send huge base64 images in list response — slows dashboard
+        if (stateData.uploadedImage && String(stateData.uploadedImage).startsWith('data:')) {
+          stateData.uploadedImage = '[stored]';
+        }
         statesObject[phone] = stateData;
       }
     });

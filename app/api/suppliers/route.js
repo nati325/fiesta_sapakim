@@ -1,113 +1,54 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import getMongoClient from '../../../lib/mongodb';
-import { enrichSupplierRecord, loadSuppliersFromJson } from '../../../lib/supplierEnrichment';
+import { loadSuppliersFromJson, normalizeSupplierRecord } from '../../../lib/supplierEnrichment';
+import { supplierMatchesSearch } from '../../../lib/searchUtils';
 
 export const dynamic = 'force-dynamic';
 
-function parseCSVLine(line) {
-  const result = [];
-  let current = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      result.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  result.push(current.trim());
-  return result;
-}
-
-function ensureResourcesLinked() {
+export async function GET(request) {
   try {
-    const destData = path.join(process.cwd(), 'data');
-    if (!fs.existsSync(destData)) {
-      fs.mkdirSync(destData, { recursive: true });
-    }
-  } catch (e) {
-    console.error('Error setting up resource links:', e.message);
-  }
-}
-
-export async function GET() {
-  try {
-    ensureResourcesLinked();
-    const enrichmentMaps = loadSuppliersFromJson();
-
-    if (enrichmentMaps.list.length > 0) {
-      console.log(`GET /api/suppliers: Using enriched JSON (${enrichmentMaps.list.length} suppliers)`);
-      return NextResponse.json(enrichmentMaps.list);
+    const { searchParams } = new URL(request.url);
+    if (searchParams.get('verify') === '1') {
+      const { list } = loadSuppliersFromJson();
+      const lior = list.find((s) => (s['Supplier Name'] || '').includes('ליאור פרץ'));
+      const liorIndex = lior ? list.indexOf(lior) + 1 : null;
+      return NextResponse.json({
+        ok: true,
+        totalSuppliers: list.length,
+        lior: lior
+          ? { found: true, name: lior['Supplier Name'], phone: lior['Real Phone'], index: liorIndex }
+          : { found: false },
+        searchLiorTypo: lior
+          ? supplierMatchesSearch(lior, 'ליאר פרץ', liorIndex)
+          : false,
+      });
     }
 
-    console.log('GET /api/suppliers: Fetching from MongoDB...');
-    try {
-      const client = await getMongoClient();
-      const db = client.db('fiesta_crm');
-      const collection = db.collection('suppliers');
-      const dbSuppliers = await collection.find({}).toArray();
-      console.log(`Fetched ${dbSuppliers.length} suppliers from MongoDB.`);
+    const dataDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
 
-      if (dbSuppliers.length > 0) {
-        const data = dbSuppliers.map((item) =>
-          enrichSupplierRecord(
-            {
-              'Supplier Name': item.name || '',
-              'Phone Number': item.phone || '',
-              Category: item.category || '',
-              URL: item.engaged_url || '',
-              'Main Image': item.main_image || '',
-              Gallery: item.gallery || '',
-              'Real Phone': item.real_phone || '',
-              Website: item.website || '',
-              'Google Rating': item.google_rating || '',
-              'Reviews Count': item.reviews_count || '',
-              Address: item.address || '',
-              description: item.description || '',
-              reviews: item.reviews || [],
-              images: item.images || [],
-            },
-            enrichmentMaps
-          )
+    const { list } = loadSuppliersFromJson();
+    const suppliers = list
+      .map((item) => normalizeSupplierRecord(item))
+      .filter((s) => {
+        const name = (s['Supplier Name'] || s.clean_name || '').trim();
+        const phone = s['Real Phone'] || s['Phone Number'] || '';
+        return (
+          name &&
+          name !== 'ספק ללא שם' &&
+          phone &&
+          phone !== 'FAILED' &&
+          phone !== 'N/A'
         );
-        return NextResponse.json(data);
-      }
-    } catch (dbError) {
-      console.error('MongoDB fetch failed, falling back to local files:', dbError.message);
-    }
-
-    const csvPath = path.join(process.cwd(), 'scraping', 'engaged_suppliers_final_production.csv');
-    if (!fs.existsSync(csvPath)) {
-      return NextResponse.json([]);
-    }
-
-    const fileContent = fs.readFileSync(csvPath, 'utf-8');
-    const lines = fileContent.split('\n').filter((line) => line.trim());
-    const headers = parseCSVLine(lines[0]);
-
-    const data = lines
-      .slice(1)
-      .map((line) => {
-        const values = parseCSVLine(line);
-        const obj = {};
-        headers.forEach((header, i) => {
-          obj[header] = values[i] || '';
-        });
-        return enrichSupplierRecord(obj, enrichmentMaps);
-      })
-      .filter((item) => {
-        const phone = item['Real Phone'] || item['Phone Number'];
-        return phone && phone !== 'FAILED' && phone !== 'N/A' && phone !== '';
       });
 
-    return NextResponse.json(data);
+    console.log(`GET /api/suppliers: returning ${suppliers.length} suppliers (json source)`);
+    return NextResponse.json(suppliers, {
+      headers: { 'X-Suppliers-Source': 'json', 'X-Suppliers-Count': String(suppliers.length) },
+    });
   } catch (error) {
     console.error('API Error during GET:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -131,26 +72,23 @@ export async function POST(req) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
-    try {
-      const client = await getMongoClient();
-      const db = client.db('fiesta_crm');
-      const collection = db.collection('suppliers');
-
-      await collection.updateOne({ phone }, { $set: updateFields });
-      console.log(`Updated supplier ${phone} fields in MongoDB:`, Object.keys(updateFields));
-    } catch (dbError) {
-      console.error('MongoDB update failed:', dbError.message);
-    }
-
     const jsonPath = path.join(process.cwd(), 'data', 'suppliers_complete.json');
     if (fs.existsSync(jsonPath)) {
       try {
-        const rawData = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+        let content = fs.readFileSync(jsonPath, 'utf-8');
+        if (content.includes('<<<<<<<')) {
+          content = content.replace(
+            /<<<<<<< HEAD\r?\n([\s\S]*?)=======\r?\n[\s\S]*?>>>>>>> origin\/main\r?\n/g,
+            '$1'
+          );
+        }
+        const rawData = JSON.parse(content);
         let updated = false;
 
         const updatedData = rawData.map((item) => {
-          const itemPhone = item.real_phone || item.phone || '';
-          if (itemPhone === phone) {
+          const itemPhone = (item.real_phone || item.phone || '').replace(/\D/g, '');
+          const searchPhone = String(phone).replace(/\D/g, '');
+          if (itemPhone && searchPhone && itemPhone === searchPhone) {
             updated = true;
             return { ...item, ...updateFields };
           }

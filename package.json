@@ -4,15 +4,24 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/ensure-fresh-api.mjs && next dev",
+    "dev:fresh": "node scripts/rm-next.mjs && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "fix-vendors": "node scripts/fix-pushed-vendors.mjs",
     "deploy": "node scripts/deploy-all.mjs",
-    "push-fix": "node scripts/push-fix.mjs"
+    "push-fix": "node scripts/push-fix.mjs",
+    "repair-data": "node scripts/repair-data.mjs",
+    "verify-dashboard": "node scripts/verify-dashboard.mjs",
+    "clean-states": "node scripts/clean-orphan-states.mjs",
+    "bulk-push": "node scripts/bulk-push-to-fiesta.mjs --file data/fiesta-push-queue.json",
+    "bulk-push-contract": "node scripts/bulk-push-to-fiesta.mjs --contract",
+    "list-pending-fiesta": "node scripts/list-pending-fiesta.mjs",
+    "finish-merge": "node scripts/resolve-json-conflicts.mjs"
   },
   "dependencies": {
+    "cloudinary": "^2.10.0",
     "framer-motion": "^11.2.10",
     "lucide-react": "^0.378.0",
     "mongodb": "^7.2.0",

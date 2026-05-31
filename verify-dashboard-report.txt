@@ -1,0 +1,32 @@
+=== SUPPLIER DASHBOARD VERIFICATION ===
+Total loaded: 800
+Empty names: 0
+Duplicate phones after dedupe: 0
+
+--- LIOR PEREZ ---
+Found: true
+Name: ליאור פרץ | Full Volume דיגיי לחתונה
+Clean name: ליאור פרץ
+Category: מוזיקה
+Real Phone: 052-3300403
+Index (1-based): 369
+Search "ליאור פרץ": true
+Search "ליאר פרץ": true
+Search "407": false
+
+--- YINON FILTER ---
+Visible to Yinon: 136
+Lior visible to Yinon: true
+
+--- IMAGES ---
+Without any image URL: 0
+With http image: 0
+
+--- SAMPLE EMPTY-LIKE (first 5 with short name) ---
+
+--- BAD SEARCH TEST: query "40" should NOT match everyone ---
+Matches for "40": 63
+
+--- GOOD SEARCH TEST: query "ליאר פרץ" ---
+Matches for "ליאר פרץ": 1
+ - ליאור פרץ | Full Volume דיגיי לחתונה

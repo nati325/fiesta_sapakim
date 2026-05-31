@@ -1,11 +1,68 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { loadSuppliersFromJson } from '../../../lib/supplierEnrichment';
+import { supplierMatchesSearch } from '../../../lib/searchUtils';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+const YINON_CATS = ['מוזיקה', "די ג'יי", 'DJ', "דיג'יי", 'תקליטן'];
+
+function yinonVisible(s) {
+  const cat = s.Category || '';
+  if (!cat || cat === 'ספקים ללא קטגוריה') return true;
+  return YINON_CATS.some((c) => cat.includes(c));
+}
+
+function buildDashboardReport() {
+  const { list } = loadSuppliersFromJson();
+  const lior = list.find(
+    (s) =>
+      (s['Supplier Name'] || '').includes('ליאור פרץ') ||
+      (s.clean_name || '').includes('ליאור פרץ')
+  );
+  const liorIndex = lior ? list.indexOf(lior) + 1 : null;
+
+  const emptyNames = list.filter((s) => {
+    const name = (s['Supplier Name'] || '').trim();
+    return !name || name === 'ספק ללא שם';
+  });
+
+  const searchTests = ['ליאור פרץ', 'ליאר פרץ', '407', '40'].map((query) => ({
+    query,
+    matchCount: list.filter((s, i) => supplierMatchesSearch(s, query, i + 1)).length,
+    liorMatches: lior ? supplierMatchesSearch(lior, query, liorIndex) : false,
+  }));
+
+  return {
+    ok: true,
+    source: 'json',
+    totalSuppliers: list.length,
+    emptyNames: emptyNames.length,
+    yinonVisibleCount: list.filter(yinonVisible).length,
+    lior: lior
+      ? {
+          found: true,
+          name: lior['Supplier Name'],
+          clean_name: lior.clean_name,
+          category: lior.Category,
+          realPhone: lior['Real Phone'],
+          index: liorIndex,
+          visibleToYinon: yinonVisible(lior),
+        }
+      : { found: false },
+    searchTests,
+    hint: 'ליאור פרץ מסומן כ-contract ב-MongoDB → מופיע בלשונית "ספקים שטופלו"',
+  };
+}
+
+export async function GET(request) {
     try {
+        const { searchParams } = new URL(request.url);
+        if (searchParams.get('dashboard') === '1' || searchParams.get('verify') === '1') {
+            return NextResponse.json(buildDashboardReport());
+        }
+
         const filePath = path.join(process.cwd(), 'scraping', 'engaged_suppliers_final_production.csv');
         
         if (!fs.existsSync(filePath)) {

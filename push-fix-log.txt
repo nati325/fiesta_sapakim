@@ -1,0 +1,59 @@
+Downloading latest page.js from GitHub...
+Updated app/page.js from remote + patches
+> git add -A
+> git commit -m "Merge remote dashboard with supplier/image fixes"
+[main 3246055] Merge remote dashboard with supplier/image fixes
+ 8 files changed, 1112 insertions(+), 336 deletions(-)
+ create mode 100644 push-fix.bat
+ create mode 100644 scripts/push-fix.mjs
+> git fetch origin
+> git rebase origin/main
+Auto-merging app/api/push-to-fiesta/route.js
+CONFLICT (content): Merge conflict in app/api/push-to-fiesta/route.js
+Auto-merging app/api/suppliers/route.js
+CONFLICT (content): Merge conflict in app/api/suppliers/route.js
+Auto-merging app/page.js
+CONFLICT (content): Merge conflict in app/page.js
+Auto-merging data/supplier_descriptions.json
+CONFLICT (add/add): Merge conflict in data/supplier_descriptions.json
+Auto-merging data/suppliers_complete.json
+CONFLICT (add/add): Merge conflict in data/suppliers_complete.json
+
+Rebasing (1/4)Rebasing (2/4)error: could not apply 6b4f8a0... feat: implement supplier image scraping and review download logic with complete dataset update
+hint: Resolve all conflicts manually, mark them as resolved with
+hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+hint: You can instead skip this commit: run "git rebase --skip".
+hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+hint: Disable this message with "git config set advice.mergeConflict false"
+Could not apply 6b4f8a0... # feat: implement supplier image scraping and review download logic with complete dataset update
+
+Rebase failed, trying merge...
+> git rebase --abort
+> git merge origin/main -m "Merge origin/main with local fixes"
+Auto-merging .gitignore
+Auto-merging app/api/push-to-fiesta/route.js
+CONFLICT (content): Merge conflict in app/api/push-to-fiesta/route.js
+Auto-merging app/api/suppliers/route.js
+CONFLICT (content): Merge conflict in app/api/suppliers/route.js
+Auto-merging app/page.js
+CONFLICT (content): Merge conflict in app/page.js
+Auto-merging data/supplier_descriptions.json
+CONFLICT (add/add): Merge conflict in data/supplier_descriptions.json
+Auto-merging data/suppliers_complete.json
+CONFLICT (add/add): Merge conflict in data/suppliers_complete.json
+Auto-merging next.config.mjs
+CONFLICT (content): Merge conflict in next.config.mjs
+Automatic merge failed; fix conflicts and then commit the result.
+
+Command failed: git merge origin/main -m "Merge origin/main with local fixes"
+> git push origin main
+
+To https://github.com/nati325/fiesta_sapakim.git
+ ! [rejected]        main -> main (non-fast-forward)
+error: failed to push some refs to 'https://github.com/nati325/fiesta_sapakim.git'
+hint: Updates were rejected because the tip of your current branch is behind
+hint: its remote counterpart. If you want to integrate the remote changes,
+hint: use 'git pull' before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+
+Finished.

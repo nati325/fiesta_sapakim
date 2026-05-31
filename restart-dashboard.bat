@@ -1,0 +1,16 @@
+@echo off
+cd /d "%~dp0"
+echo Stopping old server on port 3000...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3000 ^| findstr LISTENING') do taskkill /F /PID %%a 2>nul
+echo Removing stale .next cache...
+if exist ".next" rmdir /s /q ".next"
+echo Repairing data...
+call npm run repair-data
+echo Cleaning orphan MongoDB states...
+call npm run clean-states
+echo Starting dev server...
+start "" cmd /c "npm run dev"
+echo.
+echo Open: http://localhost:3000/
+echo Password: fiestamadar
+pause

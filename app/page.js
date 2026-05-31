@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Upload, MessageCircle, Phone, Calendar, CheckCircle2, ChevronDown, User, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supplierMatchesSearch } from '../lib/searchUtils';
 import './globals.css';
 
 export default function SuppliersDashboard() {
@@ -22,6 +23,10 @@ export default function SuppliersDashboard() {
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescriptionText, setEditedDescriptionText] = useState('');
   const [descriptionSaving, setDescriptionSaving] = useState(false);
+  const [apiHealthWarning, setApiHealthWarning] = useState(null);
+  const [supplierImages, setSupplierImages] = useState({}); // phone → imageUrl | 'loading' | 'error'
+  const [fetchingAllImages, setFetchingAllImages] = useState(false);
+  const [imageFetchProgress, setImageFetchProgress] = useState({ done: 0, total: 0 });
 
   // ── Fiesta Push Modal ────────────────────────────────────────────────────────
   const [showFiestaPushModal, setShowFiestaPushModal] = useState(false);
@@ -89,12 +94,54 @@ export default function SuppliersDashboard() {
 
   useEffect(() => {
     fetch('/api/suppliers', { cache: 'no-store' })
-      .then(res => res.json())
-      .then(data => {
-        const processedData = data.map(s => ({
-          ...s,
-          Category: s.Category && s.Category.trim() !== "" ? s.Category : "ספקים ללא קטגוריה"
-        }));
+      .then(async (res) => {
+        const source = res.headers.get('X-Suppliers-Source');
+        const data = await res.json();
+
+        if (!Array.isArray(data)) {
+          console.error('Suppliers API returned invalid data:', data);
+          setApiHealthWarning('שגיאה בטעינת ספקים מהשרת. סגור את השרת והרץ מחדש: restart-dashboard.bat');
+          setLoading(false);
+          return;
+        }
+
+        const emptyInPayload = data.filter((s) => {
+          const name = (s['Supplier Name'] || s.name || s.clean_name || '').trim();
+          return !name || name === 'ספק ללא שם';
+        }).length;
+
+        if (source !== 'json' || data.length > 850 || emptyInPayload > 5) {
+          setApiHealthWarning(
+            `השרת מריץ גרסה ישנה (${data.length} רשומות, ${emptyInPayload} ללא שם). סגור את החלון של npm run dev והרץ: restart-dashboard.bat — או בטרמינל: npm run dev:fresh`
+          );
+        } else {
+          setApiHealthWarning(null);
+        }
+
+        const normalizeRow = (s) => {
+          const category = s.Category || s.category || '';
+          const supplierName = (s['Supplier Name'] || s.name || s.Name || s.clean_name || '').trim();
+          const cleanName = (s.clean_name || supplierName.split('|')[0]?.trim() || supplierName).trim();
+          return {
+            ...s,
+            id: s.id ?? null,
+            clean_name: cleanName,
+            'Supplier Name': supplierName || cleanName || 'ספק ללא שם',
+            'Real Phone': s['Real Phone'] || s.real_phone || s.phone || s['Phone Number'] || '',
+            Category: category.trim() !== '' ? category : 'ספקים ללא קטגוריה',
+            Address: s.Address || s.address || '',
+            Website: s.Website || s.website || '',
+            URL: s.URL || s.engaged_url || '',
+            engaged_url: s.engaged_url || s.URL || '',
+            description: s.description || '',
+            images: s.images || [],
+            reviews: s.reviews || [],
+          };
+        };
+
+        const processedData = data
+          .map(normalizeRow)
+          .filter((s) => s['Supplier Name'] && s['Supplier Name'] !== 'ספק ללא שם' && (s['Real Phone'] || s.phone));
         setSuppliers(processedData);
         const today = new Date().toISOString().split('T')[0];
         const initialStates = {};
@@ -130,6 +177,7 @@ export default function SuppliersDashboard() {
       })
       .catch(err => {
         console.error(err);
+        setApiHealthWarning('לא ניתן להתחבר לשרת. ודא ש-npm run dev רץ על פורט 3000.');
         setLoading(false);
       });
   }, []);
@@ -245,6 +293,147 @@ export default function SuppliersDashboard() {
   }, [suppliers, supplierStates, activeAgent, isLoggedIn]);
 
   // ── Category Mapping: CSV → exact Fiesta slugs ────────────────────────────
+  // ── Supplier Images ───────────────────────────────────────────────────────
+  const getEngagedUrl = (supplier) =>
+    supplier?.URL || supplier?.url || supplier?.engaged_url || '';
+
+  const supplierHasHttpImage = (supplier) => {
+    if (!supplier) return false;
+    if ((supplier.images || []).some((i) => String(i).startsWith('http'))) return true;
+    if (supplier['Google Image'] && String(supplier['Google Image']).startsWith('http')) return true;
+    if (supplier['Main Image'] && String(supplier['Main Image']).startsWith('http')) return true;
+    return false;
+  };
+
+  const applyImageToSupplier = (phone, imageUrl) => {
+    if (!phone || !imageUrl) return;
+    setSupplierImages((prev) => ({ ...prev, [phone]: imageUrl }));
+    setSuppliers((prev) =>
+      prev.map((s) => {
+        const p = s['Real Phone'] || s.phone || '';
+        if (p !== phone) return s;
+        const rest = (s.images || []).filter((img) => !String(img).startsWith('http'));
+        return {
+          ...s,
+          images: [imageUrl, ...rest],
+          'Main Image': imageUrl,
+        };
+      })
+    );
+  };
+
+  const getSupplierImage = (supplier) => {
+    if (!supplier) return null;
+    const phone = supplier['Real Phone'] || supplier.phone || '';
+    const cached = phone ? supplierImages[phone] : null;
+    if (cached && cached !== 'loading' && cached !== 'error') return cached;
+    if (supplier.images?.length) {
+      const httpImage = supplier.images.find((item) => item && String(item).startsWith('http'));
+      if (httpImage) return httpImage;
+    }
+    if (supplier['Main Image'] && String(supplier['Main Image']).startsWith('http')) return supplier['Main Image'];
+    if (supplier['Google Image'] && String(supplier['Google Image']).startsWith('http')) return supplier['Google Image'];
+    return null;
+  };
+
+  const fetchImageForSupplier = async (supplier) => {
+    const phone = supplier['Real Phone'] || supplier.phone || '';
+    const engagedUrl = getEngagedUrl(supplier);
+    if (!phone || !engagedUrl) return null;
+    if (supplierImages[phone] && supplierImages[phone] !== 'error') return supplierImages[phone];
+
+    setSupplierImages((prev) => ({ ...prev, [phone]: 'loading' }));
+    try {
+      const res = await fetch(
+        `/api/fetch-supplier-image?url=${encodeURIComponent(engagedUrl)}&phone=${encodeURIComponent(phone)}`
+      );
+      const data = await res.json();
+      const imageUrl = data.imageUrl || null;
+      if (imageUrl) {
+        applyImageToSupplier(phone, imageUrl);
+        if (supplier['Supplier Name']) {
+          fetch('/api/suppliers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phone,
+              name: supplier['Supplier Name'],
+              images: [imageUrl, ...(supplier.images || []).filter((i) => !String(i).startsWith('http'))],
+            }),
+          }).catch(() => {});
+        }
+        return imageUrl;
+      }
+      setSupplierImages((prev) => ({ ...prev, [phone]: 'error' }));
+      return null;
+    } catch {
+      setSupplierImages((prev) => ({ ...prev, [phone]: 'error' }));
+      return null;
+    }
+  };
+
+  const fetchAllSupplierImages = async () => {
+    const toFetch = suppliers.filter((s) => {
+      const phone = s['Real Phone'] || s.phone || '';
+      if (!phone || !getEngagedUrl(s)) return false;
+      if (supplierImages[phone] && supplierImages[phone] !== 'error' && supplierImages[phone] !== 'loading') {
+        if (supplierHasHttpImage(s)) return false;
+      }
+      return !supplierHasHttpImage(s);
+    });
+
+    if (toFetch.length === 0) {
+      alert('כל הספקים כבר יש להם תמונות!');
+      return;
+    }
+
+    setFetchingAllImages(true);
+    setImageFetchProgress({ done: 0, total: toFetch.length });
+
+    const BATCH = 5;
+    for (let i = 0; i < toFetch.length; i += BATCH) {
+      const batch = toFetch.slice(i, i + BATCH);
+      await Promise.all(batch.map((s) => fetchImageForSupplier(s)));
+      setImageFetchProgress({ done: Math.min(i + BATCH, toFetch.length), total: toFetch.length });
+      if (i + BATCH < toFetch.length) await new Promise((r) => setTimeout(r, 400));
+    }
+
+    setFetchingAllImages(false);
+  };
+
+  // Pre-load cached http images + auto-fetch missing in background
+  useEffect(() => {
+    if (!suppliers.length || loading) return;
+
+    const seeded = {};
+    suppliers.forEach((s) => {
+      const phone = s['Real Phone'] || s.phone || '';
+      if (!phone) return;
+      const http =
+        s.images?.find((i) => String(i).startsWith('http')) ||
+        (String(s['Google Image'] || '').startsWith('http') ? s['Google Image'] : null) ||
+        (String(s['Main Image'] || '').startsWith('http') ? s['Main Image'] : null);
+      if (http) seeded[phone] = http;
+    });
+    if (Object.keys(seeded).length) {
+      setSupplierImages((prev) => ({ ...seeded, ...prev }));
+    }
+
+    const missing = suppliers.filter((s) => !supplierHasHttpImage(s) && getEngagedUrl(s)).slice(0, 30);
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      for (let i = 0; i < missing.length; i += 5) {
+        if (cancelled) break;
+        await Promise.all(missing.slice(i, i + 5).map((s) => fetchImageForSupplier(s)));
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [suppliers.length, loading]);
+
   const mapCategoryToFiesta = (category) => {
     if (!category) return 'design';
     const cat = category.toLowerCase();
@@ -267,38 +456,41 @@ export default function SuppliersDashboard() {
   };
 
   // ── Trigger Fiesta Push Modal ─────────────────────────────────────────────
-  const triggerFiestaPush = (supplier) => {
+  const collectPushImages = (supplier, cachedImg) => {
+    const pushImages = [];
+    const add = (img) => {
+      if (!img || img === 'N/A' || img === 'nan') return;
+      const value = String(img).trim();
+      if (!value) return;
+      if (value.startsWith('http') || value.startsWith('/media/')) {
+        if (!pushImages.includes(value)) pushImages.push(value);
+      }
+    };
+
+    if (cachedImg) add(cachedImg);
+    (supplier.images || []).forEach(add);
+    add(supplier['Main Image']);
+    add(supplier['Google Image']);
+    if (supplier['Gallery'] && supplier['Gallery'] !== 'N/A' && supplier['Gallery'] !== 'nan') {
+      String(supplier['Gallery']).split(/[,|]/).forEach(add);
+    }
+    return pushImages;
+  };
+
+  const triggerFiestaPush = (supplier, targetStatus = null) => {
     const mappedType = mapCategoryToFiesta(supplier.Category);
     const address = supplier['Address'] || '';
     // Extract first Hebrew word as a rough region
     const regionMatch = address.match(/[\u05D0-\u05EA]{2,}/);
     const region = regionMatch ? regionMatch[0] : '';
 
-    // Collect all unique images for this supplier
-    let supplierImages = [];
-    if (supplier.images && Array.isArray(supplier.images)) {
-      supplierImages = [...supplier.images];
-    }
-    
-    if (supplier['Main Image'] && supplier['Main Image'] !== 'N/A' && supplier['Main Image'] !== 'nan' && !supplierImages.includes(supplier['Main Image'])) {
-      supplierImages.unshift(supplier['Main Image']);
-    }
-    if (supplier['Google Image'] && supplier['Google Image'] !== 'N/A' && supplier['Google Image'] !== 'nan' && !supplierImages.includes(supplier['Google Image'])) {
-      supplierImages.push(supplier['Google Image']);
-    }
-    if (supplier['Gallery'] && supplier['Gallery'] !== 'N/A' && supplier['Gallery'] !== 'nan') {
-      const galleryParts = supplier['Gallery'].split('|').filter(img => img && img !== 'N/A' && img !== 'nan');
-      galleryParts.forEach(img => {
-        if (!supplierImages.includes(img)) {
-          supplierImages.push(img);
-        }
-      });
-    }
-
-    // Filter out invalid/empty image URLs
-    supplierImages = supplierImages.filter(img => img && img.trim() !== '' && img !== 'N/A' && img !== 'nan');
-
+    // Collect all unique images — prefer https URLs (local /media/ files don't exist on disk)
     const phone = supplier['Real Phone'] || supplier['phone'] || '';
+    const cachedImg = phone && typeof supplierImages[phone] === 'string' && supplierImages[phone].startsWith('http')
+      ? supplierImages[phone] : null;
+
+    const pushImages = collectPushImages(supplier, cachedImg);
+
     const state = supplierStates[phone];
     const uploadedImage = state ? state.uploadedImage : '';
     const isSigned = targetStatus ? (targetStatus === 'contract') : (state ? (state.status === 'contract') : false);
@@ -317,7 +509,7 @@ export default function SuppliersDashboard() {
       commissionAmount: '',
       discountDisplayType: 'percent',
       agreementSigned: isSigned,
-      selectedImages: supplierImages, // Store all images initially
+      selectedImages: pushImages,
       agreementImage: uploadedImage // Store the uploaded contract/screenshot here!
     });
     setShowFiestaPushModal(true);
@@ -1008,20 +1200,30 @@ export default function SuppliersDashboard() {
     );
   };
 
+  const getSupplierTab = (phone) => {
+    const state = supplierStates[phone] || { status: null };
+    const isHandled = state.status === 'not-interested' || state.status === 'contract';
+    const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
+
+    if (state.status === 'not-available') return 'לא ענו';
+    if (state.status === 'not-signed') return 'עדיין לא חתם';
+    if (isHandled) return 'טופלו';
+    if (isCallback) return 'לחזור אליהם';
+    return 'לטיפול';
+  };
+
   const filteredSuppliers = suppliers
     .filter((s, i) => {
-      if (searchQuery) return true; // Bypasses category restrictions so they can search globally across all categories!
+      if (searchQuery) return true;
       
       if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
       const allowedCategories = agentCategoryMap[activeAgent] || [];
       
-      // If it's a general unassigned supplier, show to everyone so they can categorize
       if (s.Category === "ספקים ללא קטגוריה" || !s.Category) return true;
       
       const matches = allowedCategories.some(cat => s.Category.includes(cat));
       if (!matches) return false;
 
-      // Split logic for bride categories shared between Moran and Hodaya
       const brideCategories = ['מאפרות', 'שיער', 'כלות', 'לחתן ולכלה'];
       const isBrideCategory = brideCategories.some(cat => s.Category.includes(cat));
       
@@ -1033,7 +1235,7 @@ export default function SuppliersDashboard() {
       return true;
     })
     .filter((s) => {
-      if (searchQuery) return true; // Bypass tab filtering if searching!
+      if (searchQuery) return true;
       
       const phone = s["Real Phone"] || s["phone"];
       const state = supplierStates[phone] || { status: null };
@@ -1051,47 +1253,39 @@ export default function SuppliersDashboard() {
       if (activeTab === 'לחזור אליהם') return !isHandled && isCallback;
       if (activeTab === 'לא ענו') return false;
       if (activeTab === 'עדיין לא חתם') return false;
-      return isHandled; // 'טופלו'
+      return isHandled;
     })
     .filter((s) => {
       if (!searchQuery) return true;
-      
-      const query = searchQuery.trim().toLowerCase();
-      
-      // 1. Supplier Name Matches (extremely resilient)
-      const nameMatches = (s["Supplier Name"] && s["Supplier Name"].toLowerCase().includes(query)) ||
-                          (s["name"] && s["name"].toLowerCase().includes(query)) ||
-                          (s["Name"] && s["Name"].toLowerCase().includes(query));
-      
-      // 2. Category matches
-      const categoryMatches = s["Category"] && s["Category"].toLowerCase().includes(query);
-      
-      // 3. Address matches
-      const addressMatches = s["Address"] && s["Address"].toLowerCase().includes(query);
-      
-      // 4. Website matches
-      const websiteMatches = s["Website"] && s["Website"].toLowerCase().includes(query);
-      
-      // 5. Supplier Number (original index in the CSV / suppliers list)
-      const originalIndex = suppliers.indexOf(s) + 1;
-      const indexMatches = originalIndex.toString() === query || 
-                           `#${originalIndex}` === query || 
-                           `ספק ${originalIndex}` === query || 
-                           originalIndex.toString().includes(query);
-      
-      // 6. Phone number matches (Real Phone, Phone Number, etc.)
-      const cleanQuery = query.replace(/[-\s]/g, '');
-      const realPhoneClean = (s["Real Phone"] || "").replace(/[-\s]/g, '');
-      const phoneClean = (s["Phone Number"] || s["phone"] || "").replace(/[-\s]/g, '');
-      
-      const phoneMatches = (realPhoneClean && realPhoneClean.includes(cleanQuery)) || 
-                           (phoneClean && phoneClean.includes(cleanQuery));
-                           
-      return nameMatches || categoryMatches || addressMatches || websiteMatches || indexMatches || phoneMatches;
+      const supplierNumber = suppliers.indexOf(s) + 1;
+      return supplierMatchesSearch(s, searchQuery, supplierNumber);
+    })
+    .filter((s) => {
+      const name = (s['Supplier Name'] || s.clean_name || '').trim();
+      const phone = s['Real Phone'] || s.phone || '';
+      return name && name !== 'ספק ללא שם' && phone && phone !== 'FAILED' && phone !== 'N/A';
     });
+
+  const displaySuppliers = filteredSuppliers;
 
   return (
     <div className="dashboard-container" dir="rtl">
+      {apiHealthWarning && (
+        <div style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 9999,
+          background: '#7f1d1d',
+          color: '#fff',
+          padding: '12px 16px',
+          textAlign: 'center',
+          fontSize: '0.95rem',
+          fontWeight: 600,
+          borderBottom: '2px solid #ef4444',
+        }}>
+          ⚠️ {apiHealthWarning}
+        </div>
+      )}
       {activeAgent === 'נתנאל' && (
         <div style={{
           position: 'fixed',
@@ -1562,7 +1756,7 @@ export default function SuppliersDashboard() {
               animation: 'fadeIn 0.3s ease-out'
             }}>
               <span>
-                🔎 מציג תוצאות חיפוש עבור: "{searchQuery}" (מכל הלשוניות)
+                🔎 נמצאו {displaySuppliers.length} תוצאות עבור "{searchQuery}" (מכל הלשוניות)
               </span>
               <button 
                 onClick={() => setSearchQuery('')}
@@ -1580,8 +1774,32 @@ export default function SuppliersDashboard() {
             </div>
           )}
 
+          {/* Fetch All Images Button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <button
+              onClick={fetchAllSupplierImages}
+              disabled={fetchingAllImages}
+              style={{
+                padding: '8px 18px', borderRadius: '20px', border: 'none',
+                background: fetchingAllImages ? '#e2e8f0' : 'linear-gradient(135deg,#8b5cf6,#7c3aed)',
+                color: fetchingAllImages ? '#94a3b8' : 'white',
+                fontWeight: '700', cursor: fetchingAllImages ? 'default' : 'pointer',
+                fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px',
+              }}
+            >
+              {fetchingAllImages
+                ? `⏳ טוען תמונות... ${imageFetchProgress.done}/${imageFetchProgress.total}`
+                : '📷 טען תמונות לכל הספקים'}
+            </button>
+            {imageFetchProgress.total > 0 && !fetchingAllImages && (
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                ✅ {imageFetchProgress.done} תמונות נטענו
+              </span>
+            )}
+          </div>
+
           <div className="suppliers-grid">
-            {filteredSuppliers.length === 0 ? (
+            {displaySuppliers.length === 0 ? (
               <div style={{ 
                 gridColumn: '1 / -1', 
                 textAlign: 'center', 
@@ -1597,15 +1815,16 @@ export default function SuppliersDashboard() {
                 <p style={{ fontSize: '0.9rem' }}>נסה לחפש לפי שם אחר, מספר טלפון מלא או מספר ספק תקין.</p>
               </div>
             ) : (
-              filteredSuppliers.map((s) => {
+              displaySuppliers.map((s) => {
                 const phone = s["Real Phone"] || s["phone"];
                 const state = supplierStates[phone] || { status: null };
                 const supplierNumber = suppliers.indexOf(s) + 1;
+                const cardKey = `${s.id ?? 'no-id'}-${phone}-${supplierNumber}`;
+                const supplierTab = getSupplierTab(phone);
 
                 return (
                   <motion.div 
-                    key={phone}
-                    layout
+                    key={cardKey}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     className="glass-card"
@@ -1625,6 +1844,15 @@ export default function SuppliersDashboard() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                           <span className="category-tag">{s["Category"] || "כללי"}</span>
+                          {searchQuery && supplierTab !== activeTab && (
+                            <span style={{
+                              fontSize: '0.72rem', color: '#6366f1', background: '#eef2ff',
+                              padding: '3px 8px', borderRadius: '6px', fontWeight: '700',
+                              border: '1px solid #c7d2fe'
+                            }}>
+                              📁 בלשונית: {supplierTab}
+                            </span>
+                          )}
                           {state.reminder && (
                             <div style={{ 
                               fontSize: '0.75rem', color: '#8b5cf6', background: '#f5f3ff', 
@@ -1648,7 +1876,7 @@ export default function SuppliersDashboard() {
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px', flexWrap: 'wrap', gap: '8px' }}>
                         <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--primary)', margin: 0, maxWidth: '70%' }}>
-                          {s["Supplier Name"]}
+                          {s["Supplier Name"] || s.clean_name || 'ספק ללא שם'}
                         </h3>
                         <span style={{ 
                           fontSize: '0.75rem', 
@@ -1689,17 +1917,33 @@ export default function SuppliersDashboard() {
                         📄 הצג פרופיל ספק מורחב
                       </button>
 
-                       {/* Supplier Image from Google */}
-                       {getSupplierImage(s) && (
-                         <div style={{ marginBottom: '12px', borderRadius: '10px', overflow: 'hidden', height: '110px', background: '#f1f5f9' }}>
-                           <img
-                             src={getSupplierImage(s)}
-                             alt={s["Supplier Name"]}
-                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                             onError={(e) => { e.target.parentElement.style.display = 'none'; }}
-                           />
-                         </div>
-                       )}
+                       {/* Supplier Image */}
+                       {(() => {
+                         const imgUrl = getSupplierImage(s);
+                         const isLoading = supplierImages[phone] === 'loading';
+                         if (imgUrl) return (
+                           <div style={{ marginBottom: '12px', borderRadius: '10px', overflow: 'hidden', height: '130px', background: '#f1f5f9' }}>
+                             <img
+                               src={imgUrl}
+                               alt={s["Supplier Name"]}
+                               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                               onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+                             />
+                           </div>
+                         );
+                         if (isLoading) return (
+                           <div style={{ marginBottom: '12px', borderRadius: '10px', height: '130px', background: 'linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+                         );
+                         return (
+                           <div
+                             onClick={() => fetchImageForSupplier(s)}
+                             style={{ marginBottom: '12px', borderRadius: '10px', height: '80px', background: '#f8fafc', border: '1.5px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', gap: '6px', color: '#94a3b8', fontSize: '0.8rem' }}
+                             title="לחץ לטעינת תמונה"
+                           >
+                             📷 לחץ לטעינת תמונה
+                           </div>
+                         );
+                       })()}
 
                        {/* Google Rating + Reviews + Website */}
                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px', flexWrap: 'wrap' }}>
@@ -2019,7 +2263,7 @@ export default function SuppliersDashboard() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
                 {getSupplierImage(selectedSupplierProfile) && (
                   <img 
-                    src={selectedSupplierProfile["Google Image"] || selectedSupplierProfile["Main Image"]} 
+                    src={getSupplierImage(selectedSupplierProfile)} 
                     style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--primary)' }} 
                     alt="" 
                     onError={(e) => { e.target.style.display = 'none'; }}
