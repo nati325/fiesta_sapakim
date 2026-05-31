@@ -10,25 +10,6 @@ import { collectSupplierImages } from '../../../lib/fiestaCategoryMap';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  try {
-    const uri = process.env.FIESTA_MONGODB_URI;
-    if (!uri) return NextResponse.json({ error: 'FIESTA_MONGODB_URI missing' }, { status: 500 });
-    const { MongoClient: MC } = await import('mongodb');
-    const c = new MC(uri, { serverSelectionTimeoutMS: 10000 });
-    await c.connect();
-    const db = c.db('fiesta');
-    const v = db.collection('vendors');
-    const total = await v.countDocuments({});
-    const djCount = await v.countDocuments({ type: 'dj' });
-    const djs = await v.find({ type: 'dj' }).project({ name: 1, contact: 1, eventTypes: 1, createdAt: 1 }).sort({ createdAt: -1 }).toArray();
-    await c.close();
-    return NextResponse.json({ total, djCount, djs });
-  } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
-  }
-}
-
 let fiestaClient = null;
 let crmClient = null;
 
