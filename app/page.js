@@ -1,8 +1,16 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Upload, MessageCircle, Phone, Calendar, CheckCircle2, ChevronDown, User, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supplierMatchesSearch } from '../lib/searchUtils';
+import {
+  clearSession,
+  getSupplierPhone,
+  loadSession,
+  loadUiState,
+  saveSession,
+  saveUiState,
+} from '../lib/agentSession';
 import './globals.css';
 
 export default function SuppliersDashboard() {
@@ -27,6 +35,9 @@ export default function SuppliersDashboard() {
   const [supplierImages, setSupplierImages] = useState({}); // phone → imageUrl | 'loading' | 'error'
   const [fetchingAllImages, setFetchingAllImages] = useState(false);
   const [imageFetchProgress, setImageFetchProgress] = useState({ done: 0, total: 0 });
+  const [sessionRestored, setSessionRestored] = useState(false);
+  const pendingRestoreRef = useRef({ scrollY: null, selectedPhone: null });
+  const scrollSaveTimerRef = useRef(null);
 
   // ── Fiesta Push Modal ────────────────────────────────────────────────────────
   const [showFiestaPushModal, setShowFiestaPushModal] = useState(false);
@@ -86,11 +97,151 @@ export default function SuppliersDashboard() {
   
   // Categories mapping
   const agentCategoryMap = {
-    'ינון': ['מוזיקה', 'די ג\'יי', 'DJ', 'דיג\'יי', 'תקליטן'],
+    'ינון': ['צלמים', 'צילום', 'צלם', 'וידאו', 'סושיאל'],
     'מורן': ['אולמות וגנים', 'גני אירועים', 'אולמות אירועים', 'מאפרות', 'שיער', 'כלות', 'לחתן ולכלה'],
     'הודיה': ['מאפרות', 'שיער', 'כלות', 'לחתן ולכלה'],
     'נתנאל': [] // Sees all
   };
+
+  const persistUiForAgent = (agent, overrides = {}) => {
+    if (!agent) return;
+    saveUiState(agent, {
+      activeTab,
+      searchQuery,
+      scrollY: typeof window !== 'undefined' ? window.scrollY : 0,
+      selectedPhone: getSupplierPhone(selectedSupplierProfile),
+      ...overrides,
+    });
+  };
+
+  const persistUiMetaForAgent = (agent) => {
+    if (!agent) return;
+    saveUiState(agent, {
+      activeTab,
+      searchQuery,
+      selectedPhone: getSupplierPhone(selectedSupplierProfile),
+    });
+  };
+
+  const persistFullUiSnapshot = (agent) => {
+    if (!agent || typeof window === 'undefined') return;
+    saveUiState(agent, {
+      activeTab,
+      searchQuery,
+      scrollY: window.scrollY,
+      selectedPhone: getSupplierPhone(selectedSupplierProfile),
+    });
+  };
+
+  const restoreScrollPosition = (scrollY, selectedPhone) => {
+    const tryScroll = () => {
+      if (typeof scrollY === 'number') {
+        window.scrollTo({ top: scrollY, behavior: 'auto' });
+      }
+      if (selectedPhone) {
+        const el = document.querySelector(`[data-supplier-phone="${CSS.escape(selectedPhone)}"]`);
+        el?.scrollIntoView({ block: 'center', behavior: 'auto' });
+      }
+    };
+
+    tryScroll();
+    requestAnimationFrame(tryScroll);
+    setTimeout(tryScroll, 150);
+    setTimeout(tryScroll, 500);
+  };
+
+  const applyUiState = (ui) => {
+    if (!ui) {
+      setActiveTab('לטיפול');
+      setSearchQuery('');
+      setSelectedSupplierProfile(null);
+      pendingRestoreRef.current = { scrollY: null, selectedPhone: null };
+      return;
+    }
+    setActiveTab(ui.activeTab || 'לטיפול');
+    setSearchQuery(ui.searchQuery || '');
+    setSelectedSupplierProfile(null);
+    pendingRestoreRef.current = {
+      scrollY: typeof ui.scrollY === 'number' ? ui.scrollY : null,
+      selectedPhone: ui.selectedPhone || null,
+    };
+  };
+
+  const handleAgentSwitch = (agent) => {
+    if (activeAgent && activeAgent !== agent) {
+      persistUiForAgent(activeAgent);
+    }
+    setActiveAgent(agent);
+    saveSession(agent);
+    applyUiState(loadUiState(agent));
+  };
+
+  useEffect(() => {
+    const session = loadSession();
+    if (session) {
+      setActiveAgent(session.agent);
+      setIsLoggedIn(true);
+      saveSession(session.agent);
+      applyUiState(loadUiState(session.agent));
+    }
+    setSessionRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn || !activeAgent || loading) return;
+    persistUiMetaForAgent(activeAgent);
+  }, [activeTab, searchQuery, selectedSupplierProfile, isLoggedIn, activeAgent, loading]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !activeAgent) return;
+
+    const saveScrollPosition = () => {
+      saveUiState(activeAgent, { scrollY: window.scrollY });
+    };
+
+    const saveBeforeLeave = () => {
+      persistFullUiSnapshot(activeAgent);
+    };
+
+    const onScroll = () => {
+      if (scrollSaveTimerRef.current) clearTimeout(scrollSaveTimerRef.current);
+      scrollSaveTimerRef.current = setTimeout(saveScrollPosition, 250);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') saveBeforeLeave();
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('pagehide', saveBeforeLeave);
+    window.addEventListener('beforeunload', saveBeforeLeave);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      if (scrollSaveTimerRef.current) clearTimeout(scrollSaveTimerRef.current);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('pagehide', saveBeforeLeave);
+      window.removeEventListener('beforeunload', saveBeforeLeave);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [isLoggedIn, activeAgent, activeTab, searchQuery, selectedSupplierProfile]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !activeAgent || loading) return;
+
+    const { selectedPhone, scrollY } = pendingRestoreRef.current;
+
+    if (selectedPhone) {
+      const restoredProfile = suppliers.find((s) => getSupplierPhone(s) === selectedPhone) || null;
+      if (restoredProfile) setSelectedSupplierProfile(restoredProfile);
+    }
+
+    pendingRestoreRef.current = { scrollY: null, selectedPhone: null };
+
+    if (typeof scrollY === 'number' || selectedPhone) {
+      restoreScrollPosition(scrollY, selectedPhone);
+    }
+  }, [loading, suppliers, isLoggedIn, activeAgent]);
 
   useEffect(() => {
     fetch('/api/suppliers', { cache: 'no-store' })
@@ -855,10 +1006,19 @@ export default function SuppliersDashboard() {
       setActiveAgent(agent);
       setIsLoggedIn(true);
       setLoginError(false);
+      saveSession(agent);
+      applyUiState(loadUiState(agent));
       if ('Notification' in window) Notification.requestPermission();
     } else {
       setLoginError(true);
     }
+  };
+
+  const handleLogout = () => {
+    if (activeAgent) persistUiForAgent(activeAgent);
+    clearSession();
+    setIsLoggedIn(false);
+    setPassword('');
   };
 
   const updateSupplierCategory = (index, newCategory) => {
@@ -866,6 +1026,17 @@ export default function SuppliersDashboard() {
     updatedSuppliers[index].Category = newCategory;
     setSuppliers(updatedSuppliers);
   };
+
+  if (!sessionRestored) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--bg)', padding: '20px', dir: 'rtl'
+      }}>
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>טוען...</div>
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (
@@ -1552,7 +1723,7 @@ export default function SuppliersDashboard() {
             {['ינון', 'מורן', 'הודיה', 'נתנאל', 'מאגר כללי'].map(agent => (
               <button
                 key={agent}
-                onClick={() => setActiveAgent(agent)}
+                onClick={() => handleAgentSwitch(agent)}
                 style={{
                   padding: '6px 12px',
                   borderRadius: '6px',
@@ -1570,7 +1741,7 @@ export default function SuppliersDashboard() {
             ))}
           </div>
           <button 
-            onClick={() => { setIsLoggedIn(false); setPassword(''); }}
+            onClick={handleLogout}
             style={{ 
               padding: '6px', borderRadius: '50%', border: '1px solid var(--border)', 
               background: 'white', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
@@ -1825,6 +1996,7 @@ export default function SuppliersDashboard() {
                 return (
                   <motion.div 
                     key={cardKey}
+                    data-supplier-phone={phone}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     className="glass-card"
