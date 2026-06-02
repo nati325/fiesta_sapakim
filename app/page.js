@@ -11,6 +11,14 @@ import {
   saveSession,
   saveUiState,
 } from '../lib/agentSession';
+import {
+  collectLocalMedia,
+  extractInstagramUrls,
+  extractWebsiteUrl,
+  getGoogleImageUrl,
+  pickBestStoredImage,
+  supplierHasDisplayImage,
+} from '../lib/supplierImageSources';
 import './globals.css';
 
 export default function SuppliersDashboard() {
@@ -448,13 +456,7 @@ export default function SuppliersDashboard() {
   const getEngagedUrl = (supplier) =>
     supplier?.URL || supplier?.url || supplier?.engaged_url || '';
 
-  const supplierHasHttpImage = (supplier) => {
-    if (!supplier) return false;
-    if ((supplier.images || []).some((i) => String(i).startsWith('http'))) return true;
-    if (supplier['Google Image'] && String(supplier['Google Image']).startsWith('http')) return true;
-    if (supplier['Main Image'] && String(supplier['Main Image']).startsWith('http')) return true;
-    return false;
-  };
+  const supplierHasHttpImage = (supplier) => supplierHasDisplayImage(supplier);
 
   const applyImageToSupplier = (phone, imageUrl) => {
     if (!phone || !imageUrl) return;
@@ -478,26 +480,40 @@ export default function SuppliersDashboard() {
     const phone = supplier['Real Phone'] || supplier.phone || '';
     const cached = phone ? supplierImages[phone] : null;
     if (cached && cached !== 'loading' && cached !== 'error') return cached;
-    if (supplier.images?.length) {
-      const httpImage = supplier.images.find((item) => item && String(item).startsWith('http'));
-      if (httpImage) return httpImage;
-    }
-    if (supplier['Main Image'] && String(supplier['Main Image']).startsWith('http')) return supplier['Main Image'];
-    if (supplier['Google Image'] && String(supplier['Google Image']).startsWith('http')) return supplier['Google Image'];
-    return null;
+    return pickBestStoredImage(supplier);
   };
 
   const fetchImageForSupplier = async (supplier) => {
     const phone = supplier['Real Phone'] || supplier.phone || '';
-    const engagedUrl = getEngagedUrl(supplier);
-    if (!phone || !engagedUrl) return null;
+    if (!phone) return null;
+
+    const existing = pickBestStoredImage(supplier);
+    if (existing) {
+      if (String(existing).startsWith('http')) {
+        setSupplierImages((prev) => ({ ...prev, [phone]: existing }));
+      }
+      return existing;
+    }
+
+    if (supplierImages[phone] === 'loading') return null;
     if (supplierImages[phone] && supplierImages[phone] !== 'error') return supplierImages[phone];
+
+    const googleImage = getGoogleImageUrl(supplier) || '';
+    const instagram = extractInstagramUrls(supplier).join('|');
+    const website = extractWebsiteUrl(supplier) || '';
+    const engagedUrl = getEngagedUrl(supplier) || '';
+
+    if (!googleImage && !instagram && !website && !engagedUrl) return null;
 
     setSupplierImages((prev) => ({ ...prev, [phone]: 'loading' }));
     try {
-      const res = await fetch(
-        `/api/fetch-supplier-image?url=${encodeURIComponent(engagedUrl)}&phone=${encodeURIComponent(phone)}`
-      );
+      const params = new URLSearchParams({ phone });
+      if (googleImage) params.set('googleImage', googleImage);
+      if (instagram) params.set('instagram', instagram);
+      if (website) params.set('website', website);
+      if (engagedUrl) params.set('url', engagedUrl);
+
+      const res = await fetch(`/api/fetch-supplier-image?${params.toString()}`);
       const data = await res.json();
       const imageUrl = data.imageUrl || null;
       if (imageUrl) {
@@ -509,7 +525,11 @@ export default function SuppliersDashboard() {
             body: JSON.stringify({
               phone,
               name: supplier['Supplier Name'],
-              images: [imageUrl, ...(supplier.images || []).filter((i) => !String(i).startsWith('http'))],
+              images: [
+                imageUrl,
+                ...collectLocalMedia(supplier),
+                ...(supplier.images || []).filter((i) => !String(i).startsWith('http')),
+              ],
             }),
           }).catch(() => {});
         }
@@ -560,11 +580,8 @@ export default function SuppliersDashboard() {
     suppliers.forEach((s) => {
       const phone = s['Real Phone'] || s.phone || '';
       if (!phone) return;
-      const http =
-        s.images?.find((i) => String(i).startsWith('http')) ||
-        (String(s['Google Image'] || '').startsWith('http') ? s['Google Image'] : null) ||
-        (String(s['Main Image'] || '').startsWith('http') ? s['Main Image'] : null);
-      if (http) seeded[phone] = http;
+      const best = pickBestStoredImage(s);
+      if (best && String(best).startsWith('http')) seeded[phone] = best;
     });
     if (Object.keys(seeded).length) {
       setSupplierImages((prev) => ({ ...seeded, ...prev }));

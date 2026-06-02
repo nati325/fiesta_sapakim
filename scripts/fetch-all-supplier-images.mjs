@@ -1,14 +1,19 @@
 /**
  * fetch-all-supplier-images.mjs
- * Fetches image URLs from engaged.co.il (and website og:image fallback)
- * and saves them into suppliers_complete.json as https URLs.
- *
- * Run: node scripts/fetch-all-supplier-images.mjs
- * Or:  fetch-all-images.bat
+ * Fetches owner images from Google / Instagram / website — not engaged sidebar ads.
  */
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import {
+  extractInstagramUrls,
+  extractWebsiteUrl,
+  getGoogleImageUrl,
+  isBadEngagedImage,
+  pickBestStoredImage,
+  reorderSupplierImages,
+  supplierHasDisplayImage,
+} from '../lib/supplierImageSources.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
@@ -18,18 +23,31 @@ const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   Accept: 'text/html,application/xhtml+xml',
   'Accept-Language': 'he-IL,he;q=0.9,en;q=0.8',
-  Referer: 'https://engaged.co.il/',
 };
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function fetchHtml(url, timeoutMs = 12000) {
+function extractOgImage(html) {
+  if (!html) return null;
+  const match =
+    html.match(/property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+    html.match(/content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+  const url = match?.[1]?.trim();
+  if (!url || !url.startsWith('http') || isBadEngagedImage(url)) return null;
+  return url;
+}
+
+async function fetchHtml(url, referer) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = setTimeout(() => controller.abort(), 12000);
   try {
-    const res = await fetch(url, { headers: HEADERS, signal: controller.signal, redirect: 'follow' });
+    const res = await fetch(url, {
+      headers: { ...HEADERS, Referer: referer || url },
+      signal: controller.signal,
+      redirect: 'follow',
+    });
     if (!res.ok) return null;
     return await res.text();
   } catch {
@@ -39,68 +57,33 @@ async function fetchHtml(url, timeoutMs = 12000) {
   }
 }
 
-function extractFromEngaged(html) {
-  if (!html) return null;
-
-  // OG image
-  const og =
-    html.match(/property="og:image"\s+content="([^"]+)"/i)?.[1] ||
-    html.match(/content="([^"]+)"\s+property="og:image"/i)?.[1];
-  if (og?.startsWith('http') && !og.includes('logo_new')) return og;
-
-  // Only search top portion of page (before sidebar recommendations)
-  const top = html.slice(0, Math.floor(html.length * 0.45));
-
-  // Gallery large version
-  const galleryMatch = top.match(
-    /\/\/images\/stories\/deals\/(\d+)\/images\/resize\/([^"'\s]+?)_small\.(jpg|jpeg|png)/i
-  );
-  if (galleryMatch) {
-    return `https://engaged.co.il/images/stories/deals/${galleryMatch[1]}/images/resize/${galleryMatch[2]}_large.${galleryMatch[3]}`;
-  }
-
-  // Any deals image in top section
-  const anyImg = top.match(/https?:\/\/engaged\.co\.il\/+\/images\/stories\/deals\/[^"'\s]+\.(jpg|jpeg|png|webp)/i);
-  if (anyImg) return anyImg[0].replace(/\/+\/images/, '/images');
-
-  // Logo as last resort
-  const logoMatch = top.match(/\/images\/stories\/deals\/(\d+)\/logo\/resize\/([^"'\s]+?)_tiny\.(jpg|jpeg|png)/i);
-  if (logoMatch) {
-    return `https://engaged.co.il/images/stories/deals/${logoMatch[1]}/logo/resize/${logoMatch[2]}_small.${logoMatch[3]}`;
-  }
-
-  return null;
-}
-
-function extractOgFromWebsite(html) {
-  if (!html) return null;
-  const og =
-    html.match(/property="og:image"\s+content="([^"]+)"/i)?.[1] ||
-    html.match(/content="([^"]+)"\s+property="og:image"/i)?.[1];
-  return og?.startsWith('http') ? og : null;
-}
-
-function hasHttpImage(supplier) {
-  return (supplier.images || []).some((i) => String(i).startsWith('http'));
+async function tryOg(url, referer) {
+  const html = await fetchHtml(url, referer);
+  return extractOgImage(html);
 }
 
 async function getImageForSupplier(supplier) {
-  if (hasHttpImage(supplier)) {
-    return supplier.images.find((i) => String(i).startsWith('http'));
+  const stored = pickBestStoredImage(supplier);
+  if (stored && String(stored).startsWith('http')) return stored;
+
+  const googleImage = getGoogleImageUrl(supplier);
+  if (googleImage) return googleImage;
+
+  for (const instaUrl of extractInstagramUrls(supplier)) {
+    const imageUrl = await tryOg(instaUrl, 'https://www.instagram.com/');
+    if (imageUrl) return imageUrl;
   }
 
-  const engagedUrl = supplier.engaged_url || '';
+  const website = extractWebsiteUrl(supplier);
+  if (website) {
+    const imageUrl = await tryOg(website, website);
+    if (imageUrl) return imageUrl;
+  }
+
+  const engagedUrl = supplier.engaged_url || supplier.URL || '';
   if (engagedUrl) {
-    const html = await fetchHtml(engagedUrl);
-    const img = extractFromEngaged(html);
-    if (img) return img;
-  }
-
-  const website = supplier.website || '';
-  if (website && website.startsWith('http')) {
-    const html = await fetchHtml(website);
-    const img = extractOgFromWebsite(html);
-    if (img) return img;
+    const imageUrl = await tryOg(engagedUrl, 'https://engaged.co.il/');
+    if (imageUrl) return imageUrl;
   }
 
   return null;
@@ -120,20 +103,27 @@ async function main() {
   let failed = 0;
 
   for (let i = 0; i < suppliers.length; i++) {
-    const s = suppliers[i];
-    const name = (s.clean_name || s.name || '').slice(0, 40);
-    const phone = s.real_phone || s.phone || '';
+    const s = reorderSupplierImages(suppliers[i]);
+    suppliers[i] = s;
 
-    if (hasHttpImage(s)) {
+    const name = (s.clean_name || s.name || '').slice(0, 40);
+    if (supplierHasDisplayImage(s) && pickBestStoredImage(s)?.startsWith?.('/media/')) {
+      skipped++;
+      continue;
+    }
+
+    if (supplierHasDisplayImage(s) && !isBadEngagedImage(pickBestStoredImage(s))) {
       skipped++;
       continue;
     }
 
     process.stdout.write(`[${i + 1}/${suppliers.length}] ${name}... `);
-
     const imageUrl = await getImageForSupplier(s);
     if (imageUrl) {
-      s.images = [imageUrl, ...(s.images || []).filter((img) => !String(img).startsWith('http'))];
+      s.images = [
+        imageUrl,
+        ...((s.images || []).filter((img) => !String(img).startsWith('http') || isBadEngagedImage(img))),
+      ].filter((img) => !isBadEngagedImage(img));
       updated++;
       console.log(`✅ ${imageUrl.slice(0, 70)}`);
     } else {
@@ -141,20 +131,19 @@ async function main() {
       console.log('❌ no image found');
     }
 
-    // Save progress every 25 suppliers
     if ((i + 1) % 25 === 0) {
       fs.writeFileSync(jsonPath, JSON.stringify(suppliers, null, 2), 'utf8');
       console.log(`   💾 Progress saved (${updated} updated so far)`);
     }
 
-    await sleep(400); // be nice to engaged.co.il
+    await sleep(400);
   }
 
   fs.writeFileSync(jsonPath, JSON.stringify(suppliers, null, 2), 'utf8');
 
   console.log('\n========== SUMMARY ==========');
   console.log(`✅ Updated:  ${updated}`);
-  console.log(`⏭️  Skipped:  ${skipped} (already had http image)`);
+  console.log(`⏭️  Skipped:  ${skipped}`);
   console.log(`❌ Failed:   ${failed}`);
   console.log(`📁 Saved to: ${jsonPath}`);
 }
