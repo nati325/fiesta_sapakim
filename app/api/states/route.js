@@ -41,7 +41,7 @@ export async function POST(req) {
       
       await collection.updateOne(
         { phone: payload.phone },
-        { $set: payload.state },
+        { $set: { ...payload.state, phone: payload.phone } },
         { upsert: true }
       );
       

@@ -46,6 +46,7 @@ export default function SuppliersDashboard() {
   const [sessionRestored, setSessionRestored] = useState(false);
   const pendingRestoreRef = useRef({ scrollY: null, selectedPhone: null });
   const scrollSaveTimerRef = useRef(null);
+  const assignmentsSyncedRef = useRef(false);
 
   // ── Fiesta Push Modal ────────────────────────────────────────────────────────
   const [showFiestaPushModal, setShowFiestaPushModal] = useState(false);
@@ -112,6 +113,124 @@ export default function SuppliersDashboard() {
     ],
     'הודיה': [], // פיד ריק — כל קטגוריות הכלה/איפור/שיער/שמלות עברו למורן
     'נתנאל': [] // Sees all
+  };
+
+  const moranGroupOrder = ['dress', 'makeup', 'hair', 'suit', 'other'];
+  const moranGroupLabels = {
+    dress: '👗 שמלות כלה',
+    makeup: '💄 איפור',
+    hair: '💇 שיער',
+    suit: '👔 חליפות חתן',
+    other: '✨ אחר',
+  };
+
+  const getMoranSupplierGroup = (supplier) => {
+    const text = [
+      supplier['Supplier Name'],
+      supplier.name,
+      supplier.clean_name,
+      supplier.description,
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    const rules = [
+      ['dress', ['שמלות כלה', 'שמלה', 'bridal dresses', 'bridal', 'bride\'s', 'brides', 'gown', 'שמלות']],
+      ['makeup', ['מאפר', 'איפור', 'makeup', 'mua']],
+      ['hair', ['מסרק', 'תסרוק', 'עיצוב שיער', 'שיער', 'hair style', 'hair', 'braids', 'צמות']],
+      ['suit', ['חליפות חתן', 'חליפת חתן', 'חליפות בוטיק', ' suit']],
+    ];
+
+    for (const [group, keywords] of rules) {
+      if (keywords.some((kw) => text.includes(kw))) return group;
+    }
+    return 'other';
+  };
+
+  const buildDisplayList = (list, agent, query) => {
+    if (agent !== 'מורן' || query) {
+      return list.map((supplier) => ({ type: 'supplier', supplier }));
+    }
+
+    const grouped = { dress: [], makeup: [], hair: [], suit: [], other: [] };
+    list.forEach((supplier) => {
+      grouped[getMoranSupplierGroup(supplier)].push(supplier);
+    });
+
+    moranGroupOrder.forEach((group) => {
+      grouped[group].sort((a, b) =>
+        (a['Supplier Name'] || '').localeCompare(b['Supplier Name'] || '', 'he')
+      );
+    });
+
+    const display = [];
+    moranGroupOrder.forEach((group) => {
+      if (!grouped[group].length) return;
+      display.push({
+        type: 'header',
+        group,
+        label: moranGroupLabels[group],
+        count: grouped[group].length,
+      });
+      grouped[group].forEach((supplier) => {
+        display.push({ type: 'supplier', supplier, moranGroup: group });
+      });
+    });
+    return display;
+  };
+
+  const isSupplierTouched = (state = {}) => {
+    if (!state) return false;
+    if (state.status) return true;
+    if (state.callbackScheduled) return true;
+    if (state.reminder) return true;
+    if (state.notes && String(state.notes).trim()) return true;
+    if (state.uploadedImage) return true;
+    if (state.firstTouchedAt) return true;
+    return false;
+  };
+
+  const supplierBelongsToAgent = (supplier, agent) => {
+    if (agent === 'נתנאל' || agent === 'מאגר כללי') return true;
+    if (agent === 'הודיה') return false;
+    const allowedCategories = agentCategoryMap[agent] || [];
+    if (supplier.Category === 'ספקים ללא קטגוריה' || !supplier.Category) return true;
+    return allowedCategories.some((cat) => supplier.Category.includes(cat));
+  };
+
+  const getAgentFeedSuppliers = (agent) => {
+    if (!agent || agent === 'נתנאל' || agent === 'מאגר כללי' || agent === 'הודיה') return [];
+    return suppliers.filter((supplier) => {
+      if (!supplierBelongsToAgent(supplier, agent)) return false;
+      if (agent === 'מורן' && getMoranSupplierGroup(supplier) === 'other') return false;
+      const name = (supplier['Supplier Name'] || supplier.clean_name || '').trim();
+      const phone = supplier['Real Phone'] || supplier.phone || '';
+      return name && name !== 'ספק ללא שם' && phone && phone !== 'FAILED' && phone !== 'N/A';
+    });
+  };
+
+  const getAgentFeedStats = (agent) => {
+    const feed = getAgentFeedSuppliers(agent);
+    let touched = 0;
+    feed.forEach((supplier) => {
+      const phone = supplier['Real Phone'] || supplier.phone;
+      if (isSupplierTouched(supplierStates[phone])) touched += 1;
+    });
+    return { total: feed.length, touched, untouched: feed.length - touched };
+  };
+
+  const buildAgentAssignments = (agent) => {
+    return getAgentFeedSuppliers(agent).map((supplier) => {
+      const phone = supplier['Real Phone'] || supplier.phone;
+      const moranGroup = agent === 'מורן' ? getMoranSupplierGroup(supplier) : '';
+      return {
+        phone,
+        assignedAgent: agent,
+        moranGroup,
+        assignedCategory: agent === 'מורן'
+          ? moranGroupLabels[moranGroup]
+          : (supplier.Category || 'כללי'),
+        supplierName: supplier['Supplier Name'] || supplier.clean_name || '',
+      };
+    });
   };
 
   const persistUiForAgent = (agent, overrides = {}) => {
@@ -182,6 +301,7 @@ export default function SuppliersDashboard() {
     if (activeAgent && activeAgent !== agent) {
       persistUiForAgent(activeAgent);
     }
+    assignmentsSyncedRef.current = false;
     setActiveAgent(agent);
     saveSession(agent);
     applyUiState(loadUiState(agent));
@@ -325,9 +445,10 @@ export default function SuppliersDashboard() {
           .then(savedStates => {
             const mergedStates = { ...initialStates };
             for (const key in savedStates) {
-              if (mergedStates[key]) {
-                mergedStates[key] = { ...mergedStates[key], ...savedStates[key] };
-              }
+              mergedStates[key] = {
+                ...(mergedStates[key] || {}),
+                ...savedStates[key],
+              };
             }
             setSupplierStates(mergedStates);
             setLoading(false);
@@ -343,6 +464,40 @@ export default function SuppliersDashboard() {
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn || loading || !suppliers.length) return;
+    if (!activeAgent || activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי' || activeAgent === 'הודיה') return;
+    if (assignmentsSyncedRef.current) return;
+
+    const assignments = buildAgentAssignments(activeAgent);
+    if (!assignments.length) return;
+
+    fetch('/api/states/sync-assignments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignments }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.success) return;
+        assignmentsSyncedRef.current = true;
+        setSupplierStates((prev) => {
+          const next = { ...prev };
+          assignments.forEach((item) => {
+            next[item.phone] = {
+              ...(next[item.phone] || {}),
+              assignedAgent: item.assignedAgent,
+              assignedCategory: item.assignedCategory,
+              moranGroup: item.moranGroup,
+              supplierName: item.supplierName,
+            };
+          });
+          return next;
+        });
+      })
+      .catch((err) => console.error('Assignment sync failed:', err));
+  }, [isLoggedIn, loading, suppliers, activeAgent]);
 
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const heroMedia = [
@@ -906,14 +1061,42 @@ export default function SuppliersDashboard() {
   };
 
   const updateSupplierState = (phone, newState) => {
+    const touchFields = ['status', 'callbackScheduled', 'reminder', 'notes', 'uploadedImage'];
+    const isTouchAction = touchFields.some((field) => field in newState);
+    const enrichedState = { ...newState };
+
+    if (isTouchAction) {
+      enrichedState.lastTouchedAt = Date.now();
+      enrichedState.lastTouchedBy = activeAgent;
+      if (!supplierStates[phone]?.firstTouchedAt) {
+        enrichedState.firstTouchedAt = Date.now();
+        enrichedState.firstTouchedBy = activeAgent;
+      }
+
+      if (activeAgent === 'מורן' || activeAgent === 'ינון') {
+        const supplier = suppliers.find((s) => (s['Real Phone'] || s.phone) === phone);
+        if (supplier) {
+          enrichedState.assignedAgent = activeAgent;
+          enrichedState.supplierName = supplier['Supplier Name'] || supplier.clean_name || '';
+          if (activeAgent === 'מורן') {
+            const group = getMoranSupplierGroup(supplier);
+            enrichedState.moranGroup = group;
+            enrichedState.assignedCategory = moranGroupLabels[group];
+          } else {
+            enrichedState.assignedCategory = supplier.Category || 'כללי';
+          }
+        }
+      }
+    }
+
     setSupplierStates(prev => ({
       ...prev,
-      [phone]: { ...prev[phone], ...newState }
+      [phone]: { ...prev[phone], ...enrichedState }
     }));
     fetch('/api/states', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, state: newState })
+      body: JSON.stringify({ phone, state: enrichedState })
     })
     .then(async res => {
       if (!res.ok) {
@@ -1308,6 +1491,14 @@ export default function SuppliersDashboard() {
               
               <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--border)', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                 סה"כ פעולות: <strong>{stats[agent].total}</strong>
+                {agent !== 'הודיה' && (
+                  <>
+                    {' · '}
+                    לא נגעו בכלל: <strong style={{ color: '#ef4444' }}>{getAgentFeedStats(agent).untouched}</strong>
+                    {' / '}
+                    {getAgentFeedStats(agent).total}
+                  </>
+                )}
               </div>
             </div>
           ))}
@@ -1365,6 +1556,45 @@ export default function SuppliersDashboard() {
       </div>
     ) : null;
 
+    const feedStats = (activeAgent === 'מורן' || activeAgent === 'ינון')
+      ? getAgentFeedStats(activeAgent)
+      : null;
+
+    const feedStatsCard = feedStats ? (
+      <div className="glass-card" style={{
+        padding: '18px 20px',
+        marginBottom: '20px',
+        border: '1px solid #dbeafe',
+        background: 'linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div>
+            <h3 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: '800', color: '#1e40af' }}>
+              מעקב כיסוי פיד
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569' }}>
+              {feedStats.touched} טופלו · {feedStats.untouched} עדיין לא נגעו · {feedStats.total} סה"כ
+            </p>
+          </div>
+          <button
+            onClick={() => setActiveTab('לא נגעו בכלל')}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '12px',
+              border: 'none',
+              background: feedStats.untouched > 0 ? '#ef4444' : '#10b981',
+              color: 'white',
+              fontWeight: '800',
+              cursor: 'pointer',
+              fontSize: '0.85rem',
+            }}
+          >
+            {feedStats.untouched > 0 ? `הצג שלא נגעו (${feedStats.untouched})` : 'כיסית את כל הפיד 🎉'}
+          </button>
+        </div>
+      </div>
+    ) : null;
+
     const dailyTarget = activeAgent === 'מורן' ? 7 : 50;
     const weeklyTarget = activeAgent === 'מורן' ? 35 : 250;
     
@@ -1379,6 +1609,7 @@ export default function SuppliersDashboard() {
     return (
       <div style={{ marginBottom: '30px' }} className="animate-in">
         {moranBanner}
+        {feedStatsCard}
         <div className="glass-card" style={{ padding: '20px', borderRight: '6px solid var(--accent)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <div>
@@ -1420,6 +1651,7 @@ export default function SuppliersDashboard() {
     const isHandled = state.status === 'not-interested' || state.status === 'contract';
     const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
 
+    if (!isSupplierTouched(state)) return 'לא נגעו בכלל';
     if (state.status === 'not-available') return 'לא ענו';
     if (state.status === 'not-signed') return 'עדיין לא חתם';
     if (isHandled) return 'טופלו';
@@ -1450,6 +1682,10 @@ export default function SuppliersDashboard() {
       const isHandled = state.status === 'not-interested' || state.status === 'contract';
       const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
       
+      if (activeTab === 'לא נגעו בכלל') {
+        return !isSupplierTouched(state);
+      }
+
       if (state.status === 'not-available') {
         return activeTab === 'לא ענו';
       }
@@ -1472,9 +1708,14 @@ export default function SuppliersDashboard() {
       const name = (s['Supplier Name'] || s.clean_name || '').trim();
       const phone = s['Real Phone'] || s.phone || '';
       return name && name !== 'ספק ללא שם' && phone && phone !== 'FAILED' && phone !== 'N/A';
+    })
+    .filter((s) => {
+      if (activeAgent !== 'מורן' || searchQuery) return true;
+      return getMoranSupplierGroup(s) !== 'other';
     });
 
   const displaySuppliers = filteredSuppliers;
+  const displayList = buildDisplayList(filteredSuppliers, activeAgent, searchQuery);
 
   return (
     <div className="dashboard-container" dir="rtl">
@@ -1806,6 +2047,19 @@ export default function SuppliersDashboard() {
           >
             ספקים לטיפול
           </button>
+          {(activeAgent === 'מורן' || activeAgent === 'ינון') && (
+            <button
+              onClick={() => setActiveTab('לא נגעו בכלל')}
+              style={{
+                padding: '10px 24px', borderRadius: '20px', border: 'none',
+                background: activeTab === 'לא נגעו בכלל' ? '#ef4444' : '#e2e8f0',
+                color: activeTab === 'לא נגעו בכלל' ? 'white' : 'var(--text-muted)',
+                fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
+              }}
+            >
+              לא נגעו בכלל ({getAgentFeedStats(activeAgent).untouched})
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('לחזור אליהם')}
             style={{
@@ -2023,7 +2277,44 @@ export default function SuppliersDashboard() {
                 <p style={{ fontSize: '0.9rem' }}>נסה לחפש לפי שם אחר, מספר טלפון מלא או מספר ספק תקין.</p>
               </div>
             ) : (
-              displaySuppliers.map((s) => {
+              displayList.map((item) => {
+                if (item.type === 'header') {
+                  return (
+                    <div
+                      key={`moran-header-${item.group}`}
+                      style={{
+                        gridColumn: '1 / -1',
+                        marginTop: item.group === 'dress' ? '0' : '28px',
+                        marginBottom: '12px',
+                        padding: '16px 20px',
+                        borderRadius: '14px',
+                        background: 'linear-gradient(135deg, #faf5ff 0%, #fdf2f8 100%)',
+                        border: '1px solid #e9d5ff',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '12px',
+                      }}
+                    >
+                      <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '900', color: '#7c3aed' }}>
+                        {item.label}
+                      </h3>
+                      <span style={{
+                        fontSize: '0.8rem',
+                        fontWeight: '800',
+                        color: '#9333ea',
+                        background: 'white',
+                        padding: '6px 12px',
+                        borderRadius: '999px',
+                        border: '1px solid #e9d5ff',
+                      }}>
+                        {item.count} ספקים
+                      </span>
+                    </div>
+                  );
+                }
+
+                const s = item.supplier;
                 const phone = s["Real Phone"] || s["phone"];
                 const state = supplierStates[phone] || { status: null };
                 const supplierNumber = suppliers.indexOf(s) + 1;
@@ -2052,7 +2343,11 @@ export default function SuppliersDashboard() {
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                          <span className="category-tag">{s["Category"] || "כללי"}</span>
+                          <span className="category-tag">
+                            {activeAgent === 'מורן' && !searchQuery
+                              ? moranGroupLabels[item.moranGroup || getMoranSupplierGroup(s)]
+                              : (s["Category"] || "כללי")}
+                          </span>
                           {searchQuery && supplierTab !== activeTab && (
                             <span style={{
                               fontSize: '0.72rem', color: '#6366f1', background: '#eef2ff',
