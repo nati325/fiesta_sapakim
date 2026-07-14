@@ -106,8 +106,11 @@ export default function SuppliersDashboard() {
   // Categories mapping
   const agentCategoryMap = {
     'ינון': ['צלמים', 'צילום', 'צלם', 'וידאו', 'סושיאל'],
-    'מורן': ['אולמות וגנים', 'גני אירועים', 'אולמות אירועים', 'מאפרות', 'שיער', 'כלות', 'לחתן ולכלה'],
-    'הודיה': ['מאפרות', 'שיער', 'כלות', 'לחתן ולכלה'],
+    'מורן': [
+      'מאפרות', 'איפור', 'שיער', 'כלות', 'לחתן ולכלה',
+      'שמלות כלה', 'חליפות חתן',
+    ],
+    'הודיה': [], // פיד ריק — כל קטגוריות הכלה/איפור/שיער/שמלות עברו למורן
     'נתנאל': [] // Sees all
   };
 
@@ -378,21 +381,15 @@ export default function SuppliersDashboard() {
           let isAllowed = false;
           if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') {
             isAllowed = true;
+          } else if (activeAgent === 'הודיה') {
+            isAllowed = false;
           } else {
             if (s.Category === "ספקים ללא קטגוריה" || !s.Category) {
               isAllowed = true;
             } else {
               const matches = allowedCategories.some(cat => s.Category.includes(cat));
               if (matches) {
-                // Split logic for bride categories shared between Moran and Hodaya
-                const brideCategories = ['מאפרות', 'שיער', 'כלות', 'לחתן ולכלה'];
-                const isBrideCategory = brideCategories.some(cat => s.Category.includes(cat));
-                if (isBrideCategory) {
-                  if (activeAgent === 'מורן' && index % 2 === 0) isAllowed = true;
-                  if (activeAgent === 'הודיה' && index % 2 === 1) isAllowed = true;
-                } else {
-                  isAllowed = true;
-                }
+                isAllowed = true;
               }
             }
           }
@@ -1339,6 +1336,35 @@ export default function SuppliersDashboard() {
       );
     }
 
+    const moranBanner = activeAgent === 'מורן' ? (
+      <div className="glass-card" style={{
+        padding: '28px 24px',
+        marginBottom: '20px',
+        textAlign: 'center',
+        background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 45%, #fce7f3 100%)',
+        border: '2px solid #c4b5fd',
+        boxShadow: '0 8px 32px rgba(139, 92, 246, 0.12)',
+      }}>
+        <p style={{ fontSize: '0.85rem', fontWeight: '700', color: '#8b5cf6', marginBottom: '8px', letterSpacing: '0.05em' }}>
+          💜 מורן 💜
+        </p>
+        <h3 style={{
+          fontSize: '1.55rem',
+          fontWeight: '900',
+          lineHeight: 1.45,
+          background: 'linear-gradient(135deg, #7c3aed, #db2777)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          margin: 0,
+        }}>
+          אישה חזקה שכמותך — תביאי לי מלא לידיים!
+        </h3>
+        <p style={{ fontSize: '0.95rem', color: '#6b7280', marginTop: '10px', fontWeight: '600' }}>
+          אני יודע שאת יכולה. תתחילי לרוץ! 🚀
+        </p>
+      </div>
+    ) : null;
+
     const dailyTarget = activeAgent === 'מורן' ? 7 : 50;
     const weeklyTarget = activeAgent === 'מורן' ? 35 : 250;
     
@@ -1352,6 +1378,7 @@ export default function SuppliersDashboard() {
 
     return (
       <div style={{ marginBottom: '30px' }} className="animate-in">
+        {moranBanner}
         <div className="glass-card" style={{ padding: '20px', borderRight: '6px solid var(--accent)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <div>
@@ -1405,20 +1432,13 @@ export default function SuppliersDashboard() {
       if (searchQuery) return true;
       
       if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
+      if (activeAgent === 'הודיה') return false;
       const allowedCategories = agentCategoryMap[activeAgent] || [];
       
       if (s.Category === "ספקים ללא קטגוריה" || !s.Category) return true;
       
       const matches = allowedCategories.some(cat => s.Category.includes(cat));
       if (!matches) return false;
-
-      const brideCategories = ['מאפרות', 'שיער', 'כלות', 'לחתן ולכלה'];
-      const isBrideCategory = brideCategories.some(cat => s.Category.includes(cat));
-      
-      if (isBrideCategory) {
-        if (activeAgent === 'מורן' && i % 2 !== 0) return false;
-        if (activeAgent === 'הודיה' && i % 2 !== 1) return false;
-      }
 
       return true;
     })
