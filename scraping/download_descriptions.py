@@ -94,13 +94,60 @@ def serper_snippet(supplier_name, category):
     return None
 
 def clean_description(text):
-    """Clean up description text."""
-    # Remove HTML entities and tags
-    text = re.sub(r'<[^>]+>', '', text)
-    text = re.sub(r'&[a-z]+;', ' ', text)
-    text = re.sub(r'&#\d+;', '', text)
+    """Clean up description text — decode entities first, then strip junk."""
+    import html as html_lib
+
+    if not text:
+        return None
+
+    text = str(text)
+
+    # Decode entities repeatedly (&amp;nbsp; → &nbsp; → space)
+    for _ in range(5):
+        prev = text
+        text = html_lib.unescape(text)
+        if text == prev:
+            break
+
+    text = re.sub(r'<[^>]+>', ' ', text)
+
+    # Leftover broken entity names from older buggy cleans
+    text = re.sub(r'\bnbsp;', ' ', text, flags=re.I)
+    text = re.sub(r'\bnbsp\b', ' ', text, flags=re.I)
+    text = re.sub(r'\bamp;', '&', text, flags=re.I)
+    text = re.sub(r'\bamp\b', '&', text, flags=re.I)
+    text = re.sub(r'\bquot;', '"', text, flags=re.I)
+    text = re.sub(r'\bquot\b', '"', text, flags=re.I)
+    text = re.sub(r'\bapos;', "'", text, flags=re.I)
+    text = re.sub(r'\bapos\b', "'", text, flags=re.I)
+
+    # Zero-width / bidi marks
+    text = re.sub(r'[\u200B-\u200F\u202A-\u202E\u2060\uFEFF\u00AD]', '', text)
+
+    # Decorative junk
+    text = re.sub(r'[◦•●○▪▸►◆◇★☆]', ' ', text)
+    text = re.sub(r'\[\s*\]', ' ', text)
+    text = re.sub(r'#\d{4,6}\b', ' ', text)
+
+    # Restore common Hebrew abbreviations broken when quotes were stripped
+    abbrevs = [
+        (r'מ\s+ר(?=[\s.,;:!?)\]}]|$)', 'מ״ר'),
+        (r'ע\s+י(?=[\s.,;:!?)\]}]|$)', 'ע״י'),
+        (r'פ\s+ת(?=[\s.,;:!?)\]}]|$)', 'פ״ת'),
+        (r'מת\s+א(?=[\s.,;:!?)\]}]|$)', 'מת״א'),
+        (r'ת\s+א(?=[\s.,;:!?)\]}]|$)', 'ת״א'),
+    ]
+    for pattern, repl in abbrevs:
+        text = re.sub(pattern, repl, text)
+
+    # Orphan semicolons left from broken nbsp; cleanup
+    text = re.sub(r'([.,\-:()[\]])\s*;+', r'\1 ', text)
+    text = re.sub(r';{2,}', ' ', text)
+    text = re.sub(r'(^|\s);+(\s|$)', r'\1\2', text)
+
     text = re.sub(r'\s+', ' ', text).strip()
-    # Limit length
+    text = re.sub(r' +([.,;:!?)\]])', r'\1', text)
+
     if len(text) > 500:
         text = text[:500].rsplit(' ', 1)[0] + '...'
     return text if len(text) > 20 else None

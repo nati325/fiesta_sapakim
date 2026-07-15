@@ -18,6 +18,8 @@ import {
   getGoogleImageUrl,
   pickBestStoredImage,
   supplierHasDisplayImage,
+  shouldRejectLoadedImage,
+  getNextImageCandidate,
 } from '../lib/supplierImageSources';
 import {
   appendActivityLog,
@@ -657,6 +659,30 @@ export default function SuppliersDashboard() {
     const cached = phone ? supplierImages[phone] : null;
     if (cached && cached !== 'loading' && cached !== 'error') return cached;
     return pickBestStoredImage(supplier);
+  };
+
+  const handleSupplierImageLoad = (supplier, e) => {
+    const phone = supplier['Real Phone'] || supplier.phone || '';
+    const img = e.currentTarget;
+    if (!shouldRejectLoadedImage(img.naturalWidth, img.naturalHeight)) return;
+
+    const srcAttr = img.getAttribute('src') || '';
+    let current = srcAttr;
+    try {
+      const abs = new URL(img.src, window.location.origin);
+      current = abs.pathname.startsWith('/media/') ? abs.pathname : srcAttr;
+    } catch {
+      current = srcAttr;
+    }
+
+    const next = getNextImageCandidate(supplier, current);
+    if (!next || next === current) {
+      if (img.parentElement) img.parentElement.style.display = 'none';
+      return;
+    }
+
+    setSupplierImages((prev) => ({ ...prev, [phone]: next }));
+    applyImageToSupplier(phone, next);
   };
 
   const fetchImageForSupplier = async (supplier) => {
@@ -2417,6 +2443,7 @@ export default function SuppliersDashboard() {
                             <img
                               src={imgUrl}
                               alt={s['Supplier Name'] || ''}
+                              onLoad={(e) => handleSupplierImageLoad(s, e)}
                               onError={(e) => { e.target.parentElement.style.display = 'none'; }}
                             />
                           </div>
@@ -2526,10 +2553,10 @@ export default function SuppliersDashboard() {
                       <button
                         type="button"
                         onClick={() => setSelectedSupplierProfile(s)}
-                        className="btn-profile-link"
+                        className="btn-profile"
                       >
-                        <FileText size={14} />
-                        פרופיל מורחב
+                        <FileText size={16} />
+                        הצג פרופיל מורחב
                       </button>
                     </div>
 
@@ -2780,6 +2807,7 @@ export default function SuppliersDashboard() {
                     src={getSupplierImage(selectedSupplierProfile)} 
                     style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--primary)' }} 
                     alt="" 
+                    onLoad={(e) => handleSupplierImageLoad(selectedSupplierProfile, e)}
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
                 )}

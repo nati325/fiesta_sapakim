@@ -14,11 +14,30 @@ MEDIA_DIR = "../public/media/suppliers"
 def clean_filename(name):
     return re.sub(r'[^a-zA-Z0-9_\-]', '_', name)
 
+def is_bad_image_url(url):
+    if not url:
+        return True
+    value = str(url)
+    if value.endswith('.svg'):
+        return True
+    patterns = [
+        r'app.?store', r'play\.google', r'play-badge', r'google.?play', r'badge',
+        r'mzstatic\.com', r'applemediaservices', r'linkmaker', r'itunes\.apple',
+        r'apps\.apple\.com', r'favicon', r'sprite', r'pixel', r'logo_new',
+        r'[-_/]logo[-_./]', r'[-_/]icon[-_./]', r'logo-facebook',
+    ]
+    return any(re.search(p, value, re.I) for p in patterns)
+
 def download_image(url, save_path):
     try:
+        if is_bad_image_url(url):
+            return False
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         res = requests.get(url, headers=headers, timeout=15)
         if res.status_code == 200 and 'image' in res.headers.get('Content-Type', ''):
+            # Skip App Store badges / tiny icons (~2–6KB)
+            if len(res.content) < 12000:
+                return False
             with open(save_path, 'wb') as f:
                 f.write(res.content)
             return True
@@ -84,7 +103,7 @@ def main():
         if image_data:
             for img in image_data.get("images", []):
                 url = img.get("imageUrl", "")
-                if url and url.startswith("http") and not url.endswith(".svg"):
+                if url and url.startswith("http") and not is_bad_image_url(url):
                     image_urls.append(url)
                 if len(image_urls) >= 5:
                     break

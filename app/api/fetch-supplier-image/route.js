@@ -3,7 +3,7 @@
  * Fetches owner-published images: Google profile, Instagram, website — not engaged sidebar ads.
  */
 import { NextResponse } from 'next/server';
-import { isBadEngagedImage } from '../../../lib/supplierImageSources.js';
+import { isBadEngagedImage, isBadImageUrl } from '../../../lib/supplierImageSources.js';
 
 const BROWSER_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -19,7 +19,7 @@ function extractOgImage(html) {
     html.match(/content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
   const url = match?.[1]?.trim();
   if (!url || !url.startsWith('http')) return null;
-  if (/logo_new|favicon|sprite|icon/i.test(url)) return null;
+  if (isBadImageUrl(url)) return null;
   return url;
 }
 
@@ -47,7 +47,7 @@ async function fetchHtml(url, referer) {
 async function tryOgFromUrl(url, source, referer) {
   const html = await fetchHtml(url, referer);
   const imageUrl = extractOgImage(html);
-  if (!imageUrl || isBadEngagedImage(imageUrl)) return null;
+  if (!imageUrl || isBadImageUrl(imageUrl)) return null;
   return { imageUrl, source, pageUrl: url };
 }
 
@@ -65,7 +65,7 @@ export async function GET(request) {
     .filter(Boolean);
 
   try {
-    if (googleImage.startsWith('http') && !isBadEngagedImage(googleImage)) {
+    if (googleImage.startsWith('http') && !isBadImageUrl(googleImage)) {
       return NextResponse.json({ imageUrl: googleImage, source: 'google', phone });
     }
 
@@ -81,7 +81,7 @@ export async function GET(request) {
 
     if (engagedUrl.startsWith('http')) {
       const result = await tryOgFromUrl(engagedUrl, 'engaged-og', 'https://engaged.co.il/');
-      if (result && !isBadEngagedImage(result.imageUrl)) {
+      if (result && !isBadEngagedImage(result.imageUrl) && !isBadImageUrl(result.imageUrl)) {
         return NextResponse.json({ ...result, phone });
       }
     }

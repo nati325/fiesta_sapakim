@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { loadSuppliersFromJson, normalizeSupplierRecord } from '../../../lib/supplierEnrichment';
+import { cleanDescription } from '../../../lib/cleanDescription';
 import { supplierMatchesSearch } from '../../../lib/searchUtils';
 
 export const dynamic = 'force-dynamic';
@@ -65,7 +66,7 @@ export async function POST(req) {
 
     const updateFields = {};
     if (images !== undefined) updateFields.images = images;
-    if (description !== undefined) updateFields.description = description;
+    if (description !== undefined) updateFields.description = cleanDescription(description);
     if (reviews !== undefined) updateFields.reviews = reviews;
 
     if (Object.keys(updateFields).length === 0) {
