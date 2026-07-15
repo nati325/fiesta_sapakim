@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { Upload, MessageCircle, Phone, Calendar, CheckCircle2, ChevronDown, User, LogOut } from 'lucide-react';
+import { Upload, MessageCircle, Phone, Calendar, CheckCircle2, User, LogOut, Search, Image as ImageIcon, Globe, ExternalLink, FileText, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supplierMatchesSearch } from '../lib/searchUtils';
 import {
@@ -88,38 +88,38 @@ export default function SuppliersDashboard() {
 
   // All Fiesta categories — exact slugs from categoryData in /category/[type]/page.jsx
   const FIESTA_CATEGORIES = [
-    { value: 'venue',             label: 'אולמות וגנים',       emoji: '🏛️' },
-    { value: 'dj',                label: 'DJ ומוזיקה',          emoji: '🎵' },
-    { value: 'photographer',      label: 'צילום אירועים',       emoji: '📸' },
-    { value: 'design',            label: 'עיצוב אירועים',       emoji: '🌸' },
-    { value: 'catering',          label: 'קייטרינג',            emoji: '🍽️' },
-    { value: 'makeup',            label: 'איפור',               emoji: '💄' },
-    { value: 'dresses',           label: 'שמלות כלה',           emoji: '👗' },
-    { value: 'suits',             label: 'חליפות חתן',          emoji: '👔' },
-    { value: 'hair',              label: 'עיצוב שיער',          emoji: '💇' },
-    { value: 'bar',               label: 'שירותי בר',           emoji: '🍹' },
-    { value: 'alcohol',           label: 'אלכוהול ובר',         emoji: '🥂' },
-    { value: 'rings',             label: 'טבעות נישואין',       emoji: '💍' },
-    { value: 'transportation',    label: 'הסעות',               emoji: '🚌' },
-    { value: 'cars',              label: 'רכבי יוקרה',          emoji: '🚗' },
-    { value: 'singers',           label: 'זמרים ולהקות',        emoji: '🎤' },
-    { value: 'attractions',       label: 'אטרקציות',            emoji: '🎪' },
-    { value: 'event-production',  label: 'הפקת אירועים',        emoji: '🎭' },
-    { value: 'invitations',       label: 'הזמנות',              emoji: '💌' },
-    { value: 'rabbi',             label: 'רב לחופה',            emoji: '✡️' },
-    { value: 'cantors',           label: 'חזנים ופייטנים',      emoji: '🎶' },
-    { value: 'religious-bands',   label: 'להקות דתיות',         emoji: '🎸' },
-    { value: 'challa',            label: 'הפרשת חלה',           emoji: '🍞' },
-    { value: 'hotels',            label: 'מלונות',              emoji: '🏨' },
-    { value: 'getting-ready',     label: 'התארגנות כלה',        emoji: '👰' },
-    { value: 'bachelor',          label: 'מסיבות רווקים',       emoji: '🎉' },
-    { value: 'souvenirs',         label: 'מזכרות',              emoji: '🎁' },
-    { value: 'bride-shoes',       label: 'נעלי כלה',            emoji: '👠' },
-    { value: 'groom-shoes',       label: 'נעלי חתן',            emoji: '👞' },
-    { value: 'equipment-rental',  label: 'השכרת ציוד',          emoji: '🔧' },
-    { value: 'rsvp',              label: 'אישורי הגעה',         emoji: '✉️' },
-    { value: 'dietitians',        label: 'תזונה ודיאטה',        emoji: '🥗' },
-    { value: 'personal-training', label: 'כושר ואימון',         emoji: '💪' },
+    { value: 'venue',             label: 'אולמות וגנים' },
+    { value: 'dj',                label: 'DJ ומוזיקה' },
+    { value: 'photographer',      label: 'צילום אירועים' },
+    { value: 'design',            label: 'עיצוב אירועים' },
+    { value: 'catering',          label: 'קייטרינג' },
+    { value: 'makeup',            label: 'איפור' },
+    { value: 'dresses',           label: 'שמלות כלה' },
+    { value: 'suits',             label: 'חליפות חתן' },
+    { value: 'hair',              label: 'עיצוב שיער' },
+    { value: 'bar',               label: 'שירותי בר' },
+    { value: 'alcohol',           label: 'אלכוהול ובר' },
+    { value: 'rings',             label: 'טבעות נישואין' },
+    { value: 'transportation',    label: 'הסעות' },
+    { value: 'cars',              label: 'רכבי יוקרה' },
+    { value: 'singers',           label: 'זמרים ולהקות' },
+    { value: 'attractions',       label: 'אטרקציות' },
+    { value: 'event-production',  label: 'הפקת אירועים' },
+    { value: 'invitations',       label: 'הזמנות' },
+    { value: 'rabbi',             label: 'רב לחופה' },
+    { value: 'cantors',           label: 'חזנים ופייטנים' },
+    { value: 'religious-bands',   label: 'להקות דתיות' },
+    { value: 'challa',            label: 'הפרשת חלה' },
+    { value: 'hotels',            label: 'מלונות' },
+    { value: 'getting-ready',     label: 'התארגנות כלה' },
+    { value: 'bachelor',          label: 'מסיבות רווקים' },
+    { value: 'souvenirs',         label: 'מזכרות' },
+    { value: 'bride-shoes',       label: 'נעלי כלה' },
+    { value: 'groom-shoes',       label: 'נעלי חתן' },
+    { value: 'equipment-rental',  label: 'השכרת ציוד' },
+    { value: 'rsvp',              label: 'אישורי הגעה' },
+    { value: 'dietitians',        label: 'תזונה ודיאטה' },
+    { value: 'personal-training', label: 'כושר ואימון' },
   ];
   
   // Categories mapping
@@ -135,11 +135,11 @@ export default function SuppliersDashboard() {
 
   const moranGroupOrder = ['dress', 'makeup', 'hair', 'suit', 'other'];
   const moranGroupLabels = {
-    dress: '👗 שמלות כלה',
-    makeup: '💄 איפור',
-    hair: '💇 שיער',
-    suit: '👔 חליפות חתן',
-    other: '✨ אחר',
+    dress: 'שמלות כלה',
+    makeup: 'איפור',
+    hair: 'שיער',
+    suit: 'חליפות חתן',
+    other: 'אחר',
   };
 
   const getMoranSupplierGroup = (supplier) => {
@@ -539,22 +539,6 @@ export default function SuppliersDashboard() {
       .catch((err) => console.error('Assignment sync failed:', err));
   }, [isLoggedIn, loading, suppliers, activeAgent]);
 
-  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
-  const heroMedia = [
-    { type: 'video', src: '/media/media_fiesta/WhatsApp%20Video%202026-05-15%20at%2013.37.47.mp4' },
-    { type: 'image', src: '/media/media_fiesta/WhatsApp%20Image%202026-05-15%20at%2013.37.18.jpeg' },
-    { type: 'video', src: '/media/media_fiesta/WhatsApp%20Video%202026-05-15%20at%2013.37.54.mp4' },
-    { type: 'image', src: '/media/media_fiesta/WhatsApp%20Image%202026-05-15%20at%2013.37.25.jpeg' },
-    { type: 'image', src: '/media/media_fiesta/WhatsApp%20Image%202026-05-15%20at%2013.37.29.jpeg' },
-  ];
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentMediaIndex((prev) => (prev + 1) % heroMedia.length);
-    }, 5000); // Change media every 5 seconds
-    return () => clearInterval(interval);
-  }, []);
-
   // Persistent callback reminder checker running every 5 seconds
   useEffect(() => {
     if (!isLoggedIn || !activeAgent) return;
@@ -605,7 +589,7 @@ export default function SuppliersDashboard() {
 
               // Send browser push notification
               if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(`⏰ תזכורת - ${s['Supplier Name']}`, {
+                new Notification(`תזכורת - ${s['Supplier Name']}`, {
                   body: `הגיע הזמן לחזור לספק!\nטלפון: ${s['Real Phone']}`,
                   requireInteraction: true
                 });
@@ -1008,7 +992,7 @@ export default function SuppliersDashboard() {
           <div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.3s ease' }}></div>
         </div>
 
-        <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: 'var(--primary)', margin: 0 }}>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--primary)', margin: 0 }}>
           {title}
         </h2>
       </div>
@@ -1296,32 +1280,28 @@ export default function SuppliersDashboard() {
 
   if (!isLoggedIn) {
     return (
-      <div style={{ 
-        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-        background: 'var(--bg)', padding: '20px', dir: 'rtl' 
-      }}>
-        <motion.div 
+      <div className="login-screen" dir="rtl">
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-card" 
-          style={{ maxWidth: '550px', width: '100%', textAlign: 'center' }}
+          className="login-card"
         >
-          <h1 className="logo" style={{ fontSize: '3rem', marginBottom: '10px' }}>Fiesta</h1>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '30px' }}>מערכת ניהול ספקים - כניסת מורשים</p>
-          
-          <div style={{ marginBottom: '25px' }}>
-            <p style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '12px' }}>בחר פרופיל כניסה:</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+          <h1 className="logo">FIESTA</h1>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '28px', fontSize: '0.95rem' }}>
+            מערכת ניהול ספקים · כניסת מורשים
+          </p>
+
+          <div style={{ marginBottom: '22px' }}>
+            <p style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '10px', color: 'var(--text)' }}>
+              בחר פרופיל כניסה
+            </p>
+            <div className="login-agent-grid">
               {['ינון', 'מורן', 'הודיה', 'נתנאל', 'מאגר כללי'].map(agent => (
                 <button
                   key={agent}
+                  type="button"
                   onClick={() => setActiveAgent(agent)}
-                  style={{
-                    padding: '12px', borderRadius: '10px', border: activeAgent === agent ? '2px solid var(--accent)' : '1px solid var(--border)',
-                    background: activeAgent === agent ? 'var(--accent-soft)' : 'white',
-                    color: activeAgent === agent ? 'var(--accent)' : 'var(--text)',
-                    fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s'
-                  }}
+                  className={`login-agent-btn${activeAgent === agent ? ' active' : ''}`}
                 >
                   {agent}
                 </button>
@@ -1329,24 +1309,31 @@ export default function SuppliersDashboard() {
             </div>
           </div>
 
-          <div style={{ marginBottom: '30px' }}>
-            <input 
-              type="text" 
+          <div style={{ marginBottom: '24px' }}>
+            <input
+              type="password"
               placeholder="הכנס סיסמה"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={{ 
-                width: '100%', padding: '14px', borderRadius: '10px', border: '1px solid var(--border)',
-                background: '#f8fafc', textAlign: 'center', fontSize: '1.1rem', outline: 'none'
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  activeAgent ? handleLogin(activeAgent) : alert('בחר סוכן קודם');
+                }
               }}
+              className="login-input"
             />
-            {loginError && <p style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '8px' }}>סיסמה שגויה, נסה שוב</p>}
+            {loginError && (
+              <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '8px' }}>
+                סיסמה שגויה, נסה שוב
+              </p>
+            )}
           </div>
 
-          <button 
+          <button
+            type="button"
             onClick={() => activeAgent ? handleLogin(activeAgent) : alert('בחר סוכן קודם')}
-            className="btn-primary" 
-            style={{ width: '100%', padding: '16px' }}
+            className="btn-primary"
+            style={{ width: '100%', padding: '14px' }}
           >
             התחבר למערכת
           </button>
@@ -1374,11 +1361,11 @@ export default function SuppliersDashboard() {
   };
 
   const MOVE_META = {
-    'not-interested': { tab: 'טופלו', label: 'לא מעוניין', color: '#ef4444', emoji: '❌' },
-    'not-available': { tab: 'לא ענו', label: 'לא ענו', color: '#f97316', emoji: '📵' },
-    'not-signed': { tab: 'עדיין לא חתם', label: 'עדיין לא חתם', color: '#3b82f6', emoji: '⏳' },
-    'reset-untouched': { tab: 'לא נגעו בכלל', label: 'לא נגעו בכלל', color: '#ef4444', emoji: '↩️' },
-    callback: { tab: 'לחזור אליהם', label: 'לחזור אליהם', color: '#0ea5e9', emoji: '⏰' },
+    'not-interested': { tab: 'טופלו', label: 'לא מעוניין', color: '#ef4444' },
+    'not-available': { tab: 'לא ענו', label: 'לא ענו', color: '#f97316' },
+    'not-signed': { tab: 'עדיין לא חתם', label: 'עדיין לא חתם', color: '#3b82f6' },
+    'reset-untouched': { tab: 'לא נגעו בכלל', label: 'לא נגעו בכלל', color: '#ef4444' },
+    callback: { tab: 'לחזור אליהם', label: 'לחזור אליהם', color: '#0ea5e9' },
   };
 
   const triggerSupplierMove = (phone, metaKey, buttonKey, applyAction) => {
@@ -1603,21 +1590,21 @@ export default function SuppliersDashboard() {
       <div style={{ marginBottom: '12px' }}>
         <p style={{ fontSize: '0.72rem', fontWeight: '800', color: accent, marginBottom: '6px' }}>{label}</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-          <div style={{ textAlign: 'center', padding: '8px', background: '#f0fdf4', borderRadius: '8px' }}>
-            <p style={{ fontSize: '1.1rem', fontWeight: '900', color: '#10b981', margin: 0 }}>{data.closed}</p>
-            <p style={{ fontSize: '0.65rem', fontWeight: '700', color: '#047857', margin: 0 }}>סגירות</p>
+          <div className="stat-cell">
+            <p style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--success)', margin: 0 }}>{data.closed}</p>
+            <p style={{ fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-muted)', margin: 0 }}>סגירות</p>
           </div>
-          <div style={{ textAlign: 'center', padding: '8px', background: '#fffbeb', borderRadius: '8px' }}>
-            <p style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f59e0b', margin: 0 }}>{data.noAnswer}</p>
-            <p style={{ fontSize: '0.65rem', fontWeight: '700', color: '#b45309', margin: 0 }}>לא ענו</p>
+          <div className="stat-cell">
+            <p style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--warning)', margin: 0 }}>{data.noAnswer}</p>
+            <p style={{ fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-muted)', margin: 0 }}>לא ענו</p>
           </div>
-          <div style={{ textAlign: 'center', padding: '8px', background: '#eff6ff', borderRadius: '8px' }}>
-            <p style={{ fontSize: '1.1rem', fontWeight: '900', color: '#3b82f6', margin: 0 }}>{data.notSigned}</p>
-            <p style={{ fontSize: '0.65rem', fontWeight: '700', color: '#1d4ed8', margin: 0 }}>לא חתמו</p>
+          <div className="stat-cell">
+            <p style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--info)', margin: 0 }}>{data.notSigned}</p>
+            <p style={{ fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-muted)', margin: 0 }}>לא חתמו</p>
           </div>
-          <div style={{ textAlign: 'center', padding: '8px', background: '#f5f3ff', borderRadius: '8px' }}>
-            <p style={{ fontSize: '1.1rem', fontWeight: '900', color: '#8b5cf6', margin: 0 }}>{data.total}</p>
-            <p style={{ fontSize: '0.65rem', fontWeight: '700', color: '#6d28d9', margin: 0 }}>פעולות</p>
+          <div className="stat-cell">
+            <p style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--primary)', margin: 0 }}>{data.total}</p>
+            <p style={{ fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-muted)', margin: 0 }}>פעולות</p>
           </div>
         </div>
       </div>
@@ -1639,7 +1626,7 @@ export default function SuppliersDashboard() {
                 <h3 style={{ fontSize: '1.2rem', fontWeight: '800' }}>סוכן: {agent}</h3>
               </div>
 
-              {renderStatRow('היום (24 שעות)', stats[agent].today, '#7c3aed')}
+              {renderStatRow('היום (24 שעות)', stats[agent].today, 'var(--accent-strong)')}
               {renderStatRow('השבוע (7 ימים)', stats[agent].week, '#2563eb')}
               {renderStatRow('סה"כ מצטבר', stats[agent].all, '#64748b')}
 
@@ -1668,11 +1655,11 @@ export default function SuppliersDashboard() {
           <div className="glass-card" style={{ 
             padding: '25px', 
             textAlign: 'center', 
-            background: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)',
-            border: '2px solid #fbcfe8'
+            background: 'var(--card-bg)',
+            border: '2px solid var(--border)'
           }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#db2777' }}>
-              תודה רבה לאישה הטובה והיפה בעולם ✨
+            <h3 style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--accent-strong)' }}>
+              תודה רבה לאישה הטובה והיפה בעולם
             </h3>
           </div>
         </div>
@@ -1684,26 +1671,24 @@ export default function SuppliersDashboard() {
         padding: '28px 24px',
         marginBottom: '20px',
         textAlign: 'center',
-        background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 45%, #fce7f3 100%)',
-        border: '2px solid #c4b5fd',
-        boxShadow: '0 8px 32px rgba(139, 92, 246, 0.12)',
+        background: 'var(--card-bg)',
+        border: '1px solid var(--border)',
       }}>
-        <p style={{ fontSize: '0.85rem', fontWeight: '700', color: '#8b5cf6', marginBottom: '8px', letterSpacing: '0.05em' }}>
-          💜 מורן 💜
+        <p style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--accent)', marginBottom: '8px', letterSpacing: '0.05em' }}>
+          מורן
         </p>
         <h3 style={{
           fontSize: '1.55rem',
-          fontWeight: '900',
+          fontWeight: '800',
           lineHeight: 1.45,
-          background: 'linear-gradient(135deg, #7c3aed, #db2777)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
+          color: 'var(--primary)',
+          
           margin: 0,
         }}>
           אישה חזקה שכמותך — תביאי לי מלא לידיים!
         </h3>
         <p style={{ fontSize: '0.95rem', color: '#6b7280', marginTop: '10px', fontWeight: '600' }}>
-          אני יודע שאת יכולה. תתחילי לרוץ! 🚀
+          אני יודע שאת יכולה. תתחילי לרוץ!
         </p>
       </div>
     ) : null;
@@ -1716,12 +1701,12 @@ export default function SuppliersDashboard() {
       <div className="glass-card" style={{
         padding: '18px 20px',
         marginBottom: '20px',
-        border: '1px solid #dbeafe',
-        background: 'linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%)',
+        border: '1px solid var(--border)',
+        background: 'var(--card-bg)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div>
-            <h3 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: '800', color: '#1e40af' }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: '800', color: 'var(--primary)' }}>
               מעקב כיסוי פיד
             </h3>
             <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569' }}>
@@ -1741,7 +1726,7 @@ export default function SuppliersDashboard() {
               fontSize: '0.85rem',
             }}
           >
-            {feedStats.untouched > 0 ? `הצג שלא נגעו (${feedStats.untouched})` : 'כיסית את כל הפיד 🎉'}
+            {feedStats.untouched > 0 ? `הצג שלא נגעו (${feedStats.untouched})` : 'כיסית את כל הפיד'}
           </button>
         </div>
       </div>
@@ -1766,13 +1751,13 @@ export default function SuppliersDashboard() {
             <div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: '800' }}>היעד היומי שלך (24 שעות)</h3>
               {activeAgent === 'מורן' && dailyRemaining > 0 ? (
-                <p style={{ fontSize: '0.85rem', color: '#ef4444', fontWeight: '700' }}>⚠️ שימי לב מורן, נשארו עוד {dailyRemaining} שיחות כדי להגיע ליעד!</p>
+                <p style={{ fontSize: '0.85rem', color: '#ef4444', fontWeight: '700' }}>שימי לב מורן, נשארו עוד {dailyRemaining} שיחות כדי להגיע ליעד!</p>
               ) : (
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>נשארו עוד {dailyRemaining} שיחות ליעד היום</p>
               )}
             </div>
             <div style={{ textAlign: 'left' }}>
-              <span style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--accent)' }}>{callsToday}</span>
+              <span style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--accent)' }}>{callsToday}</span>
               <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}> / {dailyTarget}</span>
             </div>
           </div>
@@ -1782,14 +1767,14 @@ export default function SuppliersDashboard() {
             <motion.div 
               initial={{ width: 0 }}
               animate={{ width: `${dailyProgress}%` }}
-              style={{ height: '100%', background: 'linear-gradient(90deg, #8b5cf6, #d946ef)', borderRadius: '10px' }}
+              style={{ height: '100%', background: 'var(--accent)', borderRadius: '10px' }}
             />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', fontSize: '0.75rem', fontWeight: '700' }}>
             <span style={{ color: 'var(--text-muted)' }}>יעד שבועי: {callsThisWeek} / {weeklyTarget} ({Math.round(weeklyProgress)}%)</span>
             <span style={{ color: dailyProgress === 100 ? '#10b981' : 'var(--accent)' }}>
-              {dailyProgress === 100 ? 'היעד הושלם! 🎉' : `${Math.round(dailyProgress)}% הושלם`}
+              {dailyProgress === 100 ? 'היעד הושלם' : `${Math.round(dailyProgress)}% הושלם`}
             </span>
           </div>
         </div>
@@ -1918,7 +1903,7 @@ export default function SuppliersDashboard() {
           fontWeight: 600,
           borderBottom: '2px solid #ef4444',
         }}>
-          ⚠️ {apiHealthWarning}
+          {apiHealthWarning}
         </div>
       )}
       {activeAgent === 'נתנאל' && (
@@ -1928,63 +1913,86 @@ export default function SuppliersDashboard() {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'linear-gradient(135deg, #bf953f 0%, #fcf6ba 25%, #b38728 50%, #fbf5b7 75%, #aa771c 100%)',
+          background: 'transparent',
           zIndex: -1
         }} />
       )}
-      {/* Compact Hero Section */}
-      <section className="hero-section animate-in">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentMediaIndex}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1 }}
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-          >
-            {heroMedia[currentMediaIndex].type === 'video' ? (
-              <video 
-                autoPlay 
-                muted 
-                loop 
-                playsInline
-                className="hero-media"
-                key={heroMedia[currentMediaIndex].src}
-              >
-                <source src={heroMedia[currentMediaIndex].src} type="video/mp4" />
-              </video>
-            ) : (
-              <img 
-                src={heroMedia[currentMediaIndex].src} 
-                className="hero-media" 
-                alt="Fiesta Hero" 
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
-        <div className="hero-overlay"></div>
-        <div className="hero-content">
-          <h1 style={{ fontSize: '2.5rem', fontWeight: '900', letterSpacing: '-1px', marginBottom: '4px', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>FIESTA</h1>
-          <p style={{ fontSize: '1rem', fontWeight: '500', opacity: 0.9, textShadow: '0 1px 5px rgba(0,0,0,0.3)' }}>Experience Luxury Management</p>
-        </div>
-        
-        {/* Carousel Indicators */}
-        <div style={{ position: 'absolute', bottom: '15px', display: 'flex', gap: '6px', zIndex: 10 }}>
-          {heroMedia.map((_, idx) => (
-            <div 
-              key={idx}
-              style={{ 
-                width: '8px', height: '8px', borderRadius: '50%', 
-                background: currentMediaIndex === idx ? 'white' : 'rgba(255,255,255,0.4)',
-                transition: 'all 0.3s'
-              }}
-            />
-          ))}
-        </div>
-      </section>
+      {/* Unified app header */}
+      <header className="top-header animate-in">
+        {/* Menorah watermark — Hanukkah motif */}
+        <svg
+          className="top-header-menorah"
+          viewBox="0 0 160 140"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          {/* flames */}
+          <path d="M80 8c0 6-4 10-4 14a4 4 0 108 0c0-4-4-8-4-14z" fill="currentColor" opacity="0.95" />
+          <path d="M52 18c0 5-3.2 8-3.2 11.5a3.2 3.2 0 106.4 0c0-3.5-3.2-6.5-3.2-11.5z" fill="currentColor" opacity="0.75" />
+          <path d="M108 18c0 5-3.2 8-3.2 11.5a3.2 3.2 0 106.4 0c0-3.5-3.2-6.5-3.2-11.5z" fill="currentColor" opacity="0.75" />
+          <path d="M28 30c0 4.2-2.6 6.8-2.6 9.8a2.6 2.6 0 105.2 0c0-3-2.6-5.6-2.6-9.8z" fill="currentColor" opacity="0.55" />
+          <path d="M132 30c0 4.2-2.6 6.8-2.6 9.8a2.6 2.6 0 105.2 0c0-3-2.6-5.6-2.6-9.8z" fill="currentColor" opacity="0.55" />
+          <path d="M12 44c0 3.5-2 5.6-2 8.2a2 2 0 104 0c0-2.6-2-4.7-2-8.2z" fill="currentColor" opacity="0.4" />
+          <path d="M148 44c0 3.5-2 5.6-2 8.2a2 2 0 104 0c0-2.6-2-4.7-2-8.2z" fill="currentColor" opacity="0.4" />
+          <path d="M40 40c0 3.5-2 5.6-2 8.2a2 2 0 104 0c0-2.6-2-4.7-2-8.2z" fill="currentColor" opacity="0.45" />
+          <path d="M120 40c0 3.5-2 5.6-2 8.2a2 2 0 104 0c0-2.6-2-4.7-2-8.2z" fill="currentColor" opacity="0.45" />
+          {/* cups */}
+          <path d="M74 28h12v4H74zM46 38h12v3.5H46zM102 38h12v3.5h-12zM22 50h12v3H22zM126 50h12v3h-12zM6 58h12v2.5H6zM142 58h12v2.5h-12zM34 54h12v2.5H34zM114 54h12v2.5h-12z" fill="currentColor" />
+          {/* arms */}
+          <path d="M80 32v52M52 41.5c0 18 12 28 28 28M108 41.5c0 18-12 28-28 28M28 53c0 14 20 24.5 52 24.5M132 53c0 14-20 24.5-52 24.5M12 60.5c0 10 24 20.5 68 20.5M148 60.5c0 10-24 20.5-68 20.5M40 56.5c0 12 16 21.5 40 21.5M120 56.5c0 12-16 21.5-40 21.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+          {/* stem + base */}
+          <path d="M80 84v28" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+          <path d="M58 112h44M64 118h32M70 124h20" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+          <ellipse cx="80" cy="128" rx="18" ry="3" fill="currentColor" opacity="0.35" />
+        </svg>
+        <div className="top-header-glow" aria-hidden="true" />
 
-      {/* Success Celebration Modal */}
+        <div className="top-header-inner">
+          <div className="top-header-brand">
+            <div className="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 6h16v3.2H14.2V14H22v3.1H14.2V26H8V6z" fill="currentColor" />
+                <circle cx="24.5" cy="8.5" r="2.2" fill="currentColor" opacity="0.85" />
+              </svg>
+            </div>
+            <div className="top-header-brand-text">
+              <h1 className="top-header-title">FIESTA</h1>
+              <div className="top-header-meta">
+                <p className="top-header-welcome">שלום {activeAgent}</p>
+                <span className="top-header-meta-divider" aria-hidden="true" />
+                <span className="top-header-goal">
+                  <span className="top-header-goal-label">יעד</span>
+                  <span className="top-header-goal-value">חנוכה</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="top-header-actions">
+            <div className="agent-switcher">
+              {['ינון', 'מורן', 'הודיה', 'נתנאל', 'מאגר כללי'].map(agent => (
+                <button
+                  key={agent}
+                  type="button"
+                  onClick={() => handleAgentSwitch(agent)}
+                  className={activeAgent === agent ? 'active' : ''}
+                >
+                  {agent}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="top-header-logout"
+              title="יציאה"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        </div>
+      </header>
       <AnimatePresence>
         {showSuccessModal && (
           <div style={{
@@ -2000,7 +2008,7 @@ export default function SuppliersDashboard() {
               className="glass-card"
               style={{ maxWidth: '500px', width: '100%', textAlign: 'center', padding: '40px' }}
             >
-              <div style={{ fontSize: '4rem', marginBottom: '20px' }}>💰</div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.12em', color: 'var(--accent)', marginBottom: '16px' }}>CLOSED</div>
               <h2 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px', color: 'var(--primary)' }}>כל הכבוד, {activeAgent}!</h2>
               <p style={{ fontSize: '1.2rem', lineHeight: '1.6', marginBottom: '30px' }}>
                 "אתה עושה עבודה כל כך נפלאה אני באמת באמת מעריך אותך.<br/>
@@ -2030,11 +2038,11 @@ export default function SuppliersDashboard() {
               bottom: '40px',
               left: '50%',
               transform: 'translateX(-50%)',
-              background: '#10b981',
+              background: 'var(--success)',
               color: 'white',
               padding: '16px 24px',
-              borderRadius: '50px',
-              boxShadow: '0 10px 25px rgba(16, 185, 129, 0.4)',
+              borderRadius: '10px',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
@@ -2074,17 +2082,16 @@ export default function SuppliersDashboard() {
               exit={{ opacity: 0, x: -50, scale: 0.9 }}
               layout
               style={{ 
-                background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95))', 
-                backdropFilter: 'blur(16px)',
+                background: 'var(--primary)',
                 color: 'white', 
-                padding: '18px', 
-                borderRadius: '20px', 
+                padding: '16px', 
+                borderRadius: '10px', 
                 display: 'flex', 
                 flexDirection: 'column',
                 gap: '12px',
-                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-                borderRight: '6px solid var(--accent)',
-                transition: 'all 0.3s ease'
+                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.18)',
+                borderRight: '4px solid var(--accent)',
+                transition: 'all 0.2s ease'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
@@ -2094,7 +2101,7 @@ export default function SuppliersDashboard() {
                     transition={{ repeat: Infinity, duration: 2, repeatDelay: 2 }}
                     style={{ fontSize: '1.5rem' }}
                   >
-                    ⏰
+                    <Calendar size={18} />
                   </motion.div>
                   <div>
                     <h4 style={{ fontWeight: '800', fontSize: '1.1rem', marginBottom: '2px', color: '#f8fafc' }}>
@@ -2176,232 +2183,78 @@ export default function SuppliersDashboard() {
         </div>
       )}
 
-      <header className="animate-in" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1rem', fontWeight: '600' }}>ברוך הבא {activeAgent}, יום פורה! 🚀</p>
-        </div>
-        
-        {/* Agent Selector & Logout */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ display: 'flex', background: '#e2e8f0', padding: '4px', borderRadius: '10px', gap: '2px' }}>
-            {['ינון', 'מורן', 'הודיה', 'נתנאל', 'מאגר כללי'].map(agent => (
-              <button
-                key={agent}
-                onClick={() => handleAgentSwitch(agent)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: activeAgent === agent ? 'white' : 'transparent',
-                  color: activeAgent === agent ? 'var(--primary)' : 'var(--text-muted)',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  fontSize: '0.75rem'
-                }}
-              >
-                {agent}
-              </button>
-            ))}
-          </div>
-          <button 
-            onClick={handleLogout}
-            style={{ 
-              padding: '6px', borderRadius: '50%', border: '1px solid var(--border)', 
-              background: 'white', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}
-            title="יציאה"
-          >
-            <LogOut size={16} />
-          </button>
-        </div>
-      </header>
-
       {activeAgent === 'נתנאל' && renderManagerStats()}
       {renderAgentTargets()}
 
       {activeAgent && activeAgent !== 'נתנאל' && activeAgent !== 'מאגר כללי' && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => setActiveTab('לא נגעו בכלל')}
-            style={{
-              padding: '10px 24px', borderRadius: '20px', border: 'none',
-              background: activeTab === 'לא נגעו בכלל' ? '#ef4444' : '#e2e8f0',
-              color: activeTab === 'לא נגעו בכלל' ? 'white' : 'var(--text-muted)',
-              fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
-            }}
-          >
-            לא נגעו בכלל ({tabCounts['לא נגעו בכלל']})
-          </button>
-          <button
-            onClick={() => setActiveTab('לחזור אליהם')}
-            style={{
-              padding: '10px 24px', borderRadius: '20px', border: 'none',
-              background: activeTab === 'לחזור אליהם' ? '#f59e0b' : '#e2e8f0',
-              color: activeTab === 'לחזור אליהם' ? 'white' : 'var(--text-muted)',
-              fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
-            }}
-          >
-            לחזור אליהם ({tabCounts['לחזור אליהם']}) ⏰
-          </button>
-          <button
-            onClick={() => setActiveTab('לא ענו')}
-            style={{
-              padding: '10px 24px', borderRadius: '20px', border: 'none',
-              background: activeTab === 'לא ענו' ? '#f97316' : '#e2e8f0',
-              color: activeTab === 'לא ענו' ? 'white' : 'var(--text-muted)',
-              fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
-            }}
-          >
-            לא ענו ({tabCounts['לא ענו']}) 📵
-          </button>
-          <button
-            onClick={() => setActiveTab('עדיין לא חתם')}
-            style={{
-              padding: '10px 24px', borderRadius: '20px', border: 'none',
-              background: activeTab === 'עדיין לא חתם' ? '#3b82f6' : '#e2e8f0',
-              color: activeTab === 'עדיין לא חתם' ? 'white' : 'var(--text-muted)',
-              fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
-            }}
-          >
-            עדיין לא חתם ({tabCounts['עדיין לא חתם']}) ⏳
-          </button>
-          <button
-            onClick={() => setActiveTab('טופלו')}
-            style={{
-              padding: '10px 24px', borderRadius: '20px', border: 'none',
-              background: activeTab === 'טופלו' ? '#10b981' : '#e2e8f0',
-              color: activeTab === 'טופלו' ? 'white' : 'var(--text-muted)',
-              fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
-            }}
-          >
-            ספקים שטופלו ({tabCounts['טופלו']})
-          </button>
+        <div className="tab-bar">
+          {[
+            { key: 'לא נגעו בכלל', label: 'לא נגעו', count: tabCounts['לא נגעו בכלל'] },
+            { key: 'לחזור אליהם', label: 'לחזור', count: tabCounts['לחזור אליהם'] },
+            { key: 'לא ענו', label: 'לא ענו', count: tabCounts['לא ענו'] },
+            { key: 'עדיין לא חתם', label: 'לא חתם', count: tabCounts['עדיין לא חתם'] },
+            { key: 'טופלו', label: 'טופלו', count: tabCounts['טופלו'] },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`tab-btn${activeTab === tab.key ? ' active' : ''}`}
+              title={tab.key}
+            >
+              {tab.label}
+              <span className="tab-count">{tab.count}</span>
+            </button>
+          ))}
         </div>
       )}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '100px', color: 'var(--text-muted)' }}>
-          <div style={{ width: '40px', height: '40px', border: '3px solid #e2e8f0', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }}></div>
+          <div style={{ width: '40px', height: '40px', border: '3px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }}></div>
           טוען ספקים...
         </div>
       ) : (
         <>
-          {/* Premium Search Bar */}
-          <div style={{ marginBottom: '24px' }} className="animate-in">
-            <div className="glass-card" style={{ 
-              padding: '16px 20px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '12px',
-              background: 'var(--card-bg)',
-              borderRadius: '16px',
-              boxShadow: '0 8px 32px rgba(139, 92, 246, 0.05)',
-              border: '1px solid var(--border)',
-              transition: 'all 0.3s ease',
-              direction: 'rtl'
-            }}>
-              <div style={{ position: 'relative', flex: 1 }}>
-                <span style={{ 
-                  position: 'absolute', 
-                  right: '16px', 
-                  top: '50%', 
-                  transform: 'translateY(-50%)', 
-                  fontSize: '1.2rem',
-                  color: 'var(--text-muted)',
-                  pointerEvents: 'none',
-                  zIndex: 2
-                }}>
-                  🔍
-                </span>
-                <input 
-                  type="text" 
-                  placeholder="חפש ספק לפי שם, מספר טלפון או מספר ספק (#)..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '14px 48px 14px 16px',
-                    borderRadius: '12px',
-                    border: '1px solid var(--border)',
-                    background: '#f8fafc',
-                    fontSize: '1rem',
-                    fontWeight: '500',
-                    outline: 'none',
-                    transition: 'all 0.2s ease',
-                    color: 'var(--text)',
-                    fontFamily: 'inherit',
-                    paddingRight: '48px'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = 'var(--accent)';
-                    e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.15)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = 'var(--border)';
-                    e.target.style.boxShadow = 'none';
-                  }}
-                />
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery('')}
-                    style={{
-                      position: 'absolute',
-                      left: '16px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: '#e2e8f0',
-                      border: 'none',
-                      borderRadius: '50%',
-                      width: '24px',
-                      height: '24px',
-                      color: 'var(--text-muted)',
-                      fontSize: '0.8rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 'bold',
-                      transition: 'all 0.2s',
-                      zIndex: 2
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#cbd5e1'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = '#e2e8f0'}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            </div>
+          {/* Search */}
+          <div className="search-row animate-in">
+            <span className="search-icon">
+              <Search size={18} />
+            </span>
+            <input
+              type="text"
+              placeholder="חפש ספק לפי שם, טלפון או מספר ספק (#)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="search-clear"
+                onClick={() => setSearchQuery('')}
+                aria-label="נקה חיפוש"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           {searchQuery && (
-            <div style={{ 
-              background: 'var(--accent-soft)', 
-              border: '1px solid rgba(139, 92, 246, 0.2)',
-              color: 'var(--accent)', 
-              padding: '10px 16px', 
-              borderRadius: '10px', 
-              marginBottom: '20px',
-              fontSize: '0.9rem',
-              fontWeight: '700',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              animation: 'fadeIn 0.3s ease-out'
-            }}>
+            <div className="search-hint animate-in">
               <span>
-                🔎 נמצאו {displaySuppliers.length} תוצאות עבור "{searchQuery}" (מכל הלשוניות)
+                נמצאו {displaySuppliers.length} תוצאות עבור &quot;{searchQuery}&quot; (מכל הלשוניות)
               </span>
-              <button 
+              <button
+                type="button"
                 onClick={() => setSearchQuery('')}
-                style={{ 
-                  background: 'transparent', 
-                  border: 'none', 
-                  color: 'var(--accent)', 
-                  fontWeight: '800', 
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--accent-strong)',
+                  fontWeight: '800',
                   cursor: 'pointer',
-                  textDecoration: 'underline'
+                  textDecoration: 'underline',
+                  fontFamily: 'inherit',
                 }}
               >
                 בטל חיפוש
@@ -2412,23 +2265,26 @@ export default function SuppliersDashboard() {
           {/* Fetch All Images Button */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
             <button
+              type="button"
               onClick={fetchAllSupplierImages}
               disabled={fetchingAllImages}
               style={{
-                padding: '8px 18px', borderRadius: '20px', border: 'none',
-                background: fetchingAllImages ? '#e2e8f0' : 'linear-gradient(135deg,#8b5cf6,#7c3aed)',
-                color: fetchingAllImages ? '#94a3b8' : 'white',
+                padding: '8px 16px', borderRadius: '8px', border: 'none',
+                background: fetchingAllImages ? 'var(--border)' : 'var(--primary)',
+                color: fetchingAllImages ? 'var(--text-muted)' : 'white',
                 fontWeight: '700', cursor: fetchingAllImages ? 'default' : 'pointer',
                 fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px',
+                fontFamily: 'inherit',
               }}
             >
+              <ImageIcon size={16} />
               {fetchingAllImages
-                ? `⏳ טוען תמונות... ${imageFetchProgress.done}/${imageFetchProgress.total}`
-                : '📷 טען תמונות לכל הספקים'}
+                ? `טוען תמונות... ${imageFetchProgress.done}/${imageFetchProgress.total}`
+                : 'טען תמונות לכל הספקים'}
             </button>
             {imageFetchProgress.total > 0 && !fetchingAllImages && (
-              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                ✅ {imageFetchProgress.done} תמונות נטענו
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                {imageFetchProgress.done} תמונות נטענו
               </span>
             )}
           </div>
@@ -2440,13 +2296,13 @@ export default function SuppliersDashboard() {
                 textAlign: 'center', 
                 padding: '60px 20px', 
                 color: 'var(--text-muted)',
-                background: 'white',
-                borderRadius: '16px',
+                background: 'var(--card-bg)',
+                borderRadius: 'var(--radius)',
                 border: '1px dashed var(--border)',
                 width: '100%'
               }}>
-                <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔍</div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '8px', color: 'var(--primary)' }}>לא נמצאו ספקים תואמים</h3>
+                
+                <h3 style={{ fontSize: '1.15rem', fontWeight: '800', marginBottom: '8px', color: 'var(--primary)' }}>לא נמצאו ספקים תואמים</h3>
                 <p style={{ fontSize: '0.9rem' }}>נסה לחפש לפי שם אחר, מספר טלפון מלא או מספר ספק תקין.</p>
               </div>
             ) : (
@@ -2461,25 +2317,25 @@ export default function SuppliersDashboard() {
                         marginBottom: '12px',
                         padding: '16px 20px',
                         borderRadius: '14px',
-                        background: 'linear-gradient(135deg, #faf5ff 0%, #fdf2f8 100%)',
-                        border: '1px solid #e9d5ff',
+                        background: 'var(--card-bg)',
+                        border: '1px solid var(--border)',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         gap: '12px',
                       }}
                     >
-                      <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '900', color: '#7c3aed' }}>
+                      <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800', color: 'var(--accent-strong)' }}>
                         {item.label}
                       </h3>
                       <span style={{
                         fontSize: '0.8rem',
                         fontWeight: '800',
-                        color: '#9333ea',
+                        color: 'var(--accent-strong)',
                         background: 'white',
                         padding: '6px 12px',
                         borderRadius: '999px',
-                        border: '1px solid #e9d5ff',
+                        border: '1px solid var(--border)',
                       }}>
                         {item.count} ספקים
                       </span>
@@ -2510,14 +2366,9 @@ export default function SuppliersDashboard() {
                         ? { duration: 0.36, ease: [0.4, 0, 0.2, 1] }
                         : { duration: 0.25 }
                     }
-                    className="glass-card"
+                    className="supplier-card"
                     style={{ 
                       position: 'relative',
-                      overflow: 'hidden',
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      justifyContent: 'space-between',
-                      height: '100%',
                       '--move-color': moveFx?.color || 'transparent',
                       borderRight: moveFx?.phase === 'flash'
                         ? `4px solid ${moveFx.color}`
@@ -2525,7 +2376,7 @@ export default function SuppliersDashboard() {
                           state.status === 'not-available' ? '4px solid #f97316' : 
                           state.status === 'contract' ? '4px solid #10b981' : 
                           state.status === 'not-signed' ? '4px solid #3b82f6' : 
-                          state.callbackScheduled ? '4px solid #0ea5e9' : '1px solid var(--border)',
+                          state.callbackScheduled ? '4px solid #0ea5e9' : undefined,
                       boxShadow: moveFx?.phase === 'flash'
                         ? `0 0 0 3px ${moveFx.color}33`
                         : undefined,
@@ -2556,231 +2407,176 @@ export default function SuppliersDashboard() {
                         </motion.span>
                       )}
                     </AnimatePresence>
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {(() => {
+                      const imgUrl = getSupplierImage(s);
+                      const isLoading = supplierImages[phone] === 'loading';
+                      if (imgUrl) {
+                        return (
+                          <div className="supplier-media">
+                            <span className="supplier-num">#{supplierNumber}</span>
+                            <img
+                              src={imgUrl}
+                              alt={s['Supplier Name'] || ''}
+                              onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+                            />
+                          </div>
+                        );
+                      }
+                      if (isLoading) {
+                        return (
+                          <div className="supplier-media-loading" style={{ position: 'relative' }}>
+                            <span className="supplier-num">#{supplierNumber}</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div
+                          className="supplier-media-empty"
+                          onClick={() => fetchImageForSupplier(s)}
+                          title="לחץ לטעינת תמונה"
+                        >
+                          <span className="supplier-num">#{supplierNumber}</span>
+                          <ImageIcon size={16} />
+                          טען תמונה
+                        </div>
+                      );
+                    })()}
+
+                    <div className="supplier-card-body">
+                      <div className="supplier-card-top">
+                        <div className="supplier-card-tags">
                           <span className="category-tag">
                             {activeAgent === 'מורן' && !searchQuery
                               ? moranGroupLabels[item.moranGroup || getMoranSupplierGroup(s)]
-                              : (s["Category"] || "כללי")}
+                              : (s['Category'] || 'כללי')}
                           </span>
-                          {searchQuery && supplierTab !== activeTab && (
-                            <span style={{
-                              fontSize: '0.72rem', color: '#6366f1', background: '#eef2ff',
-                              padding: '3px 8px', borderRadius: '6px', fontWeight: '700',
-                              border: '1px solid #c7d2fe'
-                            }}>
-                              📁 בלשונית: {supplierTab}
-                            </span>
+                          {state.status === 'contract' && <span className="status-pill contract">נחתם</span>}
+                          {state.status === 'not-interested' && <span className="status-pill not-interested">לא מעוניין</span>}
+                          {state.status === 'not-available' && <span className="status-pill not-available">לא ענו</span>}
+                          {state.status === 'not-signed' && <span className="status-pill not-signed">לא חתם</span>}
+                          {state.callbackScheduled && !['contract', 'not-interested'].includes(state.status) && (
+                            <span className="status-pill callback">לחזור</span>
                           )}
-                          {state.reminder && (
-                            <div style={{ 
-                              fontSize: '0.75rem', color: '#8b5cf6', background: '#f5f3ff', 
-                              padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold',
-                              border: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', gap: '6px'
-                            }}>
-                              <Calendar size={12} />
-                              <span>{state.agent}, יש ספק שצריך לתזכר ולבדוק מה איתו מיידית ({state.reminder})</span>
-                            </div>
+                          {searchQuery && supplierTab !== activeTab && (
+                            <span className="category-tag">{supplierTab}</span>
                           )}
                         </div>
-                        <div 
-                          className="date-trigger" 
+                        <div
+                          className="date-trigger"
                           onClick={() => toggleDatePicker(phone)}
-                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--primary)' }}
                         >
-                          <Calendar size={16} />
+                          <Calendar size={14} />
                           <span>{state.closingDate || 'תאריך'}</span>
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px', flexWrap: 'wrap', gap: '8px' }}>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--primary)', margin: 0, maxWidth: '70%' }}>
-                          {s["Supplier Name"] || s.clean_name || 'ספק ללא שם'}
-                        </h3>
-                        <span style={{ 
-                          fontSize: '0.75rem', 
-                          color: 'var(--accent)', 
-                          fontWeight: '800', 
-                          background: 'var(--accent-soft)', 
-                          padding: '4px 10px', 
-                          borderRadius: '8px',
-                          border: '1px solid rgba(139, 92, 246, 0.2)'
+                      {state.reminder && (
+                        <div style={{
+                          fontSize: '0.75rem', color: 'var(--accent-strong)', background: 'var(--accent-soft)',
+                          padding: '6px 10px', borderRadius: '8px', fontWeight: '700',
+                          border: '1px solid rgba(138, 109, 69, 0.2)', display: 'flex', alignItems: 'center', gap: '6px',
+                          marginBottom: '10px'
                         }}>
-                          ספק #{supplierNumber}
-                        </span>
+                          <Calendar size={13} />
+                          <span>תזכורת: {state.reminder}</span>
+                        </div>
+                      )}
+
+                      <h3 className="supplier-card-name">
+                        {s['Supplier Name'] || s.clean_name || 'ספק ללא שם'}
+                      </h3>
+                      <p className="supplier-card-address">{s['Address'] || 'מיקום לא צוין'}</p>
+
+                      <div className="supplier-card-meta-row">
+                        {s['Google Rating'] && parseFloat(s['Google Rating']) > 0 && parseFloat(s['Google Rating']) <= 10 && (
+                          <div className="rating-badge">
+                            <Star size={13} color="#c9a227" fill="#c9a227" />
+                            <span>{parseFloat(s['Google Rating']).toFixed(1)}</span>
+                            {s['Reviews Count'] && parseInt(s['Reviews Count']) > 0 && (
+                              <span style={{ color: 'var(--text-muted)', fontWeight: '500', fontSize: '0.75rem' }}>
+                                ({s['Reviews Count']})
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {s['Google Reviews Link'] && (
+                          <a
+                            href={s['Google Reviews Link'].startsWith('http') ? s['Google Reviews Link'] : `https://${s['Google Reviews Link']}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="meta-chip"
+                          >
+                            <ExternalLink size={12} />
+                            ביקורות
+                          </a>
+                        )}
+                        {s['Website'] && (
+                          <a
+                            href={s['Website'].startsWith('http') ? s['Website'] : `https://${s['Website']}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="meta-chip"
+                          >
+                            <Globe size={12} />
+                            אתר
+                          </a>
+                        )}
                       </div>
-                      <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '10px' }}>{s["Address"] || "מיקום לא צוין"}</p>
 
-                      {/* Full Profile Button */}
-                      <button 
+                      <button
+                        type="button"
                         onClick={() => setSelectedSupplierProfile(s)}
-                        style={{
-                          width: '100%',
-                          padding: '10px',
-                          marginBottom: '20px',
-                          background: 'linear-gradient(135deg, var(--primary), var(--accent))',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '10px',
-                          fontWeight: 'bold',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          gap: '8px',
-                          transition: 'all 0.2s',
-                          fontFamily: 'inherit',
-                          fontSize: '0.9rem'
-                        }}
+                        className="btn-profile-link"
                       >
-                        📄 הצג פרופיל ספק מורחב
+                        <FileText size={14} />
+                        פרופיל מורחב
                       </button>
-
-                       {/* Supplier Image */}
-                       {(() => {
-                         const imgUrl = getSupplierImage(s);
-                         const isLoading = supplierImages[phone] === 'loading';
-                         if (imgUrl) return (
-                           <div style={{ marginBottom: '12px', borderRadius: '10px', overflow: 'hidden', height: '130px', background: '#f1f5f9' }}>
-                             <img
-                               src={imgUrl}
-                               alt={s["Supplier Name"]}
-                               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                               onError={(e) => { e.target.parentElement.style.display = 'none'; }}
-                             />
-                           </div>
-                         );
-                         if (isLoading) return (
-                           <div style={{ marginBottom: '12px', borderRadius: '10px', height: '130px', background: 'linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
-                         );
-                         return (
-                           <div
-                             onClick={() => fetchImageForSupplier(s)}
-                             style={{ marginBottom: '12px', borderRadius: '10px', height: '80px', background: '#f8fafc', border: '1.5px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', gap: '6px', color: '#94a3b8', fontSize: '0.8rem' }}
-                             title="לחץ לטעינת תמונה"
-                           >
-                             📷 לחץ לטעינת תמונה
-                           </div>
-                         );
-                       })()}
-
-                       {/* Google Rating + Reviews + Website */}
-                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px', flexWrap: 'wrap' }}>
-                         {s["Google Rating"] && parseFloat(s["Google Rating"]) > 0 && parseFloat(s["Google Rating"]) <= 10 && (
-                           <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.8rem', fontWeight: '700' }}>
-                             <span style={{ color: '#f59e0b' }}>{'⭐'.repeat(Math.min(5, Math.round(parseFloat(s["Google Rating"]))))}</span>
-                             <span style={{ color: 'var(--text)' }}>{parseFloat(s["Google Rating"]).toFixed(1)}</span>
-                             {s["Reviews Count"] && parseInt(s["Reviews Count"]) > 0 && (
-                               <span style={{ color: 'var(--text-muted)', fontWeight: '500', fontSize: '0.75rem' }}>({s["Reviews Count"]} ביקורות)</span>
-                             )}
-                           </div>
-                         )}
-                         {s["Google Reviews Link"] && (
-                           <a href={s["Google Reviews Link"].startsWith('http') ? s["Google Reviews Link"] : `https://${s["Google Reviews Link"]}`} target="_blank" rel="noopener noreferrer"
-                             style={{ fontSize: '0.72rem', fontWeight: '700', color: '#4285f4', textDecoration: 'none',
-                               background: '#f0f4ff', padding: '2px 8px', borderRadius: '5px', border: '1px solid #c7d2fe' }}>
-                             🔗 ביקורות גוגל
-                           </a>
-                         )}
-                         {s["Website"] && (
-                           <a href={s["Website"].startsWith('http') ? s["Website"] : `https://${s["Website"]}`}
-                             target="_blank" rel="noopener noreferrer"
-                             style={{ fontSize: '0.72rem', fontWeight: '700', color: '#10b981', textDecoration: 'none',
-                               background: '#f0fdf4', padding: '2px 8px', borderRadius: '5px', border: '1px solid #bbf7d0' }}>
-                             🌐 אתר
-                           </a>
-                         )}
-                       </div>
                     </div>
 
-                    <div>
-                      {/* Notes Input */}
+                    <div className="supplier-card-footer">
                       <textarea
-                        placeholder="✍️ הערות מיוחדות לדיווח..."
-                        value={state.notes || ""}
+                        className="supplier-notes"
+                        placeholder="הערות לדיווח..."
+                        value={state.notes || ''}
                         onChange={(e) => updateSupplierState(phone, { notes: e.target.value })}
-                        style={{
-                          width: '100%',
-                          height: '50px',
-                          padding: '8px 12px',
-                          borderRadius: '10px',
-                          border: '1px solid var(--border)',
-                          background: '#f8fafc',
-                          fontSize: '0.8rem',
-                          resize: 'none',
-                          marginBottom: '10px',
-                          fontFamily: 'inherit',
-                          outline: 'none',
-                          transition: 'border-color 0.2s',
-                          direction: 'rtl'
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
-                        onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
                       />
 
-                      {/* Action Buttons */}
                       <div className="card-actions-grid">
                         <button
+                          type="button"
                           onClick={() => setStatus(phone, 'contract')}
-                          style={{
-                            padding: '9px 6px', borderRadius: '10px', border: '1px solid #10b981',
-                            background: state.status === 'contract' ? '#10b981' : 'transparent',
-                            color: state.status === 'contract' ? 'white' : '#10b981',
-                            fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
-                          }}
+                          className={`status-btn success${state.status === 'contract' ? ' active' : ''}`}
                         >
-                          ✅ נשלח חוזה ונחתם
+                          נחתם חוזה
                         </button>
                         <button
+                          type="button"
                           onClick={() => setStatus(phone, 'not-interested')}
-                          className={activeMoveButton === `${phone}-not-interested` ? 'supplier-move-btn-active' : ''}
-                          style={{
-                            padding: '9px 6px', borderRadius: '10px', border: '1px solid #ef4444',
-                            background: state.status === 'not-interested' ? '#ef4444' : 'transparent',
-                            color: state.status === 'not-interested' ? 'white' : '#ef4444',
-                            fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
-                          }}
+                          className={`status-btn danger${state.status === 'not-interested' ? ' active' : ''}${activeMoveButton === `${phone}-not-interested` ? ' supplier-move-btn-active' : ''}`}
                         >
-                          ❌ לא מעוניין
+                          לא מעוניין
                         </button>
                         <button
+                          type="button"
                           onClick={() => setStatus(phone, 'not-available')}
-                          className={activeMoveButton === `${phone}-not-available` ? 'supplier-move-btn-active' : ''}
-                          style={{
-                            padding: '9px 6px', borderRadius: '10px', border: '1px solid #f97316',
-                            background: state.status === 'not-available' ? '#f97316' : 'transparent',
-                            color: state.status === 'not-available' ? 'white' : '#f97316',
-                            fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
-                          }}
+                          className={`status-btn warning${state.status === 'not-available' ? ' active' : ''}${activeMoveButton === `${phone}-not-available` ? ' supplier-move-btn-active' : ''}`}
                         >
-                          📵 לא זמין / לא ענו
+                          לא ענו
                         </button>
                         <button
+                          type="button"
                           onClick={() => setStatus(phone, 'not-signed')}
                           title={state.status === 'not-signed' ? 'לחץ שוב להחזיר ללא נגעו בכלל' : 'סמן כעדיין לא חתם'}
-                          className={activeMoveButton === `${phone}-not-signed` ? 'supplier-move-btn-active' : ''}
-                          style={{
-                            padding: '9px 6px', borderRadius: '10px', border: '1px solid #3b82f6',
-                            background: state.status === 'not-signed' ? '#3b82f6' : 'transparent',
-                            color: state.status === 'not-signed' ? 'white' : '#3b82f6',
-                            fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer'
-                          }}
+                          className={`status-btn info${state.status === 'not-signed' ? ' active' : ''}${activeMoveButton === `${phone}-not-signed` ? ' supplier-move-btn-active' : ''}`}
                         >
-                          ⏳ עדיין לא חתם
+                          עדיין לא חתם
                         </button>
                         <button
+                          type="button"
                           onClick={() => setActiveCallbackPicker(activeCallbackPicker === phone ? null : phone)}
-                          style={{
-                            padding: '9px 6px', borderRadius: '10px',
-                            border: `1px solid ${state.callbackScheduled ? '#0ea5e9' : '#0284c7'}`,
-                            background: state.callbackScheduled ? '#0ea5e9' : (activeCallbackPicker === phone ? '#0284c7' : 'transparent'),
-                            color: state.callbackScheduled ? 'white' : (activeCallbackPicker === phone ? 'white' : '#0284c7'),
-                            fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer',
-                            gridColumn: 'span 2'
-                          }}
+                          className={`status-btn callback${state.callbackScheduled || activeCallbackPicker === phone ? ' active' : ''}`}
                         >
-                          {state.callbackScheduled ? `⏰ ${state.callbackScheduled}` : '⏰ לחזור מאוחר יותר'}
+                          {state.callbackScheduled ? state.callbackScheduled : 'לחזור מאוחר יותר'}
                         </button>
                       </div>
 
@@ -2793,7 +2589,7 @@ export default function SuppliersDashboard() {
                             exit={{ opacity: 0, height: 0 }}
                             style={{ background: '#f0f9ff', padding: '14px', borderRadius: '12px', marginBottom: '12px', overflow: 'hidden', border: '1px solid #bae6fd' }}
                           >
-                            <p style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1', marginBottom: '10px' }}>⏰ בחר שעה לחזרה לספק:</p>
+                            <p style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1', marginBottom: '10px' }}>בחר שעה לחזרה לספק:</p>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                               {[
                                 { label: 'עוד דקה (בדיקה)', minutes: 1 },
@@ -2818,7 +2614,7 @@ export default function SuppliersDashboard() {
                             </div>
 
                             <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #bae6fd' }}>
-                              <p style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1', marginBottom: '8px' }}>📅 או בחר מועד מותאם אישית:</p>
+                              <p style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1', marginBottom: '8px' }}>או בחר מועד מותאם אישית:</p>
                               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                 <input 
                                   type="datetime-local" 
@@ -2940,9 +2736,9 @@ export default function SuppliersDashboard() {
                         )}
                       </AnimatePresence>
 
-                      <div style={{ display: 'flex', gap: '8px', marginTop: state.status === 'closed' ? '8px' : '0' }}>
-                        <a href={`tel:${s["Real Phone"]}`} className="btn-primary" style={{ flex: 1, padding: '12px' }}>
-                          <Phone size={20} />
+                      <div style={{ marginTop: state.status === 'closed' ? '8px' : '0' }}>
+                        <a href={`tel:${s["Real Phone"]}`} className="btn-call">
+                          <Phone size={18} />
                           <span>התקשר עכשיו</span>
                         </a>
                       </div>
@@ -2994,22 +2790,22 @@ export default function SuppliersDashboard() {
                 <button
                   onClick={() => triggerFiestaPush(selectedSupplierProfile)}
                   style={{
-                    background: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)',
+                    background: 'var(--primary)',
                     color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px',
                     fontSize: '0.95rem', fontWeight: '800', cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)', transition: 'all 0.2s',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)', transition: 'all 0.2s',
                     display: 'flex', alignItems: 'center', gap: '6px'
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.35)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.25)'; }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.18)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.12)'; }}
                 >
-                  🚀 העלה לפייסטה
+                  העלה לפייסטה
                 </button>
               </div>
 
               <div style={{ marginBottom: '25px', background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--accent)', margin: 0 }}>📝 אודות העסק</h3>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--accent)', margin: 0 }}>אודות העסק</h3>
                   {!isEditingDescription && (
                     <button
                       onClick={() => {
@@ -3023,7 +2819,7 @@ export default function SuppliersDashboard() {
                         display: 'flex', alignItems: 'center', gap: '4px'
                       }}
                     >
-                      ✏️ ערוך תיאור
+                      ערוך תיאור
                     </button>
                   )}
                 </div>
@@ -3076,7 +2872,7 @@ export default function SuppliersDashboard() {
                         }}
                         disabled={descriptionSaving}
                         style={{
-                          background: '#10b981', color: 'white', border: 'none',
+                          background: 'var(--success)', color: 'white', border: 'none',
                           padding: '6px 12px', borderRadius: '6px', fontSize: '0.85rem',
                           fontWeight: '700', cursor: 'pointer', opacity: descriptionSaving ? 0.7 : 1
                         }}
@@ -3105,7 +2901,7 @@ export default function SuppliersDashboard() {
 
               {selectedSupplierProfile.images && selectedSupplierProfile.images.length > 0 && (
                 <div style={{ marginBottom: '25px' }}>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '15px', color: 'var(--accent)' }}>📸 תמונות גלריה</h3>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '15px', color: 'var(--accent)' }}>תמונות גלריה</h3>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px' }}>
                     {selectedSupplierProfile.images.map((img, idx) => (
                       <div key={idx} style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', height: '120px', background: '#f1f5f9', border: '1px solid var(--border)' }}>
@@ -3126,7 +2922,7 @@ export default function SuppliersDashboard() {
                             position: 'absolute', top: '5px', left: '5px',
                             width: '22px', height: '22px', borderRadius: '50%',
                             background: 'rgba(239, 68, 68, 0.85)', color: 'white', border: 'none',
-                            cursor: 'pointer', fontSize: '11px', fontWeight: '900',
+                            cursor: 'pointer', fontSize: '11px', fontWeight: '800',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'all 0.15s',
                             zIndex: 10
@@ -3145,7 +2941,7 @@ export default function SuppliersDashboard() {
 
               {selectedSupplierProfile.reviews && selectedSupplierProfile.reviews.length > 0 && (
                 <div style={{ marginBottom: '25px' }}>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '15px', color: 'var(--accent)' }}>⭐ ביקורות נבחרות</h3>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '15px', color: 'var(--accent)' }}>ביקורות נבחרות</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {selectedSupplierProfile.reviews.map((rev, idx) => (
                       <div key={idx} style={{ 
@@ -3213,15 +3009,15 @@ export default function SuppliersDashboard() {
               {fiestaPushResult === 'exists' ? (
                 // ── Already Exists ──────────────────────────────────
                 <>
-                  <div style={{ fontSize: '3.5rem', marginBottom: '16px' }}>👋</div>
-                  <h2 style={{ fontSize: '1.6rem', fontWeight: '900', marginBottom: '10px', color: 'var(--primary)' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.12em', color: 'var(--accent)', marginBottom: '16px' }}>קיים במערכת</div>
+                  <h2 style={{ fontSize: '1.6rem', fontWeight: '800', marginBottom: '10px', color: 'var(--primary)' }}>
                     הספק כבר קיים!
                   </h2>
                   <p style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '1rem' }}>
                     <strong>{fiestaPushSupplier['Supplier Name']}</strong> כבר נמצא במאגר של Fiesta.
                   </p>
-                  <p style={{ color: '#8b5cf6', fontWeight: '700', fontSize: '1rem', marginBottom: '28px' }}>
-                    תודה רבה על המאמץ {activeAgent}! 💜
+                  <p style={{ color: 'var(--accent)', fontWeight: '700', fontSize: '1rem', marginBottom: '28px' }}>
+                    תודה רבה על המאמץ {activeAgent}
                   </p>
                   <button
                     onClick={handleCloseFiestaPushModal}
@@ -3234,17 +3030,17 @@ export default function SuppliersDashboard() {
               ) : fiestaPushResult === 'success' ? (
                 // ── Success ────────────────────────────────────────
                 <>
-                  <div style={{ fontSize: '3.5rem', marginBottom: '16px' }}>🎉</div>
-                  <h2 style={{ fontSize: '1.6rem', fontWeight: '900', marginBottom: '10px', color: '#10b981' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.12em', color: 'var(--success)', marginBottom: '16px' }}>הצלחה</div>
+                  <h2 style={{ fontSize: '1.6rem', fontWeight: '800', marginBottom: '10px', color: '#10b981' }}>
                     הספק נשלח לפייסטה!
                   </h2>
                   <p style={{ color: 'var(--text-muted)', marginBottom: '28px' }}>
-                    <strong>{fiestaPushSupplier['Supplier Name']}</strong> נוסף בהצלחה לאתר Fiesta. כל הכבוד {activeAgent}! 🚀
+                    <strong>{fiestaPushSupplier['Supplier Name']}</strong> נוסף בהצלחה לאתר Fiesta. כל הכבוד {activeAgent}
                   </p>
                   <button
                     onClick={handleCloseFiestaPushModal}
                     className="btn-primary"
-                    style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                    style={{ width: '100%', padding: '14px', background: 'var(--success)' }}
                   >
                     מעולה, המשך
                   </button>
@@ -3252,7 +3048,7 @@ export default function SuppliersDashboard() {
               ) : fiestaPushResult === 'error' ? (
                 // ── Error ──────────────────────────────────────────
                 <>
-                  <div style={{ fontSize: '3.5rem', marginBottom: '16px' }}>⚠️</div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.12em', color: 'var(--danger)', marginBottom: '16px' }}>שגיאה</div>
                   <h2 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '10px', color: '#ef4444' }}>
                     שגיאה בשליחה לפייסטה
                   </h2>
@@ -3299,13 +3095,12 @@ export default function SuppliersDashboard() {
                           transition: 'all 0.15s',
                           fontFamily: 'inherit'
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.background = '#f5f3ff'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-soft)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
                         onMouseLeave={e => {
                           e.currentTarget.style.background = fiestaPushForm.type === cat.value ? 'var(--accent-soft)' : 'white';
                           e.currentTarget.style.borderColor = fiestaPushForm.type === cat.value ? 'var(--accent)' : 'var(--border)';
                         }}
                       >
-                        <span style={{ fontSize: '1.5rem' }}>{cat.emoji}</span>
                         <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text)', textAlign: 'center', lineHeight: '1.2' }}>
                           {cat.label}
                         </span>
@@ -3430,9 +3225,9 @@ export default function SuppliersDashboard() {
                     {fiestaPushForm.originalPrice && fiestaPushForm.price && parseFloat(fiestaPushForm.price) < parseFloat(fiestaPushForm.originalPrice) && (
                       <div style={{ background: '#dcfce7', borderRadius: '8px', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#166534' }}>
-                          🏷️ הנחה אוטומטית:
+                          הנחה אוטומטית:
                         </span>
-                        <span style={{ fontWeight: '900', color: '#166534', fontSize: '0.95rem' }}>
+                        <span style={{ fontWeight: '800', color: '#166534', fontSize: '0.95rem' }}>
                           {fiestaPushForm.discountDisplayType === 'percent'
                             ? `${Math.round((1 - parseFloat(fiestaPushForm.price) / parseFloat(fiestaPushForm.originalPrice)) * 100)}%`
                             : `₪${Math.round(parseFloat(fiestaPushForm.originalPrice) - parseFloat(fiestaPushForm.price))}`
@@ -3446,8 +3241,8 @@ export default function SuppliersDashboard() {
                       <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '6px', color: '#666' }}>איך להציג את ההנחה ללקוח?</label>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         {[
-                          { value: 'percent', label: '% אחוזים', emoji: '📊' },
-                          { value: 'amount',  label: '₪ שקלים',  emoji: '💵' }
+                          { value: 'percent', label: '% אחוזים' },
+                          { value: 'amount',  label: '₪ שקלים' }
                         ].map(opt => (
                           <button
                             key={opt.value}
@@ -3455,12 +3250,12 @@ export default function SuppliersDashboard() {
                             style={{
                               flex: 1, padding: '9px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit',
                               fontWeight: '700', fontSize: '0.85rem', transition: 'all 0.15s',
-                              border: fiestaPushForm.discountDisplayType === opt.value ? '2px solid #7c3aed' : '1.5px solid var(--border)',
-                              background: fiestaPushForm.discountDisplayType === opt.value ? '#ede9fe' : 'white',
-                              color: fiestaPushForm.discountDisplayType === opt.value ? '#7c3aed' : '#555'
+                              border: fiestaPushForm.discountDisplayType === opt.value ? '2px solid var(--accent-strong)' : '1.5px solid var(--border)',
+                              background: fiestaPushForm.discountDisplayType === opt.value ? 'var(--accent-soft)' : 'white',
+                              color: fiestaPushForm.discountDisplayType === opt.value ? 'var(--accent-strong)' : '#555'
                             }}
                           >
-                            {opt.emoji} {opt.label}
+                            {opt.label}
                           </button>
                         ))}
                       </div>
@@ -3482,7 +3277,7 @@ export default function SuppliersDashboard() {
                         <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#166534' }}>הנחה ללקוח (%)</label>
                         <div style={{
                           padding: '9px', borderRadius: '8px', border: '2px solid #86efac',
-                          background: '#f0fdf4', fontSize: '1rem', fontWeight: '900',
+                          background: '#f0fdf4', fontSize: '1rem', fontWeight: '800',
                           color: '#166534', textAlign: 'center'
                         }}>
                           {fiestaPushForm.originalPrice && fiestaPushForm.price && parseFloat(fiestaPushForm.originalPrice) > 0
@@ -3604,7 +3399,7 @@ export default function SuppliersDashboard() {
 
                   <div style={{ textAlign: 'right', marginBottom: '24px' }}>
                     <label style={{ fontSize: '0.8rem', fontWeight: '800', display: 'block', marginBottom: '8px', color: '#555' }}>
-                      📷 תמונות גלריה שיועלו לאתר ({fiestaPushForm.selectedImages?.length || 0})
+                      תמונות גלריה שיועלו לאתר ({fiestaPushForm.selectedImages?.length || 0})
                     </label>
                     {fiestaPushForm.selectedImages && fiestaPushForm.selectedImages.length > 0 ? (
                       <div style={{ 
@@ -3648,7 +3443,7 @@ export default function SuppliersDashboard() {
                                 position: 'absolute', top: '3px', left: '3px',
                                 width: '18px', height: '18px', borderRadius: '50%',
                                 background: '#ef4444', color: 'white', border: 'none',
-                                cursor: 'pointer', fontSize: '9px', fontWeight: '900',
+                                cursor: 'pointer', fontSize: '9px', fontWeight: '800',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center'
                               }}
                               title="הסר תמונה"
@@ -3669,7 +3464,7 @@ export default function SuppliersDashboard() {
                         fontSize: '0.8rem', 
                         fontWeight: '700' 
                       }}>
-                        ⚠️ לא נבחרו תמונות. האתר יציג תמונת ברירת מחדל.
+                        לא נבחרו תמונות. האתר יציג תמונת ברירת מחדל.
                       </div>
                     )}
                   </div>
@@ -3727,7 +3522,7 @@ export default function SuppliersDashboard() {
                       className="btn-primary"
                       style={{ flex: 2, padding: '14px', opacity: fiestaPushLoading ? 0.7 : 1 }}
                     >
-                      {fiestaPushLoading ? '⏳ שולח לפייסטה...' : '🚀 שלח לפייסטה'}
+                      {fiestaPushLoading ? 'שולח לפייסטה...' : 'שלח לפייסטה'}
                     </button>
                     <button
                       onClick={() => setFiestaPushStep(5)}
