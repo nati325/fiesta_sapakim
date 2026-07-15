@@ -29,6 +29,15 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
+@keyframes btn-move-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+.supplier-move-btn-active {
+  animation: btn-move-pulse 0.3s ease;
+}
+
 .dashboard-container {
   max-width: 1200px;
   margin: 0 auto;

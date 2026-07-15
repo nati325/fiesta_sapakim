@@ -38,10 +38,36 @@ export async function POST(req) {
       const client = await getMongoClient();
       const db = client.db('fiesta_crm');
       const collection = db.collection('supplier_states');
-      
+
+      const setFields = { phone: payload.phone };
+      const unsetFields = {};
+
+      for (const [key, value] of Object.entries(payload.state)) {
+        if (key === 'phone') continue;
+        if (value === null || value === undefined) {
+          unsetFields[key] = '';
+        } else {
+          setFields[key] = value;
+        }
+      }
+
+      const update = {};
+      if (Object.keys(setFields).length > 1) {
+        update.$set = setFields;
+      } else if (setFields.phone) {
+        update.$set = { phone: payload.phone };
+      }
+      if (Object.keys(unsetFields).length) {
+        update.$unset = unsetFields;
+      }
+
+      if (!update.$set && !update.$unset) {
+        return NextResponse.json({ success: true });
+      }
+
       await collection.updateOne(
         { phone: payload.phone },
-        { $set: { ...payload.state, phone: payload.phone } },
+        update,
         { upsert: true }
       );
       

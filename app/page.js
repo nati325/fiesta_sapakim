@@ -19,6 +19,20 @@ import {
   pickBestStoredImage,
   supplierHasDisplayImage,
 } from '../lib/supplierImageSources';
+import {
+  appendActivityLog,
+  buildActivityEntry,
+  countAgentCalls,
+  DAY_MS,
+  getManagerStats,
+  resolveActivityAction,
+  WEEK_MS,
+} from '../lib/agentActivity';
+import {
+  loadAllSupplierStatesLocal,
+  saveAllSupplierStatesLocal,
+  saveSupplierStateLocal,
+} from '../lib/supplierStateStorage';
 import './globals.css';
 
 export default function SuppliersDashboard() {
@@ -32,7 +46,7 @@ export default function SuppliersDashboard() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [activeCallbackPicker, setActiveCallbackPicker] = useState(null);
   const [callbackAlerts, setCallbackAlerts] = useState([]);
-  const [activeTab, setActiveTab] = useState('לטיפול');
+  const [activeTab, setActiveTab] = useState('לא נגעו בכלל');
   const [showReminderSuccess, setShowReminderSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSupplierProfile, setSelectedSupplierProfile] = useState(null);
@@ -47,6 +61,10 @@ export default function SuppliersDashboard() {
   const pendingRestoreRef = useRef({ scrollY: null, selectedPhone: null });
   const scrollSaveTimerRef = useRef(null);
   const assignmentsSyncedRef = useRef(false);
+  const supplierStatesRef = useRef({});
+  const [moveEffects, setMoveEffects] = useState({});
+  const [exitingSuppliers, setExitingSuppliers] = useState({});
+  const [activeMoveButton, setActiveMoveButton] = useState(null);
 
   // ── Fiesta Push Modal ────────────────────────────────────────────────────────
   const [showFiestaPushModal, setShowFiestaPushModal] = useState(false);
@@ -282,13 +300,14 @@ export default function SuppliersDashboard() {
 
   const applyUiState = (ui) => {
     if (!ui) {
-      setActiveTab('לטיפול');
+      setActiveTab('לא נגעו בכלל');
       setSearchQuery('');
       setSelectedSupplierProfile(null);
       pendingRestoreRef.current = { scrollY: null, selectedPhone: null };
       return;
     }
-    setActiveTab(ui.activeTab || 'לטיפול');
+    const restoredTab = ui.activeTab === 'לטיפול' ? 'לא נגעו בכלל' : (ui.activeTab || 'לא נגעו בכלל');
+    setActiveTab(restoredTab);
     setSearchQuery(ui.searchQuery || '');
     setSelectedSupplierProfile(null);
     pendingRestoreRef.current = {
@@ -319,6 +338,10 @@ export default function SuppliersDashboard() {
   }, []);
 
   useEffect(() => {
+    supplierStatesRef.current = supplierStates;
+  }, [supplierStates]);
+
+  useEffect(() => {
     if (!isLoggedIn || !activeAgent || loading) return;
     persistUiMetaForAgent(activeAgent);
   }, [activeTab, searchQuery, selectedSupplierProfile, isLoggedIn, activeAgent, loading]);
@@ -331,7 +354,8 @@ export default function SuppliersDashboard() {
     };
 
     const saveBeforeLeave = () => {
-      persistFullUiSnapshot(activeAgent);
+      if (activeAgent) persistFullUiSnapshot(activeAgent);
+      saveAllSupplierStatesLocal(supplierStatesRef.current);
     };
 
     const onScroll = () => {
@@ -439,11 +463,19 @@ export default function SuppliersDashboard() {
           };
         });
         
+        const localStates = loadAllSupplierStatesLocal();
+
         // Fetch saved states
         fetch('/api/states', { cache: 'no-store' })
           .then(res => res.json())
           .then(savedStates => {
             const mergedStates = { ...initialStates };
+            for (const key in localStates) {
+              mergedStates[key] = {
+                ...(mergedStates[key] || {}),
+                ...localStates[key],
+              };
+            }
             for (const key in savedStates) {
               mergedStates[key] = {
                 ...(mergedStates[key] || {}),
@@ -451,10 +483,18 @@ export default function SuppliersDashboard() {
               };
             }
             setSupplierStates(mergedStates);
+            saveAllSupplierStatesLocal(mergedStates);
             setLoading(false);
           })
           .catch(() => {
-            setSupplierStates(initialStates);
+            const mergedStates = { ...initialStates };
+            for (const key in localStates) {
+              mergedStates[key] = {
+                ...(mergedStates[key] || {}),
+                ...localStates[key],
+              };
+            }
+            setSupplierStates(mergedStates);
             setLoading(false);
           });
       })
@@ -1073,6 +1113,14 @@ export default function SuppliersDashboard() {
         enrichedState.firstTouchedBy = activeAgent;
       }
 
+      const activityAction = resolveActivityAction(newState);
+      if (activityAction && activeAgent) {
+        enrichedState.activityLog = appendActivityLog(
+          supplierStates[phone]?.activityLog,
+          buildActivityEntry(activityAction.action, activeAgent, activityAction)
+        );
+      }
+
       if (activeAgent === 'מורן' || activeAgent === 'ינון') {
         const supplier = suppliers.find((s) => (s['Real Phone'] || s.phone) === phone);
         if (supplier) {
@@ -1089,10 +1137,14 @@ export default function SuppliersDashboard() {
       }
     }
 
-    setSupplierStates(prev => ({
-      ...prev,
-      [phone]: { ...prev[phone], ...enrichedState }
-    }));
+    setSupplierStates(prev => {
+      const merged = { ...prev[phone], ...enrichedState };
+      saveSupplierStateLocal(phone, merged);
+      return {
+        ...prev,
+        [phone]: merged,
+      };
+    });
     fetch('/api/states', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1142,15 +1194,18 @@ export default function SuppliersDashboard() {
       timeStr = `${dateStr} ב-${hoursStr}`;
     }
     
-    updateSupplierState(phone, { 
-      callbackScheduled: timeStr,
-      callbackTimestamp: reminderTime.getTime(),
-      callbackDismissed: false,
-      callbackEmailSent: false,
-      agent: activeAgent
-    });
-    
-    setActiveCallbackPicker(null);
+    const applyCallback = () => {
+      updateSupplierState(phone, {
+        callbackScheduled: timeStr,
+        callbackTimestamp: reminderTime.getTime(),
+        callbackDismissed: false,
+        callbackEmailSent: false,
+        agent: activeAgent,
+      });
+      setActiveCallbackPicker(null);
+    };
+
+    triggerSupplierMove(phone, 'callback', `${phone}-callback`, applyCallback);
     setShowReminderSuccess(true);
     setTimeout(() => setShowReminderSuccess(false), 4000);
   };
@@ -1177,15 +1232,18 @@ export default function SuppliersDashboard() {
       timeStr = `${dateStr} ב-${hoursStr}`;
     }
     
-    updateSupplierState(phone, { 
-      callbackScheduled: timeStr,
-      callbackTimestamp: reminderTime.getTime(),
-      callbackDismissed: false,
-      callbackEmailSent: false,
-      agent: activeAgent
-    });
-    
-    setActiveCallbackPicker(null);
+    const applyCustomCallback = () => {
+      updateSupplierState(phone, {
+        callbackScheduled: timeStr,
+        callbackTimestamp: reminderTime.getTime(),
+        callbackDismissed: false,
+        callbackEmailSent: false,
+        agent: activeAgent,
+      });
+      setActiveCallbackPicker(null);
+    };
+
+    triggerSupplierMove(phone, 'callback', `${phone}-callback`, applyCustomCallback);
     setShowReminderSuccess(true);
     setTimeout(() => setShowReminderSuccess(false), 4000);
   };
@@ -1213,6 +1271,7 @@ export default function SuppliersDashboard() {
 
   const handleLogout = () => {
     if (activeAgent) persistUiForAgent(activeAgent);
+    saveAllSupplierStatesLocal(supplierStatesRef.current);
     clearSession();
     setIsLoggedIn(false);
     setPassword('');
@@ -1314,16 +1373,116 @@ export default function SuppliersDashboard() {
     updateSupplierState(phone, { showDatePicker: !supplierStates[phone].showDatePicker });
   };
 
+  const MOVE_META = {
+    'not-interested': { tab: 'טופלו', label: 'לא מעוניין', color: '#ef4444', emoji: '❌' },
+    'not-available': { tab: 'לא ענו', label: 'לא ענו', color: '#f97316', emoji: '📵' },
+    'not-signed': { tab: 'עדיין לא חתם', label: 'עדיין לא חתם', color: '#3b82f6', emoji: '⏳' },
+    'reset-untouched': { tab: 'לא נגעו בכלל', label: 'לא נגעו בכלל', color: '#ef4444', emoji: '↩️' },
+    callback: { tab: 'לחזור אליהם', label: 'לחזור אליהם', color: '#0ea5e9', emoji: '⏰' },
+  };
+
+  const triggerSupplierMove = (phone, metaKey, buttonKey, applyAction) => {
+    const meta = MOVE_META[metaKey];
+    if (!meta) {
+      applyAction();
+      return;
+    }
+
+    if (buttonKey) {
+      setActiveMoveButton(buttonKey);
+      setTimeout(() => setActiveMoveButton(null), 350);
+    }
+
+    applyAction();
+
+    setExitingSuppliers((prev) => ({ ...prev, [phone]: { fromTab: activeTab } }));
+    setMoveEffects((prev) => ({ ...prev, [phone]: { ...meta, phase: 'flash' } }));
+
+    setTimeout(() => {
+      setMoveEffects((prev) => ({ ...prev, [phone]: { ...meta, phase: 'exit' } }));
+      setTimeout(() => {
+        setMoveEffects((prev) => {
+          const next = { ...prev };
+          delete next[phone];
+          return next;
+        });
+        setExitingSuppliers((prev) => {
+          const next = { ...prev };
+          delete next[phone];
+          return next;
+        });
+      }, 360);
+    }, 280);
+  };
+
+  const resetSupplierToUntouched = (phone) => {
+    const prevState = supplierStates[phone] || {};
+    const resetState = {
+      status: null,
+      reminder: null,
+      callbackScheduled: null,
+      callbackTimestamp: null,
+      callbackDismissed: null,
+      callbackEmailSent: null,
+      notes: '',
+      uploadedImage: null,
+      firstTouchedAt: null,
+      firstTouchedBy: null,
+      lastTouchedAt: null,
+      lastTouchedBy: null,
+      agent: null,
+    };
+
+    if (activeAgent) {
+      resetState.activityLog = appendActivityLog(
+        prevState.activityLog,
+        buildActivityEntry('reset', activeAgent, { from: 'not-signed', to: 'untouched' })
+      );
+    }
+
+    setSupplierStates((prev) => {
+      const merged = { ...prev[phone], ...resetState };
+      saveSupplierStateLocal(phone, merged);
+      return { ...prev, [phone]: merged };
+    });
+
+    fetch('/api/states', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, state: resetState }),
+    }).catch((err) => console.error('Reset save error:', err));
+  };
+
   const setStatus = (phone, status) => {
-    if (status === 'contract' || status === 'not-signed') {
+    if (status === 'contract') {
       const supplier = suppliers.find(s => (s['Real Phone'] || s['phone']) === phone);
       if (supplier) {
         setPendingStatusChange({ phone, status });
         triggerFiestaPush(supplier, status);
       }
-    } else {
-      updateSupplierState(phone, { status, reminder: null, agent: activeAgent });
+      return;
     }
+
+    const isReset = status === 'not-signed' && supplierStates[phone]?.status === 'not-signed';
+    const metaKey = isReset
+      ? 'reset-untouched'
+      : status === 'not-interested'
+        ? 'not-interested'
+        : status === 'not-available'
+          ? 'not-available'
+          : status === 'not-signed'
+            ? 'not-signed'
+            : null;
+
+    const apply = () => {
+      if (isReset) {
+        resetSupplierToUntouched(phone);
+      } else {
+        updateSupplierState(phone, { status, reminder: null, agent: activeAgent });
+      }
+    };
+
+    triggerSupplierMove(phone, metaKey, `${phone}-${status}`, apply);
   };
 
   const setReminder = (phone, timeText) => {
@@ -1437,33 +1596,39 @@ export default function SuppliersDashboard() {
     }, 500);
   };
 
-  const getStats = () => {
-    const stats = {
-      'ינון': { closed: 0, noAnswer: 0, thinking: 0, total: 0 },
-      'מורן': { closed: 0, noAnswer: 0, thinking: 0, total: 0 },
-      'הודיה': { closed: 0, noAnswer: 0, thinking: 0, total: 0 }
-    };
-
-    Object.values(supplierStates).forEach(state => {
-      if (state.agent && stats[state.agent]) {
-        const hasAction = state.status !== null || !!state.callbackScheduled;
-        if (hasAction) {
-          stats[state.agent].total++;
-          if (state.status === 'contract' || state.status === 'closed') stats[state.agent].closed++;
-          if (state.status === 'not-available' || state.status === 'no-answer') stats[state.agent].noAnswer++;
-          if (state.status === 'thinking') stats[state.agent].thinking++;
-        }
-      }
-    });
-
-    return stats;
-  };
-
   const renderManagerStats = () => {
-    const stats = getStats();
+    const stats = getManagerStats(supplierStates, ['ינון', 'מורן', 'הודיה']);
+
+    const renderStatRow = (label, data, accent) => (
+      <div style={{ marginBottom: '12px' }}>
+        <p style={{ fontSize: '0.72rem', fontWeight: '800', color: accent, marginBottom: '6px' }}>{label}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+          <div style={{ textAlign: 'center', padding: '8px', background: '#f0fdf4', borderRadius: '8px' }}>
+            <p style={{ fontSize: '1.1rem', fontWeight: '900', color: '#10b981', margin: 0 }}>{data.closed}</p>
+            <p style={{ fontSize: '0.65rem', fontWeight: '700', color: '#047857', margin: 0 }}>סגירות</p>
+          </div>
+          <div style={{ textAlign: 'center', padding: '8px', background: '#fffbeb', borderRadius: '8px' }}>
+            <p style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f59e0b', margin: 0 }}>{data.noAnswer}</p>
+            <p style={{ fontSize: '0.65rem', fontWeight: '700', color: '#b45309', margin: 0 }}>לא ענו</p>
+          </div>
+          <div style={{ textAlign: 'center', padding: '8px', background: '#eff6ff', borderRadius: '8px' }}>
+            <p style={{ fontSize: '1.1rem', fontWeight: '900', color: '#3b82f6', margin: 0 }}>{data.notSigned}</p>
+            <p style={{ fontSize: '0.65rem', fontWeight: '700', color: '#1d4ed8', margin: 0 }}>לא חתמו</p>
+          </div>
+          <div style={{ textAlign: 'center', padding: '8px', background: '#f5f3ff', borderRadius: '8px' }}>
+            <p style={{ fontSize: '1.1rem', fontWeight: '900', color: '#8b5cf6', margin: 0 }}>{data.total}</p>
+            <p style={{ fontSize: '0.65rem', fontWeight: '700', color: '#6d28d9', margin: 0 }}>פעולות</p>
+          </div>
+        </div>
+      </div>
+    );
+
     return (
       <div style={{ marginBottom: '40px' }} className="animate-in">
-        <h2 style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '20px', color: 'var(--primary)' }}>סיכום ביצועים - מבט מנהל</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', margin: 0, color: 'var(--primary)' }}>סיכום ביצועים - מבט מנהל</h2>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>מתעדכן בזמן אמת · יומי = 24 שעות אחרונות</p>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
           {['ינון', 'מורן', 'הודיה'].map(agent => (
             <div key={agent} className="glass-card" style={{ borderTop: '4px solid var(--accent)' }}>
@@ -1473,33 +1638,20 @@ export default function SuppliersDashboard() {
                 </div>
                 <h3 style={{ fontSize: '1.2rem', fontWeight: '800' }}>סוכן: {agent}</h3>
               </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                <div style={{ textAlign: 'center', padding: '10px', background: '#f0fdf4', borderRadius: '10px' }}>
-                  <p style={{ fontSize: '1.5rem', fontWeight: '900', color: '#10b981' }}>{stats[agent].closed}</p>
-                  <p style={{ fontSize: '0.7rem', fontWeight: '700', color: '#047857' }}>סגירות</p>
+
+              {renderStatRow('היום (24 שעות)', stats[agent].today, '#7c3aed')}
+              {renderStatRow('השבוע (7 ימים)', stats[agent].week, '#2563eb')}
+              {renderStatRow('סה"כ מצטבר', stats[agent].all, '#64748b')}
+
+              {agent !== 'הודיה' && (
+                <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--border)', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  כיסוי פיד: <strong style={{ color: '#10b981' }}>{getAgentFeedStats(agent).touched}</strong>
+                  {' / '}
+                  {getAgentFeedStats(agent).total}
+                  {' · '}
+                  לא נגעו: <strong style={{ color: '#ef4444' }}>{getAgentFeedStats(agent).untouched}</strong>
                 </div>
-                <div style={{ textAlign: 'center', padding: '10px', background: '#fffbeb', borderRadius: '10px' }}>
-                  <p style={{ fontSize: '1.5rem', fontWeight: '900', color: '#f59e0b' }}>{stats[agent].noAnswer}</p>
-                  <p style={{ fontSize: '0.7rem', fontWeight: '700', color: '#b45309' }}>לא ענו</p>
-                </div>
-                <div style={{ textAlign: 'center', padding: '10px', background: '#f5f3ff', borderRadius: '10px' }}>
-                  <p style={{ fontSize: '1.5rem', fontWeight: '900', color: '#8b5cf6' }}>{stats[agent].thinking}</p>
-                  <p style={{ fontSize: '0.7rem', fontWeight: '700', color: '#6d28d9' }}>חושבים</p>
-                </div>
-              </div>
-              
-              <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--border)', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                סה"כ פעולות: <strong>{stats[agent].total}</strong>
-                {agent !== 'הודיה' && (
-                  <>
-                    {' · '}
-                    לא נגעו בכלל: <strong style={{ color: '#ef4444' }}>{getAgentFeedStats(agent).untouched}</strong>
-                    {' / '}
-                    {getAgentFeedStats(agent).total}
-                  </>
-                )}
-              </div>
+              )}
             </div>
           ))}
         </div>
@@ -1597,14 +1749,13 @@ export default function SuppliersDashboard() {
 
     const dailyTarget = activeAgent === 'מורן' ? 7 : 50;
     const weeklyTarget = activeAgent === 'מורן' ? 35 : 250;
-    
-    // Count how many suppliers the current agent has acted on (including scheduled callbacks)
-    const callsDone = Object.values(supplierStates).filter(state => 
-      state.agent === activeAgent && (state.status !== null || !!state.callbackScheduled)
-    ).length;
 
-    const dailyRemaining = Math.max(0, dailyTarget - callsDone);
-    const dailyProgress = Math.min(100, (callsDone / dailyTarget) * 100);
+    const callsToday = countAgentCalls(supplierStates, activeAgent, DAY_MS);
+    const callsThisWeek = countAgentCalls(supplierStates, activeAgent, WEEK_MS);
+
+    const dailyRemaining = Math.max(0, dailyTarget - callsToday);
+    const dailyProgress = Math.min(100, (callsToday / dailyTarget) * 100);
+    const weeklyProgress = Math.min(100, (callsThisWeek / weeklyTarget) * 100);
 
     return (
       <div style={{ marginBottom: '30px' }} className="animate-in">
@@ -1613,7 +1764,7 @@ export default function SuppliersDashboard() {
         <div className="glass-card" style={{ padding: '20px', borderRight: '6px solid var(--accent)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '800' }}>היעד היומי שלך</h3>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '800' }}>היעד היומי שלך (24 שעות)</h3>
               {activeAgent === 'מורן' && dailyRemaining > 0 ? (
                 <p style={{ fontSize: '0.85rem', color: '#ef4444', fontWeight: '700' }}>⚠️ שימי לב מורן, נשארו עוד {dailyRemaining} שיחות כדי להגיע ליעד!</p>
               ) : (
@@ -1621,7 +1772,7 @@ export default function SuppliersDashboard() {
               )}
             </div>
             <div style={{ textAlign: 'left' }}>
-              <span style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--accent)' }}>{callsDone}</span>
+              <span style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--accent)' }}>{callsToday}</span>
               <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}> / {dailyTarget}</span>
             </div>
           </div>
@@ -1636,7 +1787,7 @@ export default function SuppliersDashboard() {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', fontSize: '0.75rem', fontWeight: '700' }}>
-            <span style={{ color: 'var(--text-muted)' }}>יעד שבועי: {callsDone} / {weeklyTarget}</span>
+            <span style={{ color: 'var(--text-muted)' }}>יעד שבועי: {callsThisWeek} / {weeklyTarget} ({Math.round(weeklyProgress)}%)</span>
             <span style={{ color: dailyProgress === 100 ? '#10b981' : 'var(--accent)' }}>
               {dailyProgress === 100 ? 'היעד הושלם! 🎉' : `${Math.round(dailyProgress)}% הושלם`}
             </span>
@@ -1644,6 +1795,38 @@ export default function SuppliersDashboard() {
         </div>
       </div>
     );
+  };
+
+  const supplierMatchesAgentFeed = (supplier) => {
+    if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
+    if (activeAgent === 'הודיה') return false;
+    const allowedCategories = agentCategoryMap[activeAgent] || [];
+    if (supplier.Category === 'ספקים ללא קטגוריה' || !supplier.Category) return true;
+    return allowedCategories.some((cat) => supplier.Category.includes(cat));
+  };
+
+  const getTabCounts = () => {
+    const counts = {
+      'לא נגעו בכלל': 0,
+      'לחזור אליהם': 0,
+      'לא ענו': 0,
+      'עדיין לא חתם': 0,
+      'טופלו': 0,
+    };
+
+    suppliers.forEach((supplier) => {
+      if (!supplierMatchesAgentFeed(supplier)) return;
+      if (activeAgent === 'מורן' && getMoranSupplierGroup(supplier) === 'other') return;
+
+      const name = (supplier['Supplier Name'] || supplier.clean_name || '').trim();
+      const phone = supplier['Real Phone'] || supplier.phone || '';
+      if (!name || name === 'ספק ללא שם' || !phone || phone === 'FAILED' || phone === 'N/A') return;
+
+      const tab = getSupplierTab(phone);
+      if (tab && counts[tab] !== undefined) counts[tab] += 1;
+    });
+
+    return counts;
   };
 
   const getSupplierTab = (phone) => {
@@ -1656,7 +1839,7 @@ export default function SuppliersDashboard() {
     if (state.status === 'not-signed') return 'עדיין לא חתם';
     if (isHandled) return 'טופלו';
     if (isCallback) return 'לחזור אליהם';
-    return 'לטיפול';
+    return null;
   };
 
   const filteredSuppliers = suppliers
@@ -1678,6 +1861,9 @@ export default function SuppliersDashboard() {
       if (searchQuery) return true;
       
       const phone = s["Real Phone"] || s["phone"];
+      const exitInfo = exitingSuppliers[phone];
+      if (exitInfo?.fromTab === activeTab) return true;
+
       const state = supplierStates[phone] || { status: null };
       const isHandled = state.status === 'not-interested' || state.status === 'contract';
       const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
@@ -1693,7 +1879,6 @@ export default function SuppliersDashboard() {
         return activeTab === 'עדיין לא חתם';
       }
       
-      if (activeTab === 'לטיפול') return !isHandled && !isCallback;
       if (activeTab === 'לחזור אליהם') return !isHandled && isCallback;
       if (activeTab === 'לא ענו') return false;
       if (activeTab === 'עדיין לא חתם') return false;
@@ -1716,6 +1901,7 @@ export default function SuppliersDashboard() {
 
   const displaySuppliers = filteredSuppliers;
   const displayList = buildDisplayList(filteredSuppliers, activeAgent, searchQuery);
+  const tabCounts = getTabCounts();
 
   return (
     <div className="dashboard-container" dir="rtl">
@@ -2037,29 +2223,16 @@ export default function SuppliersDashboard() {
       {activeAgent && activeAgent !== 'נתנאל' && activeAgent !== 'מאגר כללי' && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
           <button
-            onClick={() => setActiveTab('לטיפול')}
+            onClick={() => setActiveTab('לא נגעו בכלל')}
             style={{
               padding: '10px 24px', borderRadius: '20px', border: 'none',
-              background: activeTab === 'לטיפול' ? 'var(--primary)' : '#e2e8f0',
-              color: activeTab === 'לטיפול' ? 'white' : 'var(--text-muted)',
+              background: activeTab === 'לא נגעו בכלל' ? '#ef4444' : '#e2e8f0',
+              color: activeTab === 'לא נגעו בכלל' ? 'white' : 'var(--text-muted)',
               fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
             }}
           >
-            ספקים לטיפול
+            לא נגעו בכלל ({tabCounts['לא נגעו בכלל']})
           </button>
-          {(activeAgent === 'מורן' || activeAgent === 'ינון') && (
-            <button
-              onClick={() => setActiveTab('לא נגעו בכלל')}
-              style={{
-                padding: '10px 24px', borderRadius: '20px', border: 'none',
-                background: activeTab === 'לא נגעו בכלל' ? '#ef4444' : '#e2e8f0',
-                color: activeTab === 'לא נגעו בכלל' ? 'white' : 'var(--text-muted)',
-                fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
-              }}
-            >
-              לא נגעו בכלל ({getAgentFeedStats(activeAgent).untouched})
-            </button>
-          )}
           <button
             onClick={() => setActiveTab('לחזור אליהם')}
             style={{
@@ -2069,7 +2242,7 @@ export default function SuppliersDashboard() {
               fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
             }}
           >
-            לחזור אליהם ⏰
+            לחזור אליהם ({tabCounts['לחזור אליהם']}) ⏰
           </button>
           <button
             onClick={() => setActiveTab('לא ענו')}
@@ -2080,7 +2253,7 @@ export default function SuppliersDashboard() {
               fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
             }}
           >
-            לא ענו 📵
+            לא ענו ({tabCounts['לא ענו']}) 📵
           </button>
           <button
             onClick={() => setActiveTab('עדיין לא חתם')}
@@ -2091,7 +2264,7 @@ export default function SuppliersDashboard() {
               fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
             }}
           >
-            עדיין לא חתם ⏳
+            עדיין לא חתם ({tabCounts['עדיין לא חתם']}) ⏳
           </button>
           <button
             onClick={() => setActiveTab('טופלו')}
@@ -2102,7 +2275,7 @@ export default function SuppliersDashboard() {
               fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s'
             }}
           >
-            ספקים שטופלו
+            ספקים שטופלו ({tabCounts['טופלו']})
           </button>
         </div>
       )}
@@ -2320,26 +2493,69 @@ export default function SuppliersDashboard() {
                 const supplierNumber = suppliers.indexOf(s) + 1;
                 const cardKey = `${s.id ?? 'no-id'}-${phone}-${supplierNumber}`;
                 const supplierTab = getSupplierTab(phone);
+                const moveFx = moveEffects[phone];
 
                 return (
                   <motion.div 
                     key={cardKey}
                     data-supplier-phone={phone}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={
+                      moveFx?.phase === 'exit'
+                        ? { opacity: 0, scale: 0.94 }
+                        : { opacity: 1, scale: 1 }
+                    }
+                    transition={
+                      moveFx?.phase === 'exit'
+                        ? { duration: 0.36, ease: [0.4, 0, 0.2, 1] }
+                        : { duration: 0.25 }
+                    }
                     className="glass-card"
                     style={{ 
+                      position: 'relative',
+                      overflow: 'hidden',
                       display: 'flex', 
                       flexDirection: 'column', 
                       justifyContent: 'space-between',
                       height: '100%',
-                      borderRight: state.status === 'not-interested' ? '4px solid #ef4444' :
-                                   state.status === 'not-available' ? '4px solid #f97316' : 
-                                   state.status === 'contract' ? '4px solid #10b981' : 
-                                   state.status === 'not-signed' ? '4px solid #3b82f6' : 
-                                   state.callbackScheduled ? '4px solid #0ea5e9' : '1px solid var(--border)'
+                      '--move-color': moveFx?.color || 'transparent',
+                      borderRight: moveFx?.phase === 'flash'
+                        ? `4px solid ${moveFx.color}`
+                        : state.status === 'not-interested' ? '4px solid #ef4444' :
+                          state.status === 'not-available' ? '4px solid #f97316' : 
+                          state.status === 'contract' ? '4px solid #10b981' : 
+                          state.status === 'not-signed' ? '4px solid #3b82f6' : 
+                          state.callbackScheduled ? '4px solid #0ea5e9' : '1px solid var(--border)',
+                      boxShadow: moveFx?.phase === 'flash'
+                        ? `0 0 0 3px ${moveFx.color}33`
+                        : undefined,
                     }}
                   >
+                    <AnimatePresence>
+                      {moveFx && (moveFx.phase === 'flash' || moveFx.phase === 'exit') && (
+                        <motion.span
+                          initial={{ opacity: 0, y: -6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          style={{
+                            position: 'absolute',
+                            top: '10px',
+                            left: '10px',
+                            zIndex: 8,
+                            background: moveFx.color,
+                            color: 'white',
+                            padding: '4px 10px',
+                            borderRadius: '999px',
+                            fontSize: '0.7rem',
+                            fontWeight: '800',
+                            pointerEvents: 'none',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+                          }}
+                        >
+                          → {moveFx.tab}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -2518,6 +2734,7 @@ export default function SuppliersDashboard() {
                         </button>
                         <button
                           onClick={() => setStatus(phone, 'not-interested')}
+                          className={activeMoveButton === `${phone}-not-interested` ? 'supplier-move-btn-active' : ''}
                           style={{
                             padding: '9px 6px', borderRadius: '10px', border: '1px solid #ef4444',
                             background: state.status === 'not-interested' ? '#ef4444' : 'transparent',
@@ -2528,10 +2745,8 @@ export default function SuppliersDashboard() {
                           ❌ לא מעוניין
                         </button>
                         <button
-                          onClick={() => {
-                            setStatus(phone, 'not-available');
-                            setActiveTab('לא ענו');
-                          }}
+                          onClick={() => setStatus(phone, 'not-available')}
+                          className={activeMoveButton === `${phone}-not-available` ? 'supplier-move-btn-active' : ''}
                           style={{
                             padding: '9px 6px', borderRadius: '10px', border: '1px solid #f97316',
                             background: state.status === 'not-available' ? '#f97316' : 'transparent',
@@ -2542,10 +2757,9 @@ export default function SuppliersDashboard() {
                           📵 לא זמין / לא ענו
                         </button>
                         <button
-                          onClick={() => {
-                            setStatus(phone, 'not-signed');
-                            setActiveTab('עדיין לא חתם');
-                          }}
+                          onClick={() => setStatus(phone, 'not-signed')}
+                          title={state.status === 'not-signed' ? 'לחץ שוב להחזיר ללא נגעו בכלל' : 'סמן כעדיין לא חתם'}
+                          className={activeMoveButton === `${phone}-not-signed` ? 'supplier-move-btn-active' : ''}
                           style={{
                             padding: '9px 6px', borderRadius: '10px', border: '1px solid #3b82f6',
                             background: state.status === 'not-signed' ? '#3b82f6' : 'transparent',
