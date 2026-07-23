@@ -1,42 +1,26 @@
 import { NextResponse } from 'next/server';
-
 import { MongoClient } from 'mongodb';
-
 import { buildDefaultFiestaData, pushSupplierToFiesta } from '../../../lib/fiestaPushCore';
 
-
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 let fiestaClient = null;
 
-
-
 async function getFiestaDb() {
-
   const uri = process.env.FIESTA_MONGODB_URI;
-
   if (!uri) throw new Error('FIESTA_MONGODB_URI לא מוגדר ב-.env.local');
 
-
-
   if (!fiestaClient) {
-
     fiestaClient = new MongoClient(uri, {
-
       serverSelectionTimeoutMS: 8000,
-
       connectTimeoutMS: 8000,
-
     });
-
     await fiestaClient.connect();
-
   }
 
   return fiestaClient.db('fiesta');
-
 }
-
-
 
 export async function DELETE(req) {
   try {
@@ -44,12 +28,16 @@ export async function DELETE(req) {
     const db = await getFiestaDb();
     const vendors = db.collection('vendors');
     const or = [];
-    if (contact) or.push({ contact: { $regex: contact.replace(/\D/g, '') } });
+    if (contact) {
+      const digits = contact.replace(/\D/g, '');
+      const pattern = digits.split('').join('[^0-9]*');
+      or.push({ contact: { $regex: pattern } });
+    }
     if (name) or.push({ name: { $regex: `^${name}$`, $options: 'i' } });
     if (!or.length) return NextResponse.json({ error: 'contact or name required' }, { status: 400 });
     const matches = await vendors.find({ $or: or }).project({ name: 1, contact: 1, type: 1 }).toArray();
     if (!matches.length) return NextResponse.json({ deleted: 0, matches: [] });
-    const result = await vendors.deleteMany({ _id: { $in: matches.map(m => m._id) } });
+    const result = await vendors.deleteMany({ _id: { $in: matches.map((m) => m._id) } });
     return NextResponse.json({ deleted: result.deletedCount, matches });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
@@ -62,7 +50,8 @@ export async function GET() {
     const vendors = db.collection('vendors');
     const total = await vendors.countDocuments({});
     const djCount = await vendors.countDocuments({ type: 'dj' });
-    const djs = await vendors.find({ type: 'dj' })
+    const djs = await vendors
+      .find({ type: 'dj' })
       .project({ name: 1, contact: 1, eventTypes: 1, createdAt: 1 })
       .sort({ createdAt: -1 })
       .toArray();
@@ -73,9 +62,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
-
   try {
-
     const { supplier, fiestaData } = await req.json();
 
     const origin =
@@ -85,56 +72,37 @@ export async function POST(req) {
       '';
 
     const db = await getFiestaDb();
-
     const vendors = db.collection('vendors');
 
-
-
+    const merged = buildDefaultFiestaData(supplier, fiestaData || {});
     const result = await pushSupplierToFiesta({
-
       vendorsCollection: vendors,
-
       supplier,
-
-      fiestaData: buildDefaultFiestaData(supplier, fiestaData || {}),
-
+      fiestaData: merged,
       origin,
-
+      updateIfExists: true,
     });
 
-
-
-    if (result.status === 'exists') {
-      const merged = buildDefaultFiestaData(supplier, fiestaData || {});
-      if (merged.type) {
-        await vendors.updateOne(
-          { _id: result.vendorId },
-          {
-            $set: {
-              type: merged.type,
-              description: merged.description || supplier.description || '',
-              region: merged.region || '',
-              agreementSigned: merged.agreementSigned ?? true,
-              contact: supplier['Real Phone'] || supplier.phone || '',
-            },
-          }
-        );
-        return NextResponse.json({ updated: true, exists: true });
-      }
-      return NextResponse.json({ exists: true });
+    if (result.status === 'updated') {
+      return NextResponse.json({
+        success: true,
+        updated: true,
+        vendorId: result.vendorId,
+        name: result.name,
+      });
     }
 
+    if (result.status === 'exists') {
+      return NextResponse.json({ exists: true, vendorId: result.vendorId });
+    }
 
-
-    return NextResponse.json({ success: true });
-
+    return NextResponse.json({
+      success: true,
+      vendorId: result.vendorId,
+      name: result.name,
+    });
   } catch (error) {
-
     console.error('Push to Fiesta MongoDB error:', error);
-
     return NextResponse.json({ error: error.message || 'שגיאה בשליחה לפייסטה' }, { status: 500 });
-
   }
-
 }
-

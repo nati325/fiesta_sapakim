@@ -158,6 +158,7 @@ export async function POST(req) {
     const summary = {
       requested: targets.length,
       success: results.filter((r) => r.status === 'success').length,
+      updated: results.filter((r) => r.status === 'updated').length,
       exists: results.filter((r) => r.status === 'exists').length,
       errors: results.filter((r) => r.status === 'error').length,
       results,
