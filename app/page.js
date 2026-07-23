@@ -35,6 +35,11 @@ import {
   saveAllSupplierStatesLocal,
   saveSupplierStateLocal,
 } from '../lib/supplierStateStorage';
+import {
+  mapCategoryToFiesta,
+  buildDefaultDescription,
+  extractRegionFromAddress,
+} from '../lib/fiestaCategoryMap';
 import './globals.css';
 
 export default function SuppliersDashboard() {
@@ -804,27 +809,6 @@ export default function SuppliersDashboard() {
     return () => { cancelled = true; };
   }, [suppliers.length, loading]);
 
-  const mapCategoryToFiesta = (category) => {
-    if (!category) return 'design';
-    const cat = category.toLowerCase();
-    if (cat.includes('מוזיקה') || cat.includes('dj') || cat.includes("די ג") || cat.includes('תקליטן')) return 'dj';
-    if (cat.includes('אולמות') || cat.includes('גן אירועים') || cat.includes('גני אירועים')) return 'venue';
-    if (cat.includes('מאפרות') || cat.includes('איפור')) return 'makeup';
-    if (cat.includes('שיער')) return 'hair';
-    if (cat.includes('כלות') || cat.includes('חתן ולכלה')) return 'dresses';
-    if (cat.includes('צילום')) return 'photographer';
-    if (cat.includes('קייטרינג')) return 'catering';
-    if (cat.includes('בר אלכוהול') || cat.includes('אלכוהול')) return 'alcohol';
-    if (cat.includes('בר')) return 'bar';
-    if (cat.includes('חליפות') || cat.includes('חתן')) return 'suits';
-    if (cat.includes('עיצוב')) return 'design';
-    if (cat.includes('הסעות') || cat.includes('תחבורה')) return 'transportation';
-    if (cat.includes('זמר') || cat.includes('להקה')) return 'singers';
-    if (cat.includes('אטרקציה')) return 'attractions';
-    if (cat.includes('הפקה')) return 'event-production';
-    return 'design';
-  };
-
   // ── Trigger Fiesta Push Modal ─────────────────────────────────────────────
   const collectPushImages = (supplier, cachedImg) => {
     const pushImages = [];
@@ -832,7 +816,7 @@ export default function SuppliersDashboard() {
       if (!img || img === 'N/A' || img === 'nan') return;
       const value = String(img).trim();
       if (!value) return;
-      if (value.startsWith('http') || value.startsWith('/media/')) {
+      if (value.startsWith('http') || value.startsWith('/media/') || value.startsWith('data:image/')) {
         if (!pushImages.includes(value)) pushImages.push(value);
       }
     };
@@ -840,21 +824,19 @@ export default function SuppliersDashboard() {
     if (cachedImg) add(cachedImg);
     (supplier.images || []).forEach(add);
     add(supplier['Main Image']);
-    add(supplier['Google Image']);
+    add(supplier['Google Image'] || supplier.google_image);
     if (supplier['Gallery'] && supplier['Gallery'] !== 'N/A' && supplier['Gallery'] !== 'nan') {
       String(supplier['Gallery']).split(/[,|]/).forEach(add);
     }
+    (supplier.portfolio || []).forEach((item) => add(typeof item === 'string' ? item : item?.image));
     return pushImages;
   };
 
   const triggerFiestaPush = (supplier, targetStatus = null) => {
-    const mappedType = mapCategoryToFiesta(supplier.Category);
-    const address = supplier['Address'] || '';
-    // Extract first Hebrew word as a rough region
-    const regionMatch = address.match(/[\u05D0-\u05EA]{2,}/);
-    const region = regionMatch ? regionMatch[0] : '';
+    const mappedType = mapCategoryToFiesta(supplier.Category || supplier.category, supplier);
+    const address = supplier['Address'] || supplier.address || '';
+    const region = extractRegionFromAddress(address);
 
-    // Collect all unique images — prefer https URLs (local /media/ files don't exist on disk)
     const phone = supplier['Real Phone'] || supplier['phone'] || '';
     const cachedImg = phone && typeof supplierImages[phone] === 'string' && supplierImages[phone].startsWith('http')
       ? supplierImages[phone] : null;
@@ -862,7 +844,8 @@ export default function SuppliersDashboard() {
     const pushImages = collectPushImages(supplier, cachedImg);
 
     const state = supplierStates[phone];
-    const uploadedImage = state ? state.uploadedImage : '';
+    const rawUploaded = state?.uploadedImage || '';
+    const uploadedImage = rawUploaded && rawUploaded !== '[stored]' ? rawUploaded : '';
     const isSigned = targetStatus ? (targetStatus === 'contract') : (state ? (state.status === 'contract') : false);
 
     setFiestaPushSupplier(supplier);
@@ -871,7 +854,7 @@ export default function SuppliersDashboard() {
     setFiestaPushStep(1);
     setFiestaPushForm({
       type: mappedType,
-      description: `${supplier['Category'] || ''} באזור ${address}`.trim(),
+      description: buildDefaultDescription(supplier),
       region,
       originalPrice: '',
       price: '',
@@ -880,7 +863,7 @@ export default function SuppliersDashboard() {
       discountDisplayType: 'percent',
       agreementSigned: isSigned,
       selectedImages: pushImages,
-      agreementImage: uploadedImage // Store the uploaded contract/screenshot here!
+      agreementImage: uploadedImage,
     });
     setShowFiestaPushModal(true);
   };
@@ -923,22 +906,33 @@ export default function SuppliersDashboard() {
         })
       });
       const data = await res.json();
-      if (data.exists) {
-        setFiestaPushResult('exists');
-      } else if (data.success) {
-        setFiestaPushResult('success');
-        
-        // Save the status and contract image to database when successful
+      if (!res.ok || data.error) {
+        setFiestaPushResult('error');
+        setFiestaPushError(data.error || 'שגיאה לא ידועה');
+        return;
+      }
+
+      // success / updated / exists — CRM status must still be saved
+      if (data.success || data.updated || data.exists) {
+        setFiestaPushResult(data.exists && !data.updated && !data.success ? 'exists' : 'success');
+
         const phone = fiestaPushSupplier['Real Phone'] || fiestaPushSupplier['phone'] || '';
-        const statusToSave = pendingStatusChange ? pendingStatusChange.status : (fiestaPushForm.agreementSigned ? 'contract' : 'not-signed');
-        
+        const statusToSave = pendingStatusChange
+          ? pendingStatusChange.status
+          : (fiestaPushForm.agreementSigned ? 'contract' : 'not-signed');
+
+        const agreementToSave =
+          fiestaPushForm.agreementImage && fiestaPushForm.agreementImage !== '[stored]'
+            ? fiestaPushForm.agreementImage
+            : undefined;
+
         updateSupplierState(phone, {
           status: statusToSave,
           reminder: null,
           agent: activeAgent,
-          uploadedImage: fiestaPushForm.agreementImage
+          ...(agreementToSave ? { uploadedImage: agreementToSave } : {}),
         });
-        
+
         setPendingStatusChange(null);
       } else {
         setFiestaPushResult('error');
@@ -3438,12 +3432,12 @@ export default function SuppliersDashboard() {
                         padding: '12px', 
                         borderRadius: '10px', 
                         border: '1.5px solid var(--border)', 
-                        maxHeight: '160px', 
+                        maxHeight: '220px', 
                         overflowY: 'auto' 
                       }}>
                         {fiestaPushForm.selectedImages.map((imgUrl, idx) => (
                           <div 
-                            key={idx} 
+                            key={`${idx}-${String(imgUrl).slice(0, 24)}`} 
                             style={{ 
                               position: 'relative', 
                               width: '100%', 
@@ -3457,7 +3451,7 @@ export default function SuppliersDashboard() {
                               src={imgUrl} 
                               alt={`img-${idx}`} 
                               style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              onError={(e) => { e.currentTarget.style.opacity = '0.25'; }}
                             />
                             <button
                               onClick={() => {
@@ -3495,6 +3489,50 @@ export default function SuppliersDashboard() {
                         לא נבחרו תמונות. האתר יציג תמונת ברירת מחדל.
                       </div>
                     )}
+
+                    <label
+                      style={{
+                        marginTop: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        padding: '12px',
+                        borderRadius: '10px',
+                        border: '1.5px dashed var(--accent)',
+                        background: 'var(--accent-soft)',
+                        color: 'var(--accent-strong)',
+                        fontWeight: '800',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Upload size={16} />
+                      הוסף תמונות לגלריה
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          if (!files.length) return;
+                          files.forEach((file) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              const dataUrl = reader.result;
+                              if (!dataUrl) return;
+                              setFiestaPushForm((f) => ({
+                                ...f,
+                                selectedImages: [...(f.selectedImages || []), dataUrl],
+                              }));
+                            };
+                            reader.readAsDataURL(file);
+                          });
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
                   </div>
 
                   <div style={{ display: 'flex', gap: '10px' }}>
@@ -3536,6 +3574,7 @@ export default function SuppliersDashboard() {
                     <div><strong>ספק:</strong> {fiestaPushSupplier['Supplier Name']}</div>
                     <div><strong>קטגוריה פייסטה:</strong> {FIESTA_CATEGORIES.find(c => c.value === fiestaPushForm.type)?.label || fiestaPushForm.type}</div>
                     <div><strong>אזור:</strong> {fiestaPushForm.region || 'לא צוין'}</div>
+                    <div><strong>תיאור:</strong> {(fiestaPushForm.description || '').slice(0, 120) || 'אין'}{(fiestaPushForm.description || '').length > 120 ? '…' : ''}</div>
                     {fiestaPushForm.price && <div><strong>מחיר ללקוח:</strong> ₪{fiestaPushForm.price} {fiestaPushForm.originalPrice && `(מחירון: ₪${fiestaPushForm.originalPrice})`}</div>}
                     <div><strong>עמלת חברה:</strong> ₪{fiestaPushForm.commissionAmount || '0'}</div>
                     <div><strong>חוזה/שיחה:</strong> {fiestaPushForm.agreementImage ? '✅ צורף' : '❌ לא צורף'}</div>
