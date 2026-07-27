@@ -30,6 +30,36 @@ function na(v) {
   return s;
 }
 
+/** Convert absolute Windows / Fiesta paths → /media/suppliers/... */
+function normalizeImagePath(raw) {
+  const s = na(raw);
+  if (!s) return '';
+  if (s.startsWith('http://') || s.startsWith('https://')) return s;
+  // Already web path
+  if (s.startsWith('/media/')) return s.replace(/\\/g, '/');
+  // Absolute Windows path containing media\suppliers\PHONE\file
+  const m = s.replace(/\//g, '\\').match(/media\\suppliers\\([^\\]+)\\([^\\]+)$/i);
+  if (m) return `/media/suppliers/${m[1]}/${m[2]}`;
+  // Relative media\suppliers\...
+  const m2 = s.replace(/\\/g, '/').match(/(?:^|\/)media\/suppliers\/([^/]+)\/([^/]+)$/i);
+  if (m2) return `/media/suppliers/${m2[1]}/${m2[2]}`;
+  return s;
+}
+
+function collectImages(row) {
+  const images = [];
+  const add = (raw) => {
+    const img = normalizeImagePath(raw);
+    if (img && !images.includes(img)) images.push(img);
+  };
+  add(row['תמונה ראשית']);
+  const galleryRaw = na(row['גלריה']);
+  if (galleryRaw) {
+    galleryRaw.split(/[|,;]/).forEach(add);
+  }
+  return images;
+}
+
 function normalizePhone(phone) {
   const digits = String(phone || '').replace(/\D/g, '');
   if (!digits) return '';
@@ -120,19 +150,10 @@ function rowToSupplier(row, id) {
   const address = na(row['כתובת']);
   const easyUrl = na(row['קישור איזי']);
   const website = pickWebsite(row);
-  const mainImage = na(row['תמונה ראשית']);
-  const galleryRaw = na(row['גלריה']);
   const description = ensureMakeupSignal(name, na(row['תיאור עסק']));
   const reviewsCount = parseReviewCount(row['דירוג איזי'], row['מספר חוות דעת']);
   const reviews = parseReviews(row['חוות דעת של לקוחות']);
-
-  const images = [];
-  if (mainImage) images.push(mainImage);
-  if (galleryRaw) {
-    galleryRaw.split(/[|,;]/).map((s) => s.trim()).filter(Boolean).forEach((img) => {
-      if (!images.includes(img)) images.push(img);
-    });
-  }
+  const images = collectImages(row);
 
   const cleanName = name.split('|')[0].trim();
 
