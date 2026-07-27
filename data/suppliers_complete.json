@@ -29869,8 +29869,8 @@
     "phone": null,
     "real_phone": "0527570822",
     "category": "לחתן ולכלה",
-    "website": null,
-    "address": null,
+    "website": "http://artle.co.il/",
+    "address": "הרב ניסנבאום 37, בת ים",
     "engaged_url": "https://engaged.co.il/המלצות/לנה-משה.html",
     "images": [
       "https://engaged.co.il/images/stories/deals/3462/images/resize/ספיר_טאוב_large.jpeg",
@@ -29909,7 +29909,7 @@
       }
     ],
     "google_rating": "בת ים",
-    "reviews_count": "nan",
+    "reviews_count": "45",
     "description": "קצת עלי; עוד מילדותך את רוצה להיות הכי יפה, היופי שלך מקרין תחושת ביטחון עצמי! זה טבעי שהאנשים סביבך יאמינו בך וילכו אחרייך, זהו סוד הצלחתך, היופי והטיפוח שלך.ישנן דרכים רבות לדאוג למראך החיצוני, איפור נכון ומדויק הוא אחת הדרכים החשובות.חשוב שתבחרי במוצרי הקוסמטיקה הנכונים, כאלה שלא יכבידו ורק ידגישו את היופי הטבעי שלך.סיימתי קורס איפור מקצועי אצל ירין שחף ואני מתמחה בהתאמה אישית של מייק אפ לכל אירוע (איפור כלות וערב, איפור בת מצווה, איפור אופנה, איפור לצילומי סטילס ווידאו).בעבודתי אני...",
     "portfolio": []
   },
@@ -30119,7 +30119,7 @@
     "real_phone": "050-8744674",
     "category": "לחתן ולכלה",
     "website": "http://sarit-moshe.coi.co.il/",
-    "address": null,
+    "address": "שדרות דב הוז 15, חולון",
     "engaged_url": "https://engaged.co.il/המלצות/שרית-משה-מאפרת.html",
     "images": [
       "https://engaged.co.il/images/stories/deals/1022/images/שרית_20.jpeg",
@@ -30158,7 +30158,7 @@
       }
     ],
     "google_rating": "חולון",
-    "reviews_count": "nan",
+    "reviews_count": "85",
     "description": "שרית;מתמחה בכול סגנונות האיפור והשיער ואף מעבירה סדנאות לאיפור מקצועי. בנוסף שרית מסרקת מקצועית מבית דיוויס אשר נחשב למוביל בתחום התסרוקות. כמו כן שרית מורה מקצועית לאיפור ומלמדת טכניקות חדשות למאפרות מתחילות.",
     "portfolio": []
   },
@@ -45463,5 +45463,3028 @@
     "reviews_count": "nan",
     "description": "חברתנו מספקת מתן לשירות למשלוחי פרחים לפי בחירה אישית, או בחירה מהשוזרת שלנו, מגוון רחב של זרי פרחים, סידורי פרחים, זרי כלה, קישוטי רכב, עציצים, דובים ובלונים ועוד, וכל זה בשירות מהיר במיוחד עבורכם מהיום להיום.",
     "portfolio": []
+  },
+  {
+    "id": 912,
+    "name": "אלי חורי איפור כלות וערב",
+    "clean_name": "אלי חורי איפור כלות וערב",
+    "phone": null,
+    "real_phone": "054-9792456",
+    "category": "לחתן ולכלה",
+    "website": "http://eliomakeup.com/",
+    "address": "תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/26152693_1524148553818.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "256",
+    "description": "מאפר כלות וסלבז✨",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Makeupbyelio/",
+    "facebook": "https://www.facebook.com/makeupbyelio",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 913,
+    "name": "שגיא ומאור",
+    "clean_name": "שגיא ומאור",
+    "phone": null,
+    "real_phone": "03-5258208",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/403563373075661",
+    "address": "בוגרשוב 15, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/3835718.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Boaz Y.",
+        "rating": 5,
+        "text": "מספר מספר 1 בארץ",
+        "source": ""
+      },
+      {
+        "reviewer": "Shalom T.",
+        "rating": 5,
+        "text": "מקום נקי ומסודר. צוות מקצועי, אמין ואדיב.",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "281",
+    "description": "מאפרת / איפור כלות ואירועים. More than just your local hair professionals.. at The HairStudio we're a family of friendly faces and talent, and have an artist for every client.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/403563373075661",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 914,
+    "name": "אלי דהאן מסרק כלות וערב",
+    "clean_name": "אלי דהאן מסרק כלות וערב",
+    "phone": null,
+    "real_phone": "050-7680077",
+    "category": "לחתן ולכלה",
+    "website": "http://eli-d.co.il/",
+    "address": "טרומפלדור 10, חולון",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/StaticLogo/3071738_1.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "גיל כ.",
+        "rating": 5,
+        "text": "את אלי הכרתי שבאתי לתרום שיער לפני שלוש שנים. \nידעתי שהוא מעצב שיער לכלות והחלטתי שהוא זה שיעשה לי את השיער לחתונה.\nהשיער יצא מהמם ונשאר עד סוף האירוע.\nהאנרגיות המקצועיות שלו עשו את ההתארגנות לנעימה רגועה וחוויתית.\nממצליצה בחום",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "76",
+    "description": "סטודיו Unanovia הינו סטודיו ייחודי הממוקם במקום מרכזי בחולון המאפשר לך גישה והגעה נוחה ביום האירוע. צוות הסטודיו מתמחה בתסרוקות, איפור מקצועי ועיצוב שיער בסגנונות שונים עם דגש על החוויה לכלה ולמלוות ונותן מענה ושירות מקצועי, יחס אישי ומחירים הוגנים.\"מתוך אהבתנו לתחום חרטנו על דגלנו כמה חוקים ברורים להם אנו נאמנים :השם Unanovia (בספרדית: כלה אחת\") נולד מתוך הידיעה שביום המיוחד שלה כל כלה היא אחת",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/557652748079754",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 915,
+    "name": "ליהי ציון איפור ושיער",
+    "clean_name": "ליהי ציון איפור ושיער",
+    "phone": null,
+    "real_phone": "054-7743219",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/lihitzion.hair.makeup/",
+    "address": "כנפי נשרים, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/10057063_1568012695772.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "199",
+    "description": "אני ליהי ציון מאפרת ומעצבת שיער כלות ואירועים. 6 שנים בתחום. מגיעה עד הבית.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/lihitzion.hair.makeup/",
+    "facebook": "https://www.facebook.com/lihitzion",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 916,
+    "name": "אילן מרגלית עיצוב שיער",
+    "clean_name": "אילן מרגלית עיצוב שיער",
+    "phone": null,
+    "real_phone": "03-6763456",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/763081770488648",
+    "address": "תרצה 19, רמת גן (מרכז מסחרי מרום נווה)",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/3579751.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "רן ע.",
+        "rating": 5,
+        "text": "היה מעולה! צוות מקצועי ומדהים! אווירה כיפית ונעימה ממליץ בחום רב",
+        "source": ""
+      },
+      {
+        "reviewer": "Eden M.",
+        "rating": 0,
+        "text": "אחת החוויות הכי רעות שהיו לי במספרה.\nהגעתי להסתפר אצל אילן בעצמו, בגלל השם והרזומה- עם שיער ארוך מאוד, עד קו הישבן. הסברתי מראש שחשוב לי לשמור על האורך, וביקשתי לקצר רק 5–10 ס”מ כי אני מתחתנת בעוד כמה חודשים.\nבפועל נגזר לי חצי מהשיער – בלי שנאמר לי מראש, בלי שנשאלתי במהלך התספורת, ובלי שאיש הקשיב וכמובן בלי הסכמה שלי.\n\nכשביקשתי הסברים למה נגזר כל כך הרבה, קיבלתי תשובה שהשיער היה “שרוף”. אולי הקצוו",
+        "source": ""
+      },
+      {
+        "reviewer": "sharon p.",
+        "rating": 0,
+        "text": "מחירים הרבה מעל הממוצע וכלל לא ברור על מה ולמה. הביצועים הרבה מתחת לממוצע בכל הקשור לגוונים. המשפט הקבוע שיוצא מפיו של אילן באופן תמידי ועל כל סוגי הצבעים: \"אני לא מבטיח כלום\" ולא בכדי המשפט נאמר. פעמיים יותר מדיי עשיתי אצלו גוונים והתוצאה:   מ ז ע ז ע ת. נראו גוונים צהובים נחושתיים זולים, רק שלי לקח 1,100. ממש סובל מחוסר מודעות ליכולותיו. לברוח!!!!",
+        "source": ""
+      },
+      {
+        "reviewer": "אוריאל ז.",
+        "rating": 0,
+        "text": "השירות הכי מזעזע שקיבלנו לא היו קשובים לא עניין אותם כלום פשוט לסיים ולקבל את הכסף",
+        "source": ""
+      },
+      {
+        "reviewer": "Inbar S.",
+        "rating": 5,
+        "text": "מקצועניים, נעימים מאוד, עשיתי תוספות ואני מאוד מרוצה, לא מרגישה אותן, וגם זה לר לקח הרבה זמן. תודה רבה",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "112",
+    "description": "הכל אודות אילן מרגלית עיצוב שיער בתרצה 19, רמת גן (מרכז מסחרי מרום נווה) - טלפון, שעות פתיחה, ניווט, ביקורות ועוד איפור כלות תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/763081770488648",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 917,
+    "name": "קארין כהן",
+    "clean_name": "קארין כהן",
+    "phone": null,
+    "real_phone": "052-3727050",
+    "category": "לחתן ולכלה",
+    "website": "http://karinco.com/",
+    "address": "שדרות סמאטס 4, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/4569312.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "152",
+    "description": "קארין כהן מאפרתKarin Cohen Makeup Artist",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/1413040565576686",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 918,
+    "name": "חן אלוני",
+    "clean_name": "חן אלוני",
+    "phone": null,
+    "real_phone": "054-6633397",
+    "category": "לחתן ולכלה",
+    "website": "http://chenaloni.co.il/",
+    "address": "מרים החשמונאית, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/10038668_1544023866759.png"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "44",
+    "description": "הכל אודות חן אלוני (chen aloni makeup and hairstyling) במרים החשמונאית, תל אביב יפו - טלפון, שעות פתיחה, ניווט, ביקורות ועוד איפור כלות תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/chen_aloni/",
+    "facebook": "https://www.facebook.com/Makeup.HairStyling",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 919,
+    "name": "ליאט בן שמשון",
+    "clean_name": "ליאט בן שמשון",
+    "phone": null,
+    "real_phone": "054-5335771",
+    "category": "לחתן ולכלה",
+    "website": "http://liat-ipur.co.il/",
+    "address": "פנקס, בת ים",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/1990951_1741622128713_0.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "ela n.",
+        "rating": 5,
+        "text": "הכל החל בשיטוט באינסטגרם, העבודה של ליאט צדה את עיניי . שלחתי הודעה , היא אמרה לי \"כן\" וכך החל סיפור האהבה בינינו. ליאט הגיעה בבוקר החתונה לאפר ולסרק אותי ואת אחותי כמלוות של כלה, מהרגע הראשון הכל היה מושלם החל מהאנושיות, הקלילות והזרימה וכלה באיפור העדין והמדויק והסירוק הנדיר. אפשר לומר בלי להשתחצן יתר על המידה שהיינו יפות ברמות של אחיות של כלה :) מספר 1 !! ממליצות בחום",
+        "source": ""
+      },
+      {
+        "reviewer": "Alexandra P.",
+        "rating": 5,
+        "text": "מראש שעם איפור שלה אהיה כלה מהממת אבל לא חשבתי שהיא כל כך תהיה איתי בפן הנפשי. אין כמוך בעולם ככווולללוווו אוהבת וממליצה לכל אחת ואחת. אפילו על תחשיבו פעמיים 😘😘😘",
+        "source": ""
+      },
+      {
+        "reviewer": "חגית מ.",
+        "rating": 5,
+        "text": "ליאת מדהימה! הגיעה בבוקר מלאה באנרגיות והיתה נעימה וקשובה לאורך כל היום! הפכה אותי לנסיכה ליום אחד! ליאטי תודה מכל הלב!",
+        "source": ""
+      },
+      {
+        "reviewer": "לי ב.",
+        "rating": 5,
+        "text": "ליאט מדהימה! בבוקר ההתארגנות הרגשתי כאילו יש לי עוד מלווה, הייצה אויקב",
+        "source": ""
+      },
+      {
+        "reviewer": "Lilach A.",
+        "rating": 5,
+        "text": "אין על ליאט! מקצועית ומוכשרת ברמות!! וגם אישיות מדהימה!",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "253",
+    "description": "ליאט בן שמשון מזמינה אותך להתרשם מאלפי תמונות ומגוון סגנונות איפור ושיער. טעימה קטנה מהעשייה הענפה שלי בתחום האיפור והתסרוקות, באופנה ולכלות ממש כמוך. מעל 21 שנים אני מלווה כלות לאורך החודשים המרגשים לפני החתונה וביום החתונה. מעבר למקצועיות הנדרשת, אני מנסה לשפוך אור ולתת עצה טובה כי התהליך עלול לבלבל מעט ולעיתים קשה להבדיל בין עיקר לטפל.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Liatbenshimshon/",
+    "facebook": "https://www.facebook.com/179714722081727",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 920,
+    "name": "studio29",
+    "clean_name": "studio29",
+    "phone": null,
+    "real_phone": "03-5757390",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/808900569125977",
+    "address": "רש\"י  29, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/3596252.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "nadav s.",
+        "rating": 5,
+        "text": "אנשים נחמדים מאוד. עבודה מקצועית ואפילו מציעים קפה :)",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "50",
+    "description": "מאפרת / איפור כלות ואירועים. Dear Customers! Welcome to the Studio29 Page.Firstly, thank you for choosing us for your hair needs.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/808900569125977",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 921,
+    "name": "דיתי מסר איפור מקצועי",
+    "clean_name": "דיתי מסר איפור מקצועי",
+    "phone": null,
+    "real_phone": "052-5531115",
+    "category": "לחתן ולכלה",
+    "website": "http://www.ditimesser.com/",
+    "address": "אחד העם 14, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/4194543.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "201",
+    "description": "שמי דיתי מסר ואני מתמחה באיפור. מציעה שירות של איפור ערב, איפור כלה. סדנאות איפור ועוד...",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/ditimesser/",
+    "facebook": "https://www.facebook.com/DTmesser",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 922,
+    "name": "ליאור אחדות מעצב שיער",
+    "clean_name": "ליאור אחדות מעצב שיער",
+    "phone": null,
+    "real_phone": "050-5878158",
+    "category": "לחתן ולכלה",
+    "website": "",
+    "address": "קריניצי 32, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/20588161_1670271481921.jpeg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "31",
+    "description": "מאפרת / איפור כלות ואירועים. החלקה יפנית, טיפול בשיקום השיער, תספורות גברים ונשים חדשניות ועדכניות, גוונים וצבע לשיער.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 923,
+    "name": "אסנת ממן מאפרת כלות איפור ערב איפור לאירועים",
+    "clean_name": "אסנת ממן מאפרת כלות איפור ערב איפור לאירועים",
+    "phone": null,
+    "real_phone": "053-3925250",
+    "category": "לחתן ולכלה",
+    "website": "",
+    "address": "ויזניץ, בני ברק",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/category/ip8/4033b.png"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "21",
+    "description": "הכל אודות אסנת ממן מאפרת כלות איפור ערב איפור לאירועים בויזניץ, בני ברק - טלפון, שעות פתיחה, ניווט, ביקורות ועוד איפור כלות תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 924,
+    "name": "ליאת מאמן",
+    "clean_name": "ליאת מאמן",
+    "phone": null,
+    "real_phone": "050-8446615",
+    "category": "לחתן ולכלה",
+    "website": "http://liatmaman.com/",
+    "address": "הצנחנים 18, חולון",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/8949960.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "228",
+    "description": "Natural hair and makeup artist �",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/234265583338288",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 925,
+    "name": "ארז אלון",
+    "clean_name": "ארז אלון",
+    "phone": null,
+    "real_phone": "052-8576540",
+    "category": "לחתן ולכלה",
+    "website": "http://erezalon.co.il/",
+    "address": "צייטלין 1, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/3981246.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "184",
+    "description": "מאפרת / איפור כלות ואירועים. שני סניפים למספרה : דיזנגוף תל אביב וגדרה.לתיאום: 052-8576540",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/erezalon1/",
+    "facebook": "https://www.facebook.com/549790851779851",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 926,
+    "name": "Shiri hair&makeup",
+    "clean_name": "Shiri hair&makeup",
+    "phone": null,
+    "real_phone": "052-5875871",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/shirihakak.hair.makeup/",
+    "address": "חרות, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/10148040_1741589429124_5.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Yarden H.",
+        "rating": 5,
+        "text": "שירי המדהימה איפרה וסירקה אותי לחתונה שלי, מלבד זה שהאיפור היה פשוט הכי יפה בעולם ולא הפסיקו להחמיא לי אחרי האירוע כל כך הרבה!!! הוא גם לא זז כל הערב!! זו הייתה הבחירה הכי טובה שיכולתי לבחור ביום הכי חשוב בחיי🩷 הכי מקצועית ונעימה, דייקה לי לפי מה שביקשתי בדיוק, ודאגה שאצא הכי מרוצה🙏🏽",
+        "source": ""
+      },
+      {
+        "reviewer": "Apple User",
+        "rating": 5,
+        "text": "ואו אין לי מילים.\nהוא הבליטה את כל הנתונים הטובים שלי והסתירה את כל מה שרציתי. והיא לא רק מאפרת מדהים. היחס, הסבלנות. זה כל כך חשוב ליום הזה!! אני הכי ממליצה בעולם.",
+        "source": ""
+      },
+      {
+        "reviewer": "קארין ו.",
+        "rating": 5,
+        "text": "חייבת לשתף בחוויה מדהימה שהייתה לי. באתי עם 3 ילדי להתאפר לפורים וקיבלנו אינסוף ביקורות חיוביות. ממליצה בחום",
+        "source": ""
+      },
+      {
+        "reviewer": "Liel M.",
+        "rating": 5,
+        "text": "שירי מקצועית ונעימה! מרוצה מקסימום \nמאוד ממליצה עליה❤️",
+        "source": ""
+      },
+      {
+        "reviewer": "Moria I.",
+        "rating": 5,
+        "text": "מדהימה! מוכשרת כל כך❤️",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "5",
+    "description": "היי קוראים לי שירי ואני מאפרת ומסרקת 14 שנים. מגיעה עד בית הלקוחה (ניתן גם אצלי ברמת גן) יחס אישי, סבלנות ומקצועיות מובטחים:) מחכה לפגוש אותך🩷",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/shirihakak.hair.makeup/",
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 927,
+    "name": "סלון פני",
+    "clean_name": "סלון פני",
+    "phone": null,
+    "real_phone": "03-6828315",
+    "category": "לחתן ולכלה",
+    "website": "",
+    "address": "עזה 20, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/3396482_1615531937860.jpeg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "שפרה ש.",
+        "rating": 5,
+        "text": "תמיד נעים ותמיד יעיל, כייף ובאוירה של משפחה",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "16",
+    "description": "הכל אודות סלון פני בעזה 20, תל אביב יפו - טלפון, שעות פתיחה, ניווט, ביקורות ועוד איפור כלות תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 928,
+    "name": "טל פרקש",
+    "clean_name": "טל פרקש",
+    "phone": null,
+    "real_phone": "050-8665070",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/1445118762371559",
+    "address": "חיים וייצמן 20, גבעת שמואל",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/5471921.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Osnat B.",
+        "rating": 0,
+        "text": "עד ליום החתונה, טל הייתה מקסימה, סבלנית וקשובה, ייעצה כל פעם כמה שיכלה.\nביום החתונה שלי, בערך שעה וחצי לתוך ההתארגנות, אני מביעה המון חששות ומעירה הערות.\nטל מתחילה להרים את הקול עלי, ובהמשך גם לצעוק ממש, בטענה שזה לא הגיוני שאני מעירה לה על התסרוקת ושבחיים לה הייתה לה כלה כזאת.\nטל לא הפסיקה, גם אחרי שביקשתי ממנה להפסיק, וכשהתחלתי לבכות בגללה היא הפסיקה לרבע שעה, ושוב הכל חזר.\nגם הבקשות מהמלוות שלי",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "60",
+    "description": "טל פרקש- איפור מקצועי ועיצוב תסרוקות במראה טבעי, נקי וזוהר. לכלות ומלוות ארועי יום וערב סדנאות איפור ועיצוב שיער מתמחה בתלתלים!! מגיעה אליכן! למלון/ הביתה",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/1445118762371559",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 929,
+    "name": "ניקול דנינו איפור מקצועי",
+    "clean_name": "ניקול דנינו איפור מקצועי",
+    "phone": null,
+    "real_phone": "050-9033376",
+    "category": "לחתן ולכלה",
+    "website": "http://nicoledanino.com/",
+    "address": "הרצל 70, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/5602620.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "126",
+    "description": "ניקול דנינו- מאפרת מקצועית. איפור כלות, ערב, אופנה וטלויזיה.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/329578420406394",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 930,
+    "name": "סלון בוטיק DY",
+    "clean_name": "סלון בוטיק DY",
+    "phone": null,
+    "real_phone": "03-5252719",
+    "category": "לחתן ולכלה",
+    "website": "http://davidy.co.il/",
+    "address": "פינסקר 66, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/476167_1377341425116.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "24",
+    "description": "מאפרת / איפור כלות ואירועים. דויד יושבייב , מומחה להארכת שיער 03-5252719 http://www.davidy.co.il/",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/129200845137",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 931,
+    "name": "ג'ודי איזנברג",
+    "clean_name": "ג'ודי איזנברג",
+    "phone": null,
+    "real_phone": "054-7209676",
+    "category": "לחתן ולכלה",
+    "website": "http://judi.mitchatnim.co.il/",
+    "address": "מאיר בעל הנס 6, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/StaticLogo/9017666_1.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "580",
+    "description": "בוגרת בתי הספר ירין שחף ואיל מקיאג'. מאפרת לעיתון לאשה, מעריב, טלויזיה, כלות ואירועים. מגיעה לבית הלקוחה/ סלון כלות/ מלון ביום האירוע. את מוזמנת לפגישת יעוץ והתרשמות מתיק העבודות.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/eisenberg_makeup/",
+    "facebook": "https://www.facebook.com/judy.eisenberg",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 932,
+    "name": "Natalie Cosmetic Care",
+    "clean_name": "Natalie Cosmetic Care",
+    "phone": null,
+    "real_phone": "052-6712011",
+    "category": "לחתן ולכלה",
+    "website": "http://natalieroskin.com/",
+    "address": "חיים לנדאו 1, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/857691_1504306043265.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "19",
+    "description": "שמי נטלי רוסקין. אני קוסמטיקאית, מאפרת, חברה באיגוד קוסמטיקאיות. אני גרה ועובדת ברמת גן. בשנת 2004 סיימתי קורס לקוסמטיקה ומאז עובדת בתחום הקוסמטיקה להנאתי. יחד עם הפעולות המעשיות, אני מעלה בקביעות את רמת...",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/267172337393451",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 933,
+    "name": "ארטיום קבנצקי",
+    "clean_name": "ארטיום קבנצקי",
+    "phone": null,
+    "real_phone": "052-4307221",
+    "category": "לחתן ולכלה",
+    "website": "http://artyom.co.il/",
+    "address": "דוד תדהר 26, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/25976800_1693813091297.jpeg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "שרית ח.",
+        "rating": 5,
+        "text": "אני כותבת בשם בני, חייל שהגיע אל ארתור בשבת לאחר שהיה חייב תיקון תספורת בשבת הואיל והיה חייב לחזור בראשון בבוקר לצבא. ארטיום ראשית כל ענה לטלפונים מה שרב הספרים בשבת לא עושים!! בכך הבנתי שאכן מדובר קודם כל באדם אכפתי! הוא קבל את בני בחיוך ורוגע ועשה עבודה סופר מקצועית ! שלא לדבר על המחיר הסופר הוגן שלקח בשבת , מה שאחרים לא עושים. בני שמח מאוד והיה ממש מרוצה ואמר שהמקום יפה ונעים וארטיום הוא אחלה ג",
+        "source": ""
+      },
+      {
+        "reviewer": "Meirav G.",
+        "rating": 5,
+        "text": "תודה רבה על מקצועיות ורגישות איזה כיף שיש נותני שירות -אמנים -כאלו.\nאחרי תקלה בשישי בערב, בתספורת בייתית של חייל, חיפשתי מספרה פתוחה בשבת כי בראשון כבר היה צריך לחזור לבסיס. סימסתי לארטיום ביום שבת סביב השעה 11:00 ובשעה 14:30 הבן שלי כבר היה אצלו.  כן. יום שבת. ארטיום היה מקצועי בטירוף  אמין. אדיב וסופר שירותי. התספורת החדשה יצאה מעולה ואין זכר לתקלה הבייתית. מחיר סופר הגון. תודה רב לך!",
+        "source": ""
+      },
+      {
+        "reviewer": "David A.",
+        "rating": 5,
+        "text": "אחלה  בחור חרוץ ומקצועי. הייתי  זקוק לסידור זקן ותספורת  בשמונה וחצי  בערב על  פגישה  שנקבעה  למחרת  בשמונה  בבוקר  והבחור  סידר אותי פיקס   עד כמעט  תשע  בערב ונראיתי  מכובד  לפגישה   הביור עובד  מהבית  אבל  זמין  בשעות  הקטנות  של הליחה  למקרי  חירום.  אני  מסדר  את הזקן  רק אצל ספרים  פעם  אחת  בחודש  ולא  מתגלח  בבית",
+        "source": ""
+      },
+      {
+        "reviewer": "Ido S.",
+        "rating": 5,
+        "text": "ארטיום ראשית כל בן אדם אלוף, אני לוחם שחזר אחרי 21 ולא היה מי שיספר אותי קיבל אותי במוצאי שבת השקיע בתספורת מדהימה ספר עם ידיים חריפות, אלוף אמיתי ומעבר להיותו ספר מדהים הוא גם אדם מדהים ! \nממליץ בחום מחיר הוגן לכל כיס עבודה מקצועית דייק בכל פרט שביקשתי שירות אדיב ומקצועי ברמה גבוהה. אלוף !",
+        "source": ""
+      },
+      {
+        "reviewer": "Jonatan g.",
+        "rating": 5,
+        "text": "מקצוען לוקח מחיר הוגן לכל כיס.\nקיבל אותי בשבת מעכשיו לעכשיו, לקח פחות כסף ממה שכל ספר אחר היה לוקח ביום חול, ונתן תחושה שאני הכי חשוב בעולם דייק כל פרט ופרט התיספורת ותמיד שאל אם נראה טוב. הכל בשירותיות הכי גבוהה שיכולה להיות. אני אחזור אליו בטוח כל הוא מספר. מקצועי שירותי וחמוד אמיתי!!!",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "51",
+    "description": "מאפר ומעצב השיער ארטיום קבנצקי מחכה לכם ולכן במספרת בוטיק אישית ומציע תסרוקות ותספורות לנשים ולגברים וגם איפור ערב/כלות ואיפור אפקטים מיוחדים - והכל במחירים נוחים, עם נסיון עשיר ומקצועיות ברמה הגבוהה ביותר.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/artyomkavnatsky/",
+    "facebook": "https://www.facebook.com/artyomkavnatsky",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 934,
+    "name": "בתיה צוקר",
+    "clean_name": "בתיה צוקר",
+    "phone": null,
+    "real_phone": "054-4998230",
+    "category": "לחתן ולכלה",
+    "website": "http://batya-zucker.co.il/",
+    "address": "חיבת ציון 17, רמת גן (תיאטרון רמת גן)",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/20179070_1695048429067.jpeg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "65",
+    "description": "היוש , נעים להכיר (: שמי בתיה צוקר מאפרת ומסרקת עם ניסיון מעל 17 שנה(; עוסקת בשלל שירותים לבחירתכם(;. 🌸איפור ותסרוקות לאירועים מיוחדים 🥳 צמות וציורי פנים לימי הולדת ובר/ת מצווה 🤰🏻ציורי הריון 💋 סדנאות איפור חוויתית ומעשירה וכייפית 💇‍♀️ סדנת תסרוקות מגניבה ומעשירה 👩‍👧 סדנת צמות להורה וילדה 👩‍💻 הרצאות וסדנאות למיתוג נשי אישי בעולם העסקי 🎉 יום הולדת צמות",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Batyazucker/",
+    "facebook": "https://www.facebook.com/batya.zucker",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 935,
+    "name": "ורד ספיבק",
+    "clean_name": "ורד ספיבק",
+    "phone": null,
+    "real_phone": "03-5469945",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/206496566061067",
+    "address": "בן יהודה 231, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/StaticLogo/8821759_1.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "286",
+    "description": "הכל אודות ורד ספיבק בבן יהודה 231, תל אביב יפו - טלפון, שעות פתיחה, ניווט, ביקורות ועוד שירותי איפור תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/206496566061067",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 936,
+    "name": "רות טולדו מאפרת",
+    "clean_name": "רות טולדו מאפרת",
+    "phone": null,
+    "real_phone": "054-4319346",
+    "category": "לחתן ולכלה",
+    "website": "http://ruthtoledo.com/",
+    "address": "יהודה גור, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/8817780_1758087459006_0.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "124",
+    "description": "✨ הסטודיו לנשים שרוצות טבעי ✨ .איפור ותסרוקות לכלות ואירועים ~ גם בבית הלקוחה .מעל 15 שנות ניסיון, בגישה ששמה דגש על מראה טבעי סדנאות איפור אישיות וקבוצתיות. סטודיו בת״א | מגיעה גם עד אליך",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Ruthtoledomua/",
+    "facebook": "https://www.facebook.com/RuthToledoMakeUp",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 937,
+    "name": "דנה לוי איפור טבעי",
+    "clean_name": "דנה לוי איפור טבעי",
+    "phone": null,
+    "real_phone": "050-4797764",
+    "category": "לחתן ולכלה",
+    "website": "http://danalevi.co.il/",
+    "address": "נחום סוקולוב 36, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/8949717.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "27",
+    "description": "הכל אודות דנה לוי איפור טבעי בנחום סוקולוב 36, תל אביב יפו - טלפון, שעות פתיחה, ניווט, ביקורות ועוד שירותי איפור תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 938,
+    "name": "זיוה",
+    "clean_name": "זיוה",
+    "phone": null,
+    "real_phone": "03-5713613",
+    "category": "לחתן ולכלה",
+    "website": "",
+    "address": "עלומים 36, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/category/ip8/4033b.png"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "24",
+    "description": "זיווה לנגבאום היא אמנית איפור מהטובות בישראל ומעצבת גבות בעלת ותק של 30 שנה באיפור מקצועי וקבוע! את השכלתה רכשה בחו\"ל ועבודותיה כיכבו ב \"vogue\" ,\"elle\", בארץ עבדה עם בכירי הצלמים והדוגמניות בתעשיה, שכיכבו...",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 939,
+    "name": "בועז שטיין",
+    "clean_name": "בועז שטיין",
+    "phone": null,
+    "real_phone": "054-3152525",
+    "category": "לחתן ולכלה",
+    "website": "http://boaz-stein.com/",
+    "address": "אלנבי 121, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/4189973.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "11",
+    "description": "מאפרת / איפור כלות ואירועים. כניסה לחנות האונליין https://www.boaz-stein.com/shop/",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/202968656452602",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 940,
+    "name": "פליקס שטיין איפור מקצועי",
+    "clean_name": "פליקס שטיין איפור מקצועי",
+    "phone": null,
+    "real_phone": "077-4142007",
+    "category": "לחתן ולכלה",
+    "website": "http://felixshtein.com/",
+    "address": "גרשון ש\"ץ 4, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/StaticLogo/1694770_1.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "39",
+    "description": "Официальна страница школы проф.макияжа Felix Shtein.עמוד הפ",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/192033427486261",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 941,
+    "name": "חגי אבדר אמן איפור",
+    "clean_name": "חגי אבדר אמן איפור",
+    "phone": null,
+    "real_phone": "052-8809708",
+    "category": "לחתן ולכלה",
+    "website": "http://hagaiavdar.co.il/",
+    "address": "שלום עליכם 46, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/4253146.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "26",
+    "description": "הכל אודות חגי אבדר אמן איפור בשלום עליכם 46, תל אביב יפו - טלפון, שעות פתיחה, ניווט, ביקורות ועוד שירותי איפור תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/153026981422064",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 942,
+    "name": "רייצל קליניק",
+    "clean_name": "רייצל קליניק",
+    "phone": null,
+    "real_phone": "054-5416046",
+    "category": "לחתן ולכלה",
+    "website": "http://rachel-clinic.co.il/",
+    "address": "דוד רזיאל 2, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/3354809_1589706360127.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Tael G.",
+        "rating": 5,
+        "text": "קליניקה מהממת,אווירה נעימה והכי חשוב שירות מקצועי והתוצאות מדברות בעד עצמן ️ זאת הקליניקה הקבועה שלי מעכשיו",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "198",
+    "description": "מאפרת / איפור כלות ואירועים. קליניקת בוטיק יוקרתית בעלת וותק של 25 שנה רייצל קליניק מתמחה בטיפולי פיגמנטציה, כתמים, צלקות, אקנה, פוסט ארנה, קמטים, טקסטורת עור. טיפולי הפנים שלנו ייחודים ומקצועיים. פדיקור , מניקור,ג'ל, שעוות, עיצוב גבות הסרות שיער ב IPL-תוצאות מובטחות! טיפולי אנטי אייג, התאמת חומרים לעורך ועוד.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Rachelclinic/",
+    "facebook": "https://www.facebook.com/1320544466",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 943,
+    "name": "קוקטה סלון אקספרס",
+    "clean_name": "קוקטה סלון אקספרס",
+    "phone": null,
+    "real_phone": "03-6053033",
+    "category": "לחתן ולכלה",
+    "website": "http://koketasalon.co.il/",
+    "address": "מרכז בעלי מלאכה 3, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/9096982_1583234779168.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Ester H.",
+        "rating": 5,
+        "text": "בסלון קוקטה קיבלתי יחס אישי ולבבי לשניה לא הרגשתי לבד, לימור הקשיבה לכל בקשה , עשיתי החלקת קרטין, בנוסף בזמן ההמתנה קיבלתי טיפול מניקור פדיקור אקספקס ב10 אחוז הנחה , מה שהפך את החוייה למעצימה יותר , מצאתי את המספרה שלי - תודה לימור חייל",
+        "source": ""
+      },
+      {
+        "reviewer": "Tal M.",
+        "rating": 5,
+        "text": "חייבת להמליץ על החוויה המדהימה שעברתי אצל לימור חייל האגדית , אלופת הכימיה והתספורת , צבעתי את השיער לחצי בלונד השיער לא נפגע כלל וקיבלתי תספורת שמוסיפה נפח לשיער הדק שלי , קיבלתי יחס חם מפנק ואוהב , כמובן שאחזור שוב שוב , האחת שלי :)))",
+        "source": ""
+      },
+      {
+        "reviewer": "Shahla K.",
+        "rating": 5,
+        "text": "פשוט מקצוענית , מדהימה ,",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "39",
+    "description": "מאפרת / איפור כלות ואירועים. קוקטה סלון אקספרס-לימור חייל זוכת פרס רבלון ובעלת מספרה במרכז תא לשיער הלבן",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/365487456874918",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 944,
+    "name": "Ortal Elmakias skin care",
+    "clean_name": "Ortal Elmakias skin care",
+    "phone": null,
+    "real_phone": "054-5631543",
+    "category": "לחתן ולכלה",
+    "website": "http://patronlaser1.co.il/ortal-elmakias",
+    "address": "תקוע 17, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/10078322_1683181991523.jpeg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Rona K.",
+        "rating": 5,
+        "text": "הגעתי לאורטל בעקבות חברה שגרה רחוק מאיזור תל אביב וגם היא עושה טיפולי מיצוק. כשביקשתי ממנה לחפש לי מישהי טובה בתל אביב היא שלחה לי את הטלפון של אורטל וכתבה שהיא שמעה מהרבה בנות בקבומת הוואטסאפ של  י שלמדה  יצוק שהיא ממש תותחית..\nאז ככה הגעתי לאורטל לטיפולי מיצוק ברגליים ואני ממש מרוצה מהתוצאות. מאז כבר עברתי להרבה טיפולים אחרים😊\nאורטל בראש ובראשונה מקסימה, שירותית מאד, וכיף לדבר איתה ולקבל הסבר מע",
+        "source": ""
+      },
+      {
+        "reviewer": "Elina T.",
+        "rating": 5,
+        "text": "ראשית כל, עובדת בצורה מקצועית ואיכותית ביותר! \nללא ספק אני ממליצה לכל אדם וכמובן שאורטל מתאימה לכל אחד/ת את הטיפול המתאים לו. \nכל פעם מחדש שאני מגיעה אני מרוצה יותר ויותר, לא רק מהתוצאות המטורפות בסוף אלא גם מהיחס המדהים שאני מקבלת.. \nזה לא מובן מאליו האכפתיות שהיא נותנת לכל לקוח/ה \nהכי מרוצה שיש!!! ♥️♥️",
+        "source": ""
+      },
+      {
+        "reviewer": "Romi O.",
+        "rating": 5,
+        "text": "קיבלתי טיפול לייזר מאורטל, לפעמים טיפול לייזר לא נעים, אבל היא טיפלה עם מכשיר לייזר מעולה ומתקדם ולא כואב. היתה סבלנית  אדיבה ונעימה! הקשיבה ונתנה שירות מכל הלב, מותאם וברמה גבוהה. הטיפול היה יסודי מאוד. בסוף גם פינקה אותי בערכת יופי מתנה. עשית לי חוויה ממש טובה. תודה😍",
+        "source": ""
+      },
+      {
+        "reviewer": "Or A.",
+        "rating": 5,
+        "text": "עשיתי טיפול לייזר לחזה ולבטן עם אורטל ואין לי מילים לתאר את החוויה המדהימה שלי😍,  הטיפול היה מהיר, קל ובלי כאבים, ואורטל הייתה נעימה ומקצועית מאוד. השירות היה מעולה ואני ממליץ בחום על הטיפול הזה לכל מי שמחפש טיפול לייזר מקצועי ואיכותי. תודה רבה, אורטל 🙏🏼",
+        "source": ""
+      },
+      {
+        "reviewer": "נופר ת.",
+        "rating": 5,
+        "text": "אני הגעתי לאורטל דרך חברה טובה עברתי הרבה קוסמטיקאיות ואני באמת הכי מרוצה אצלה מאי פעם הטיפול והשירות שלה העדינות שלה מעל הכל ממליצה יותר מחום",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "19",
+    "description": "קוסמטיקאית פרא רפואית מוסמכת ומאפרת מקצועית | טיפולי פנים וגוף | הסרת שיער בלייזר | אבחון עור קליני | אקנה | פיגמנטציה | אנטי אייג'ינג | טכנולוגיה מתקדמת | טיפולי RF| הצרת היקפים | המסת שומן וצלוליט | עיצוב גבות | שעוות | תכשירים בהתאמה אישית | איפור מקצועי| אבחון עור אונליין | משלוח עד הבית",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Ortalelmakias.skin/",
+    "facebook": "https://www.facebook.com/OrtalDu.makeup",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 945,
+    "name": "עידן שחר",
+    "clean_name": "עידן שחר",
+    "phone": null,
+    "real_phone": "052-5113276",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/620515787997059",
+    "address": "ירמיהו 19, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/5631827.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "66",
+    "description": "מאפרת / איפור כלות ואירועים. סדנאות פיסול דמויות ובובות בבצק סוכר למתחילים ומתקדמי?",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/620515787997059",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 946,
+    "name": "טלי אוסנת עמרם",
+    "clean_name": "טלי אוסנת עמרם",
+    "phone": null,
+    "real_phone": "050-8819118",
+    "category": "לחתן ולכלה",
+    "website": "",
+    "address": "דיזנגוף 260, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/StaticLogo/1694529_1.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "24",
+    "description": "מאפרת אופנה וכלות....... ניסיון של 8 שנים בתחום, ביום יום הנני עוברת מכלה לכלה בכל רחבי הארץ,טלויזיה - קליפים לערוץ 24, פרסומות, תכניות טלויזיה והפקות אופנה למניהן...... כלות ומלוות יקרות: אני מגיעה...",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 947,
+    "name": "רחלי איפור וקוסמטיקה",
+    "clean_name": "רחלי איפור וקוסמטיקה",
+    "phone": null,
+    "real_phone": "050-8778987",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/Rachelimakeup/",
+    "address": "קרליבך 4, תל אביב יפו (קניון האופנה גינדי)",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/5639905.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Efrat L.",
+        "rating": 5,
+        "text": "מקצועית, נעימה, תענוג.",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "24",
+    "description": "|איפור כלות וערב | טיפולי פנים | עיצוב גבות | איפור קבוע |",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Rachelimakeup/",
+    "facebook": "https://www.facebook.com/rachelizada",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 948,
+    "name": "אביגיל ערמון לוי Avigail Armon Levy",
+    "clean_name": "אביגיל ערמון לוי Avigail Armon Levy",
+    "phone": null,
+    "real_phone": "054-4384408",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/1588707534713708",
+    "address": "תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/6433746.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "31",
+    "description": "מאפרת / איפור כלות ואירועים. אינסטגרם: AVIGAILARMONLEVY",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/1588707534713708",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 949,
+    "name": "ליהי קורן כהן איפור & שיער",
+    "clean_name": "ליהי קורן כהן איפור & שיער",
+    "phone": null,
+    "real_phone": "050-7533185",
+    "category": "לחתן ולכלה",
+    "website": "http://lihikoren.co.il/",
+    "address": "רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/26459014_1700492458090.jpeg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "55",
+    "description": "מאפרת ומעצבת שיער לכלות ואירועים. דוגלת במראה עדין, טבעי וחגיגי השירות שלי לבית הלקוחה וניתן גם להגיע אליי לסטודיו ברמת גן",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/lihikorenc/",
+    "facebook": "https://www.facebook.com/458744194330700",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 950,
+    "name": "אורי ליברמן",
+    "clean_name": "אורי ליברמן",
+    "phone": null,
+    "real_phone": "03-6722875",
+    "category": "לחתן ולכלה",
+    "website": "",
+    "address": "הרצל 12, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/1742562_1612854643692_1.jpeg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "8",
+    "description": "הכל אודות אורי ליברמן בהרצל 12, רמת גן - טלפון, שעות פתיחה, ניווט, ביקורות ועוד איפור כלות תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 951,
+    "name": "GG אומנות השלמות",
+    "clean_name": "GG אומנות השלמות",
+    "phone": null,
+    "real_phone": "052-8555696",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/gg_the_art_of_perfecion/",
+    "address": "חיבת ציון 38, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/10097470_1690652341148.png"
+    ],
+    "reviews": [
+      {
+        "reviewer": "איילת י.",
+        "rating": 5,
+        "text": "גבי היא באמתתתתת שלמות!!!!!! אין דברים כמוה!  קודם כל מקצועית בטירוףףףף באמת העבודה שלה פשוט מושלמת (אני פרפקציוניסטית והייתי משתגעת מטעויות). יש לה לב הכי גדול שיש, דואגת, אכפתית ורוצה שתהי מרוצה ושמחה תמיד והיא תעשה מה שצריך בשביל זה. הפלוס הגדול שהיא פשוט חברה על אמת! זה לבוא לשבת עם חברה לזמן איכות ועל הדרך לצאת עם ציפורניים שלמות❤️ ממליצה ממש בחום! גבי איזה כייף שחזרת אלינו ולכל מי שעוד תזכה",
+        "source": ""
+      },
+      {
+        "reviewer": "Hezi K.",
+        "rating": 5,
+        "text": "הגעתי עם זוגתי  לטיפול לק ג'ל מבלי להתכוון זכיתי לטיפול פדיקור שהיה חוויתי ומקצועי ברמה גבוהה ביותר. טיפול לק ג'ל שעברה חנה היווה חוויה מתקנת לכל הטיפולים בעבר. גבי מלאת קסם אישי וסבלנות אדירה וכמובן סופר מקצועית. \nתנסו...תבינו",
+        "source": ""
+      },
+      {
+        "reviewer": "Roni E.",
+        "rating": 5,
+        "text": "הגעתי ממש במקרה כדי לסדר את הציפורניים ברגליים. איך שפתחה לי את הדלת, נתנה לי חיוך ענק. כל האווירה בטיפול הייתה נעימה וכיפית, וגבריאלה מתוקה! עשתה עבודה מושלמת, והיה לה מאוד חשוב שאצא מרוצה. שירותיות ועבודה ברמה גבוהה מאוד!! ממליצה בחום❤️",
+        "source": ""
+      },
+      {
+        "reviewer": "Inbal T.",
+        "rating": 5,
+        "text": "אין על גבי בעולם!!! גם אישיות מהממת וכובשת שתמיד כיף להגיע אליה לטיפול, וגם מקצועית על, שעובדת תמיד מכל הלב עם השקעה בכל הפרטים, ועם סבלנות על חלל לכל בקשה של הלקוחה. אין מצב שיוצאים מגבי לא מרוצים;) ממליצה בחום ומכל הלב ♥️",
+        "source": ""
+      },
+      {
+        "reviewer": "Nomi",
+        "rating": 5,
+        "text": "שירות אדיב ונעים לא הרגשתי כל כך נוח אצל מניקוריסטית אף פעם \nוהגל דק ומחזיק מדהים הייתי כל השבוע בים שעות וכל הציפורנים נשארו שלמות\nממליצה בחום",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "10",
+    "description": "מאפרת / איפור כלות ואירועים. 💅🏼 אומנות השלמות - מספקת לך פינוק אמיתי וחוויה שירותית שאין כמותה. 💅🏼 עבודה מקצועית וניסיון של למעלה מ 10 שנים בתחום. 💅🏼 ציורים על הציפורן בהתאם לבקשה שלך. 💅🏼 יש לק ג'ל היפואלרגני.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/gg_the_art_of_perfecion/",
+    "facebook": "https://www.facebook.com/1932208957020179",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 952,
+    "name": "סטודיו לאיפור ושיער נילי כהן",
+    "clean_name": "סטודיו לאיפור ושיער נילי כהן",
+    "phone": null,
+    "real_phone": "052-9571014",
+    "category": "לחתן ולכלה",
+    "website": "http://nilicohen.co.il/",
+    "address": "דוד סחרוב 5, ראשון לציון (קניון דאון טאון סנטר)",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/3771814.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "70",
+    "description": "סטודיו לאיפור ועיצוב שיער לכלות וערב . בסטודיו מגוון לימודים מקצועיים ואישיים לאיפור ועיצוב שיער. מסלול ייחודי להכשרת מאפרות ומסרקות למעוניינות לעבוד בתחום .",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/studionilicohen/",
+    "facebook": "https://www.facebook.com/144394085647179",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 953,
+    "name": "כרמל יהלום שיער ואיפור",
+    "clean_name": "כרמל יהלום שיער ואיפור",
+    "phone": null,
+    "real_phone": "052-5841903",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/407853312603688",
+    "address": "המעיין 2, גבעתיים",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/StaticLogo/4036022_1.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "372",
+    "description": "עיצוב תסרוקות ואיפור לכלות בהתאמה אישית. הגעה למקום ההתארגנות ביום האירוע ואפשרות להתארגנות בסטודיו שלי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/407853312603688",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 954,
+    "name": "דרמה קליניק",
+    "clean_name": "דרמה קליניק",
+    "phone": null,
+    "real_phone": "054-4216980",
+    "category": "לחתן ולכלה",
+    "website": "http://dermaclinic.cc/",
+    "address": "רבי עקיבא 2, בני ברק",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/8961220.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "14",
+    "description": "מאפרת / איפור כלות ואירועים. דרמה קליניק- מרכז לטיפולים אסתטיים ורפואיים מתקדמים, ב'דרמה קליניק' פותחה שיטת טיפול בלעדית לכל בעיות העור האסתטיות, הנותנת תוצאות מהירות בריפוי פצעי אקנה, הבהרת כתמים, מיצוק העור, טיפול ייחודי לקמטים...",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 955,
+    "name": "גל מלמד תסרוקות כלה וערב",
+    "clean_name": "גל מלמד תסרוקות כלה וערב",
+    "phone": null,
+    "real_phone": "050-5691142",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/988248187869773",
+    "address": "הרא\"ה 248, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/6424828.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "129",
+    "description": "גל מלמד מסרקת ומאפרת כלות וערב . לתיאום והזמנות התקשרי 0",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/988248187869773",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 956,
+    "name": "דנה קפלן מאפרת מקצועית",
+    "clean_name": "דנה קפלן מאפרת מקצועית",
+    "phone": null,
+    "real_phone": "052-5314415",
+    "category": "לחתן ולכלה",
+    "website": "http://danakaplan.co.il/",
+    "address": "בוני העיר, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/9042332.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "22",
+    "description": "איפור מקצועי לכלות ואירועים עם אפשרות הגעה לבית הלקוחה או אצלי בשכונת כוכב הצפון בת״א.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Dana_k_makeup/",
+    "facebook": "https://www.facebook.com/DanaK.Makeup",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 957,
+    "name": "ליאן מטל מאפרת מקצועית כלות ערב ואופנה Lian matal makeup artist. Bride & evening & fashion",
+    "clean_name": "ליאן מטל מאפרת מקצועית כלות ערב ואופנה Lian matal makeup artist. Bride & evening & fashion",
+    "phone": null,
+    "real_phone": "050-9040158",
+    "category": "לחתן ולכלה",
+    "website": "",
+    "address": "דיזנגוף 275, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/category/ip8/4033b.png"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "14",
+    "description": "הכל אודות ליאן מטל מאפרת מקצועית כלות ערב ואופנה Lian matal makeup artist. Bride & evening & fashion בדיזנגוף 275, תל אביב יפו - טלפון, שעות פתיחה, ניווט, ביקורות ועוד שירותי איפור תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 958,
+    "name": "תמי מרגלית מאפרת ומעצבת שיער",
+    "clean_name": "תמי מרגלית מאפרת ומעצבת שיער",
+    "phone": null,
+    "real_phone": "054-4992090",
+    "category": "לחתן ולכלה",
+    "website": "http://tamimargalit.co.il/",
+    "address": "אצ\"ל 18, קרית אונו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/StaticLogo/647443_1.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "173",
+    "description": "תמי מרגלית, מאפרת ומעצבת שיער לכלות ואופנה",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/tamimargalit/",
+    "facebook": "https://www.facebook.com/259173947220",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 959,
+    "name": "Makeup by Tiferet",
+    "clean_name": "Makeup by Tiferet",
+    "phone": null,
+    "real_phone": "054-2126811",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/1094448877242125",
+    "address": "ז'בוטינסקי 70, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/8822019.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "16",
+    "description": "Tiferet lehrman 0542126811 Makeup and Hair By Tiferet",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/1094448877242125",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 960,
+    "name": "דניאל יאיר עיצוב שיער",
+    "clean_name": "דניאל יאיר עיצוב שיער",
+    "phone": null,
+    "real_phone": "052-7348623",
+    "category": "לחתן ולכלה",
+    "website": "",
+    "address": "המחוגה 5, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/category/ip8/4033b.png"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Lior G.",
+        "rating": 5,
+        "text": "בנאדם זהב פשוט עשר אחלה של בחור",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "122",
+    "description": "הכל אודות דניאל יאיר עיצוב שיער בהמחוגה 5, תל אביב יפו - טלפון, שעות פתיחה, ניווט, ביקורות ועוד איפור כלות תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 961,
+    "name": "Sigal.Cosmetice",
+    "clean_name": "Sigal.Cosmetice",
+    "phone": null,
+    "real_phone": "052-5221885",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/Sigal.cosmetice/",
+    "address": "יגאל ידין 4, חולון",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/10073821_1592512304629.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Dana R.",
+        "rating": 5,
+        "text": "ממליצה בחום על סיגל הקוסמטיקאית , על המקצועיות והשירות המדהים שלה , היא מעניקה טיפול וייעוץ מכול הלב. מי שרוצה לשמור על העור שלה ולקנות את התכשירים הכי טובים לפנים - סיגל היא המקום!!\nממליצה  מאוד",
+        "source": ""
+      },
+      {
+        "reviewer": "עדי מ.",
+        "rating": 5,
+        "text": "סיגל את אלופה !! עובדת מקצועי , נקי ויסודי , יצאתי ממש מרוצה מהטיפול פנים שעשתה לי ! \nבהחלט מגיע לה פירגון 👍👍👍\nוממליצה באהבה !!",
+        "source": ""
+      },
+      {
+        "reviewer": "אתי ח.",
+        "rating": 5,
+        "text": "סיגל היא קוסמטיקאית מעולה שנותנת תחושה נהדרת ומרגישים שהיא מטפלת מכל הלב והנשמה. תענוג לקבל אצלה טיפול, ורואים את השינוי על העור.",
+        "source": ""
+      },
+      {
+        "reviewer": "זיו ר.",
+        "rating": 5,
+        "text": "בחורה נקיה רצינית מקצועית. מרגישים שהיא אוהבת את המקצוע. מוציאה אותך רגועה ויפה...שווה להגיע.",
+        "source": ""
+      },
+      {
+        "reviewer": "Gila A.",
+        "rating": 5,
+        "text": "סיגל עיני פשוט ידיים של קסם,הורידה לי מהגיל 10 שנים בזכות הטיפולים,פשוט מלאכית סיגל🙏😘",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "17",
+    "description": "קליניקה של יופי,בריאות , קוסמטיקה מתקדמת, אבחון עור, מזוטרפיה, אקנה, אנטי אייגינג, פלזמה, פיגמנטציה/הבהרה, הסרת שיער,איפור ונומורולוגיה",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Sigal.cosmetice/",
+    "facebook": "https://www.facebook.com/678371795940543",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 962,
+    "name": "יפית קובי המרכז למקצועות היופי",
+    "clean_name": "יפית קובי המרכז למקצועות היופי",
+    "phone": null,
+    "real_phone": "072-2125993",
+    "category": "לחתן ולכלה",
+    "website": "http://yafitkobi.com/",
+    "address": "לח\"י 25, בני ברק",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/4145692.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "137",
+    "description": "קורסים והכשרות בנושאי איפור ותסרוקות למאפרות ומסרקות ?",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/160105780755607",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 963,
+    "name": "אוראל סופר מעצב שיער",
+    "clean_name": "אוראל סופר מעצב שיער",
+    "phone": null,
+    "real_phone": "054-4900537",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/302488419853653",
+    "address": "יהושע רבינוביץ 11, חולון (מרכז סאדאב)",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/5576154.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Lior B.",
+        "rating": 5,
+        "text": "מרוצה משירות ותפוקה של המקום. \nהמחיר נמוך מהשוק שאפילו פינוקים. הרגשה של משפחה. \nהמלצה מגנט נותנת שירות לכל דבר קטן.",
+        "source": ""
+      },
+      {
+        "reviewer": "רחלי א.",
+        "rating": 5,
+        "text": "אוראל סופר ספר ומעצב שיער מוכשר ביותר, נהנתי מהתוצאה ומהמקצועיות, אחזור שוב ושוב",
+        "source": ""
+      },
+      {
+        "reviewer": "Linoy C.",
+        "rating": 5,
+        "text": "ספר מוכשר , יודע את העבודה ההחלקה יצא מושלם משקיע ומפנק לקוח עד הסוף !! פחות דיבורים יותר מעשים שווה !",
+        "source": ""
+      },
+      {
+        "reviewer": "Hezi C.",
+        "rating": 5,
+        "text": "חוויה מצויינת!",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "4",
+    "description": "מאפרת / איפור כלות ואירועים. בסלון שלנו מומחים לכל סוגי ההחלקות וטרנדים אופנתיים שמתחדשים כל הזמן לפי התקדמות השוק מחירים מפתיעים וולה/יוקו סיסטם/צבעים ללא המוניה מבית (רבלון) החלקה אורגנית מבית (גון-בונו)התחייבות מלאה לשביעות רצון לקביעת תורים (מומלץ מראש) אוראל 0544900537????",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/302488419853653",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 964,
+    "name": "מורן דהן מאפרת ומעצבת שיער",
+    "clean_name": "מורן דהן מאפרת ומעצבת שיער",
+    "phone": null,
+    "real_phone": "054-4798438",
+    "category": "לחתן ולכלה",
+    "website": "http://morandahan.vp4.me/",
+    "address": "מנחם בגין 37, חולון",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/5576596.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "22",
+    "description": "מאפרת ומעצבת שיער",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/morandahan_makeupartist/",
+    "facebook": "https://www.facebook.com/294092100683089",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 965,
+    "name": "נוק ביוטי",
+    "clean_name": "נוק ביוטי",
+    "phone": null,
+    "real_phone": "03-7505817",
+    "category": "לחתן ולכלה",
+    "website": "http://nokbeauty.com/",
+    "address": "המלך ג'ורג' 69, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/category/ip8/4033b.png"
+    ],
+    "reviews": [
+      {
+        "reviewer": "חן י.",
+        "rating": 0,
+        "text": "מאכזבים ממש. קיבלו אותי באיחור של כמה דקות קלות, אז מי שהגיעה לתור אחריי נאלצה לחכות גם.\n\nהבחורה שעשתה לי את הג'ל הרגישה לא נעים שהבחורה שאחריי מחכה והיא פשוט עשתה את הכל בזריזות ובלחץ.\n\nשיוף גרוע! ציפורניים עקומות! מריחה לא מקצועית וחלקה ופשוט זלזול.. אז מה אם הבחורה שאחריי מחכה??? תני לי את היחס שמגיע לי עבור המחיר המופקע שלוקחים במקום הזה על לק ג'ל! \n\nמרוב שהיה לי לא נעים מהלחץ שהמניקוריסטית שי",
+        "source": ""
+      },
+      {
+        "reviewer": "Dotan H.",
+        "rating": 5,
+        "text": "צוות מהמם! מקצועי.. שירות מדהים, מעל ומעבר. ממש מרוצה מהתוצאה. עושה ג'ל בידיים אצלן וטיפולים נוספים (מאז שנפתחו) ומרוצה ממש. ממליצה בחום!",
+        "source": ""
+      },
+      {
+        "reviewer": "K R.",
+        "rating": 5,
+        "text": "אחלה מקום, מחירים הגונים ובנות תקתקניות ומקצועיות. סוגר בול את הפינה של איפור-שיער-מני-פדי לפני אירועים. ממליצה בחום 😊",
+        "source": ""
+      },
+      {
+        "reviewer": "Yahly C.",
+        "rating": 5,
+        "text": "חוויה מדהימה, צוות מעולה ותמיד מרוצה מהתוצאה!",
+        "source": ""
+      },
+      {
+        "reviewer": "Shira S.",
+        "rating": 5,
+        "text": "מצילות אותי כל פעם מחדש! מתה על המקום הזה!!",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "117",
+    "description": "הכל אודות נוק ביוטי בהמלך ג'ורג' 69, תל אביב יפו - טלפון, שעות פתיחה, מחירון, ניווט, ביקורות ועוד שירותי איפור תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 966,
+    "name": "ברלוט שירי",
+    "clean_name": "ברלוט שירי",
+    "phone": null,
+    "real_phone": "054-4819135",
+    "category": "לחתן ולכלה",
+    "website": "http://shiribarlot.mitchatnim.co.il/",
+    "address": "דיזנגוף 310, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/8823793_1705413503219.jpeg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Gabriela G.",
+        "rating": 5,
+        "text": "Shiri was incredible! Not only was she professional and did an outstanding job, she was warm and advised me on how to get the results I wanted. She has high quality products, and the latest colors of nail polish. Also the most amazing self tanning products that make you naturally more bronze and leave you glowing. Her studio is warm and welcoming as is her personality! She went the extra mile and",
+        "source": ""
+      },
+      {
+        "reviewer": "noadekel",
+        "rating": 5,
+        "text": "הורסת! תמיד עשו לי צורה מוזרה בגבות. אף פעם לא הייתי מרוצה ותמיד פחדתי ללכת כי או שהשתמשו בשעווה או שהרסו לי את הצורה והנמיכו לי את הגבות עד שזה לא החמיא לעיניים שלי. שירי לא משתמשת בשעווה, תמיד עדינה ומדוייקת ורואה את צורת הפנים ובהתאם מתאימה את הגבות. אסור לזלזל בגבות, זה המסגרת של הפנים ועבודה לא טובה יכולה להזיק. שירי הרימה לי סוף סוף את הגבות בצורה שווה והפנים שלי ממש השתנו מאז. לכו לשירי, הג",
+        "source": ""
+      },
+      {
+        "reviewer": "Neros N.",
+        "rating": 5,
+        "text": "חיפשתי לעשות גבות הגעתי מהביקורות באיזי כי היא מדורגת הכי גבוה \nמה אני יכול לומר לא טעיתי ...\nהעבודה הכי טובה בעיר באחריות ועברתי כמה קוסמטיקאיות בחיי \nעושה נקי מהיר ולא כואב וגם מתאימה את הצורה לפנים ספציפית יצאתי המום למרות שבהתחלה הייתי מאוד סקפטי זרמתי וסמכתי עליה כי היא נראתה מקצועית \nשורה תחתונה רמה גבוהה מאוד של ביצוע וגם שירי אחת הנשים הנחמדות מעבירה את הזמן בכיף והתוצאה מדברת בעד עצמה \n10",
+        "source": ""
+      },
+      {
+        "reviewer": "Rivka A.",
+        "rating": 5,
+        "text": "such a great experience gettingmy makeup done! Shiri was super professional and I couldn't be happier with the results. on top of that, she explained what she was doing as she did it so I got some extra tips on how to manage my makeup at home 😊\nthe process itself was very efficient and I left with the biggest smile on my face 😁",
+        "source": ""
+      },
+      {
+        "reviewer": "Maria B.",
+        "rating": 5,
+        "text": "שירי האלופה!!\nהתקשרתי לשירי לקבוע תור וישר הסברתי שאני עוזבת לכמה שנים ואשמח לקבל כמה טיפים לשמר את הגבות בעצמי. שירי לא היססה לרגע וקבענו.\nשירי ניקתה לי את הגבות ונתנה לי דגשים להמשך, מידי פעם אני כותבת לה והיא ממשיכה ללוות אפילו מרחוק.\n\nכיף להגיע, לא שוחטת את הגבות בכלל, דייקנית ונעימה מאוד.\nתודה רבה רבה 🙏🙏🙏",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "147",
+    "description": "שירי ברלוט מאפרת ומעצבת גבות למעלה מ30 שנה בתחום היופי, בעלת סטודיו לטיפוח הכולל שרותים כגון: איפור ערב,כלות ואקספרס, עיצוב גבות, צביעת גבות הרמת גבות ,הרמת ריסים , צביעת ריסים, ג'ל לק, מניקור, איפור קבוע, אייליינר שפתיים וגבות, מיני פדי ,מבנה אנטומי ,בניה בג׳ל ,שעווה לכל הגוף ,קורס איפור אישי /סדנאות ומוצרי איפור....",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Shiribarlot_makeup_beauty_shop/",
+    "facebook": "https://www.facebook.com/162164317142935",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 967,
+    "name": "עדה לזורגן",
+    "clean_name": "עדה לזורגן",
+    "phone": null,
+    "real_phone": "03-6295830",
+    "category": "לחתן ולכלה",
+    "website": "http://adahlazorgan.co.il/",
+    "address": "דיזנגוף 48, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/8949548.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "68",
+    "description": "הכל אודות עדה לזורגן בדיזנגוף 48, תל אביב יפו - טלפון, שעות פתיחה, ניווט, ביקורות ועוד איפור כלות תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 968,
+    "name": "hair couture nyc המספרה הניו יורקית",
+    "clean_name": "hair couture nyc המספרה הניו יורקית",
+    "phone": null,
+    "real_phone": "072-2487048",
+    "category": "לחתן ולכלה",
+    "website": "http://rphaircouture.wixsite.com/home",
+    "address": "יהודה המכבי 87, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/4037873.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Yulia L.",
+        "rating": 5,
+        "text": ": איכות, דייקנות, מקצועיות, ניקיון, ערך\n\nמספרה הכי טובה באיזור , צוות מקצוע ,חומרים איכותיים ויחס אישי לכל לקוחה או לקוח. מומלץ בחום 🙌\nЛучшая парикмахерская , профессионалы своего дела , рекомендую ! Юлия.\n\nשירותים: צביעת שיער, צמות קופסה, ראסטות, צמות, שעווה בכל חלקי הגוף, פדיקור, עיצוב גבות בחוט, שיער אסוף למעלה, צמות טוויסט, עיצוב פוני, עיצוב שיער, שיער מתולתל, תוספות לשיער, גלוס או גלייז לשיער",
+        "source": ""
+      },
+      {
+        "reviewer": "Apple User",
+        "rating": 5,
+        "text": "חיפשתי מספרה שעושה החלקה אורגנית שנראת בריאה וטבעית אחרי שלא הייתי מרוצה מהמספרה הקודמת שלי והגעתי לרוני דרך הטיקטוק. ההחלקה יצאה מושלמת, יפה, טבעית, השיער נראה מלא, בריא ומבריק. גם התספורת יצאה מהממת. שבועיים אחרי באתי לצבע וגם אז יצאתי מרוצה. תודה לרוני ואלי האלופים, הם יודעים מה הם עושים וגם המוצרים שלהם מעולים. וכמובן היחס והשירות מספר אחת. תודה רבה ונתראה עוד הרבה, דנה❤️",
+        "source": ""
+      },
+      {
+        "reviewer": "אורית ו.",
+        "rating": 0,
+        "text": "הבת שלי בת ה14 הגיעה (טעות) לעשות גווני דבש עדינים . בעוונותי הסכמתי ולא בדקתי היטב. הספר - אח של בעל הבית- הסביר שהיא חייבת לעשות גוונים בכל הראש למרות שביקשתי רק בחלק. לא ברור למה הסכמתי אך היינו בתהליך ושחררתי. לקצר את העניין. השיער יצא אפור! ואצרף תמונה כי קשה באמת להאמין. הסכום יותר מ1000 ש\"ח. מציינת גם שהספר פתח קטלוג של צבעים לבקש ממני לבחור צבע! אמרתי שאין לי מושג. את החמצן השאירו 15 דקות",
+        "source": ""
+      },
+      {
+        "reviewer": "LeeKuper",
+        "rating": 0,
+        "text": "לא מבין על מה הביקורות הטובות. הגעתי אליו כדי להתייעץ, והוא היה מאוד חסר סבלנות כלפיי: התעקש שאני חייב תספורת וקרם. ניסיתי לבחון אפשרויות נוספות כי לא רציתי להוציא 200 שקל על קצוות, אבל הוא לא הציע לי אפשרויות נוספות. הגרוע מכל הגיע כשאמר ״אין לנו על מה לדבר אם אתה לא רוצה לעזור לעצמך״, ככה לא מדברים ללקוח, או בכלל אל בן אדם. יחס משפיל, חסר סבלנות ולא מקצועי. לא מומלץ.",
+        "source": ""
+      },
+      {
+        "reviewer": "Dana S.",
+        "rating": 5,
+        "text": "המספרה הניו יורקית היא מספר 1! \nהגעתי במיוחד אל המספרה עם שיער יבש וקצוות\n מפוצלים על מנת לשקם אותו \nתחילה קיבלתי יחס מדהים ודעה מקצועית איזו החלקה עדיפה ומתאימה לשיער עם היסטוריה מורכב כמו שלי\nקיבלתי יחס אישי, ויותר מהכל תוצאה מדהימה \nיצאתי עם סדרה טיפולית משקמת שמגיעה עם שמפו מיוחד להחלקה ומסיכה לשיער \nאומר תודה רבה לצוות המדהים ולרוני האלוף וממליצה בחום להגיע ולעשות מייקאובר רק אצלו!",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "1551",
+    "description": "מאפרת / איפור כלות ואירועים. המספרה הניו יורקית Hair Couture מציעה מגוון טיפולי שיער מתקדמים כגון תספורות, תוספות שיער, החלקות ושירותים נוספים לטיפוח שיער בריא ומראה עדכני",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/hair_couture_nyc/",
+    "facebook": "https://www.facebook.com/1012772858774447",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 969,
+    "name": "אלינור טוביילם",
+    "clean_name": "אלינור טוביילם",
+    "phone": null,
+    "real_phone": "054-2474522",
+    "category": "לחתן ולכלה",
+    "website": "http://elinortob.mitchatnim.co.il/",
+    "address": "אלכסנדר פן 8, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/8951262.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "186",
+    "description": "הכל אודות אלינור טוביילם באלכסנדר פן 8, תל אביב יפו - טלפון, שעות פתיחה, ניווט, ביקורות ועוד שירותי איפור תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/140052836053121",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 970,
+    "name": "ירדן אייזיק",
+    "clean_name": "ירדן אייזיק",
+    "phone": null,
+    "real_phone": "054-7930727",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/yardenaizic_makeuphair_new/",
+    "address": "רבי יוסף בוכריץ, ראשון לציון",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/10130848_1704093533987.jpeg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "67",
+    "description": "הכל אודות ירדן אייזיק ברבי יוסף בוכריץ, ראשון לציון - טלפון, שעות פתיחה, ניווט, ביקורות ועוד איפור כלות תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/yardenaizic_makeuphair_new/",
+    "facebook": "https://www.facebook.com/100045702442168",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 971,
+    "name": "Express Tan",
+    "clean_name": "Express Tan",
+    "phone": null,
+    "real_phone": "050-2922925",
+    "category": "לחתן ולכלה",
+    "website": "http://www.tantlv.co.il/",
+    "address": "דיזנגוף 218, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/8412564_1692629409665.jpeg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Tom G.",
+        "rating": 5,
+        "text": "המקום הכי טוב לשיזוף בהתזה!! אין ספק בכלל.\nרוז סופר מקצועית, יש לה גוונים שונים אותם היא מתאימה בדיוק לצבע העור והתוצאה - מושלמת!\nפתרון מדהים לשיזוף בטוח בכל עונות השנה. תבואו, תנסו ותחזרו שוב ושוב - בדיוק כמוני.\nIf u want a perfect tan with perfect color - this is the place for you. Roz is super professional and she has different colors yo match your skin tone. I strongly recommed it for the safe",
+        "source": ""
+      },
+      {
+        "reviewer": "Vica F.",
+        "rating": 5,
+        "text": "I was looking for a clean and affordable place with good vibes to try spray tanning and I had the best experience ever. I loved the tone of the tanning, it wasn’t orange or anything unnatural, it was just the perfect color of spray. I love the results and absolutely recommend",
+        "source": ""
+      },
+      {
+        "reviewer": "Elad t.",
+        "rating": 5,
+        "text": "Best spray tan in Tel Aviv",
+        "source": ""
+      },
+      {
+        "reviewer": "ענת ס.",
+        "rating": 0,
+        "text": "לא שרותית בעליל",
+        "source": ""
+      },
+      {
+        "reviewer": "Amit A.",
+        "rating": 5,
+        "text": "שירות מעולה ומרגיש טבעי לחלוטין",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "131",
+    "description": "מאפרת / איפור כלות ואירועים. שיזוף בהתזה בתל אביב זו הדרך שבה תוכלי להיות יפה שזופה וזוהרת במשך כל השנה.שיזוף מהיר תוך פחות מ1 דקה! מבהיר לכהה יש לי את הגוון בשבילך!תוצאות מעולות ללא נזקי שמש והזדקנות העור.פתרון מעולה לכלות ליום החתונה ולכל ארוע ויום שמחה.מראה שזוף בחורף כאילו חזרת זה עתה מחוף היםלמראה שזוף וחטוב כל השנה - שיזוף בהתזה בתל אביב הלחמת ריסים הרמת ריסים",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/spraytanisrael/",
+    "facebook": "https://www.facebook.com/111146125640267",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 972,
+    "name": "סנדי ואייל עיצוב שיער",
+    "clean_name": "סנדי ואייל עיצוב שיער",
+    "phone": null,
+    "real_phone": "054-2222994",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/Sandy_eyal_hair/",
+    "address": "סירקין 12, גבעתיים",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/10016172_1738147583321_0.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Avi T.",
+        "rating": 5,
+        "text": "המספרה הכי טובה שיש אנשים מקצועיים ושירותיים ברמות אחזור כל שבוע להסתפר שם",
+        "source": ""
+      },
+      {
+        "reviewer": "Ilan S.",
+        "rating": 5,
+        "text": "הספר הקבוע שלי. מומלץ בחום",
+        "source": ""
+      },
+      {
+        "reviewer": "Rbeii H.",
+        "rating": 5,
+        "text": "הספר הכי טוב באזור",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "82",
+    "description": "מאפרת / איפור כלות ואירועים. תספורות בעיצוב אישי לנשים גברים וילדים . תספורות גברים Barbershop+סידור זקנים +מוצרי זקן וטיפוח. שירותי צבע כולל:אומברה ,בלאייא'ז,גוונים ,וצבע . תסרוקות ערב ,תספורות נשים. החלקות אורגניות ,ושיקום. ייעוץ ללא תשלום בתיאום מראש",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Sandy_eyal_hair/",
+    "facebook": "https://www.facebook.com/1886498344763337",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 973,
+    "name": "הפינה של דבי",
+    "clean_name": "הפינה של דבי",
+    "phone": null,
+    "real_phone": "052-3783323",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/108822695918104",
+    "address": "האחים ישראלית 24, פתח תקווה",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/5327964.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Idan M.",
+        "rating": 5,
+        "text": "ספרית מעולה!",
+        "source": ""
+      },
+      {
+        "reviewer": "שחף ו.",
+        "rating": 5,
+        "text": "ספרית מצוינת!",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "32",
+    "description": "עיצוב שיער. תסרוקות ערב ולבנות מצווה , שעווה , עיצוב גבות ,פדיקור רפואי,מניקור,איפור מקצועי,איפור קבוע, ג׳ל לק ציפוי לציפורן הטבעית",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/108822695918104",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 974,
+    "name": "סטודיו האקדמיה לאיפור",
+    "clean_name": "סטודיו האקדמיה לאיפור",
+    "phone": null,
+    "real_phone": "054-7881803",
+    "category": "לחתן ולכלה",
+    "website": "http://leons.co.il/",
+    "address": "יואל כהן 6, ראשון לציון",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/8949699.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "149",
+    "description": "שלי לאון סטודיו ואקדמיה לאיפור ,מגיעה עד אלייך /סטודיו",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/92237122378",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 975,
+    "name": "מירי פמילי",
+    "clean_name": "מירי פמילי",
+    "phone": null,
+    "real_phone": "053-3391286",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/Miri_famili_makeupartist/",
+    "address": "יצחק שדה, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/10028834_1659871396948_1.jpeg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": null,
+    "description": "הכל אודות מירי פמילי ביצחק שדה, תל אביב יפו - טלפון, שעות פתיחה, ניווט, ביקורות ועוד איפור כלות תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Miri_famili_makeupartist/",
+    "facebook": "https://www.facebook.com/mrym.pmyly",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 976,
+    "name": "רן חפץ עיצוב שיער",
+    "clean_name": "רן חפץ עיצוב שיער",
+    "phone": null,
+    "real_phone": "050-5113333",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/Ran_chefetz/",
+    "address": "לאה גולדברג 3, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/20585712_1721333498467.jpeg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "רינה מ.",
+        "rating": 5,
+        "text": "אחרי ביקור באינספור מספרות..סוף סוף ניתקלתי באדם מקצועי ,נעים לשיחה (הרי זה מתבקש אצל ספר😄) ובמחיר שפוי.הגעתי למספרה עם שיער במצב קשה ומאתגר עבור כל ספר והוא הצליח להוציא את המיטב.יצאתי מרוצה מאוד!",
+        "source": ""
+      },
+      {
+        "reviewer": "Amit S.",
+        "rating": 5,
+        "text": "מדהים  שרות אדיב ומקצועי  \nוהמון סבלנות והכי חשוב  זה יצאתי\nהכי מרוצה 😘😘😘",
+        "source": ""
+      },
+      {
+        "reviewer": "Keren F.",
+        "rating": 5,
+        "text": "מעצב שיער מוכשר ביותר\nמקצוען ומקסים ממש!!!\nממליצה בחום :-)",
+        "source": ""
+      },
+      {
+        "reviewer": "Inbal E.",
+        "rating": 5,
+        "text": "ספר טוב ואיכותי",
+        "source": ""
+      },
+      {
+        "reviewer": "Hamutal Z.",
+        "rating": 5,
+        "text": "שירות אישי מקצועי ונעים",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "27",
+    "description": "מאפרת / איפור כלות ואירועים. עיצוב שיער - החלקות אמריקאיות\\יפניות . תספורות, גוונים/א",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Ran_chefetz/",
+    "facebook": "https://www.facebook.com/ran.chefetz",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 977,
+    "name": "מרי מי",
+    "clean_name": "מרי מי",
+    "phone": null,
+    "real_phone": "052-6896129",
+    "category": "לחתן ולכלה",
+    "website": "http://marryme-brides.co.il/",
+    "address": "הרכסים 28, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/4294857.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Bar L.",
+        "rating": 5,
+        "text": "החתונה אמנם עדיין לא התקיימה, אבל בהחלט בתוך הלחץ של ההכנות, יש לי ראש שקט וידיעה שיש לי על מי לסמוך עם עיצוב ותפירת שמלת הכלה. השיח מול דליה שפלר המעצבת ממרי מי הוא מאוד נעים, אדיב ועם הפנים ללקוחה. דליה, אני רוצה לומר לך תודה רבה על כל העזרה וההבנה ועל כך שאת נותנת לי תחושת ביטחון לקראת היום הגדול😄",
+        "source": ""
+      },
+      {
+        "reviewer": "דורית צ.",
+        "rating": 5,
+        "text": "דליה היא קודם כל אישה מדהימה, קיבלה אותי בסבר פנים יפות, ניסתה להבין את הטעם שלי וקלעה בול. השמלה הראשונה שמדדתי כאילו נתפרה עבורי. קיבלתי מחמאות טובות ומעבר. אין לי מילים להודות לה על היחס והשירות המעולה. ממליצה בחום לכל כלה להגיע אליה ובמיוחד למי שאוהבת את הסגנון הקלאסי והמיוחד😍️",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "183",
+    "description": "מאפרת / איפור כלות ואירועים. דליה מאמינה בשמלות כלה קלאסיות בעלות קו נקי התפורות מבדים איכותיים שנותנים תוצאה של מראה אצילי נסיכותי והרמוני. בחירה נכונה של שמלת כלה היא שמלה שלא מתחרטים עליה לאחר שנה ככל שנצמדים למראה הקלאסי ולא הטרנדי את עושה בחירה נכונה. במקום אוירה אינטימית ומשפחתית במיוחד המון נסיון רגישות וסבלנות מחכה לך אצל מרי מי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/260143297346616",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 978,
+    "name": "ארז אברהם",
+    "clean_name": "ארז אברהם",
+    "phone": null,
+    "real_phone": "054-7317005",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/1863897170547399",
+    "address": "דרך מנחם בגין 20, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/4199014.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Hen N.",
+        "rating": 5,
+        "text": "תוספות ברמה גבוה עבודה מושלמת, אני רוצה לציין שאני 15 שנה עם תוספות והשיער שעשיתי אצל ארז ברמה מהגבוהות שנתקלתי בנוסף אלוף בכימיה ומעל הכל תודעת שרות גבוה שקבלתי אי פעם ממספרה, לאחר הביקור שלי דאגו ליצור איתי קשר מהמספרה יומיים אחרי על מנת לוודא שאני עדיין מרוצה מהתוצאה. מומלץ ביותר👍🏻",
+        "source": ""
+      },
+      {
+        "reviewer": "Lior H.",
+        "rating": 0,
+        "text": "שירות מזעזע עשיתי אצל ארז אברהם לפני כמעט 3 שנים צבענ+ גוונים והשיער שלי הוא באורך בינוני לא ארוך. ואז כשנדרשתי לשלם אז העובדת שלו אומרת לי 900 שקל אז שאלתי על מה בדיוק 900 שקל?? לא חשבתי שזה ייצא כזה יקר חשבתי בסביבות ה500,  600 גג. אני לא התביישתינככה בחיים שלי שהייתי צריכה לשלם 900 שקל הרגשתי בושה גדולה. יותר לא אחזור למספר הזו פשוט גזל לאור יום.",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "10",
+    "description": "מאפרת / איפור כלות ואירועים. הכל אודות ארז אברהם בדרך מנחם בגין 20, רמת גן - טלפון, שעות פתיחה, ניווט, ביקורות ועוד טיפולי יופי תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/1863897170547399",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 979,
+    "name": "קובי ואלי בורוכוב",
+    "clean_name": "קובי ואלי בורוכוב",
+    "phone": null,
+    "real_phone": "03-5235761",
+    "category": "לחתן ולכלה",
+    "website": "http://borochov-ke.co.il/",
+    "address": "בן יהודה 71, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/3719843.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Tsipy S.",
+        "rating": 2,
+        "text": "שרפו לי את השיער. \nצבעו לי את כול השיער (ולא רק שורשים) למרות שידעו שעשיתי החלקה, וכשהשיער נישרף והתלוננתי בפניהם, הם לא לקחו אחריות ולא התייחסו אלי יפה. \nעזבתי אותם אחרי תקופה ארוכה שהייתי אצלם.",
+        "source": ""
+      },
+      {
+        "reviewer": "Lizi Y.",
+        "rating": 5,
+        "text": "אני ממליצה בחום על  אלי וקובי . מדהימים, מעצבי שיער על! יודעים את הכימיה הטובה שכל בת רוצה להגיע אליה. מדוייקים ויצאתי מאווווד מרוצה מהטיפול והשירות המדהים. ומעכשיו נהייתי לקוחה קבועה שלהם.",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "297",
+    "description": "מאפרת / איפור כלות ואירועים. מספרה,מרכז החלקות,קוסמטיקה וטיפולי יופי תוספות שיער, קארטין,החלקה אורגנית,",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Kobieliborochov/",
+    "facebook": "https://www.facebook.com/216391001728525",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 980,
+    "name": "רועי אמזלג",
+    "clean_name": "רועי אמזלג",
+    "phone": null,
+    "real_phone": "03-6432303",
+    "category": "לחתן ולכלה",
+    "website": "http://amireliyahu.mitchatnim.co.il/",
+    "address": "ה' באייר 64, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/3672823.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "153",
+    "description": "מאפרת / איפור כלות ואירועים. רועי אמזלג הוא מעצב שיער תל אביבי בעל ניסיון של 15 שנה בת",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/roeeamzaleg/",
+    "facebook": "https://www.facebook.com/751440594872847",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 981,
+    "name": "בן עיצובים",
+    "clean_name": "בן עיצובים",
+    "phone": null,
+    "real_phone": "052-8562960",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/204683566250605",
+    "address": "וייצבארד 2, ראשון לציון",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/4454037.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Dan M.",
+        "rating": 0,
+        "text": "גרוע ביותר!!! האחיינית שלי עשתה אצלו החלקת שיער אורגנית כאילו במבצע ב550 ש\"ח.  בן אמר לנו לפני שההחלקה אמורה להישאר כ4 חודשים בגלל שזאת הפעם הראשונה וחצי שנה מהפעם השנייה. לאחר יומיים בלבד, אחרי החפיפה הראשונה, הלך כל ההחלקה ותלתלים חזרו בגדול !!! למרות שהיא השתמשה בשמפו ללא מלחים בהמלצה של הספר בן. הסרבנו את המקרה לספר מקצועי ידוע אחר והוא אמר חד וחלק שזאת עבודה גרועה, עבודה בעניים והלך לנו 550 ש",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "50",
+    "description": "מאפרת / איפור כלות ואירועים. מרכז ההחלקות/בליאז/תוספות שיער ראשל״צ ויצברד2 להזמנות חייגו ל052-8562960☎️",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/204683566250605",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 982,
+    "name": "אקטיב ביוטי",
+    "clean_name": "אקטיב ביוטי",
+    "phone": null,
+    "real_phone": "050-7409946",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/102483363184095",
+    "address": "שדרות ירושלים 11, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/3591384_1751219329477_0.png"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Shiran N.",
+        "rating": 5,
+        "text": "ורד מצויינת אני מטפלת אצלה כמה שנים גם פדיקור וגם טיפולי פנים.",
+        "source": ""
+      },
+      {
+        "reviewer": "K R.",
+        "rating": 5,
+        "text": "ורד מקסימה ומקצועית, מניקור ופדיקור מעולה ואווירה נעימה 😊",
+        "source": ""
+      },
+      {
+        "reviewer": "Colt K.",
+        "rating": 5,
+        "text": "חוויה מעולה.\nפדיקוריסטית מצוינת.\nקוסמטיקאית נעימה ומקצועית.",
+        "source": ""
+      },
+      {
+        "reviewer": "Bakster W.",
+        "rating": 5,
+        "text": "שירות נהדר! ורד אישה מקצועית ונחמדה, מטפלת מדהימה!",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "69",
+    "description": "מאפרת / איפור כלות ואירועים. קליניקה נוסדה בשנת 2001 ע''י ורד קימלמן,קוסמטיקאית פרא-רפואית בעלת תואר בילאומי P.M.E. בוגרת מכללה לקוסמטיקה רפואית ובית הספר הגבוה לקוסמטיקה ואסתטיקה רפואית במרכז רפואי עתידים. כקסמטיקאית P.M.E. ורד הינה בעלת ניסיון וידע רב בתחום פתרון בעיות האסתטיקה של העור-אקנה,פיגמנטיה,סימני הזדקנות.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/102483363184095",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 983,
+    "name": "עומרי רשף עיצוב שיער",
+    "clean_name": "עומרי רשף עיצוב שיער",
+    "phone": null,
+    "real_phone": "052-5211234",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/omri_reshef_hair_salon/",
+    "address": "מונטיפיורי 16, תל אביב יפו (אקרופוליס החדשה)",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/StaticLogo/10007775_1.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "שיר ש.",
+        "rating": 5,
+        "text": "פעם ראשונה שלי במספרה של עומרי ואני כל כך שמחה שהגעתי אליו! עומרי והצוות פשוט מקסימים!! יצאתי עם גוונים מושלמים בדיוק כפי שחלמתי 🙏 בטוח אחזור שוב",
+        "source": ""
+      },
+      {
+        "reviewer": "Tamar R.",
+        "rating": 5,
+        "text": "עומרי רגיש, נעים, מקשיב ויודע בדיוק מה אני והשיער שלי צריכים. מומלץ!!!!",
+        "source": ""
+      },
+      {
+        "reviewer": "Grably R.",
+        "rating": 5,
+        "text": "יצא מהמם\nשירות מדהים",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "105",
+    "description": "מאפרת / איפור כלות ואירועים. מספרת בוטיק מובילה המספקת את כלל התספורות ועיצובי השיער לנשים ולגברים.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/omri_reshef_hair_salon/",
+    "facebook": "https://www.facebook.com/1064409676950288",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 984,
+    "name": "פדידה אבי",
+    "clean_name": "פדידה אבי",
+    "phone": null,
+    "real_phone": "03-6968163",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/293221110712248",
+    "address": "וייצמן 24, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/StaticLogo/8821656_1.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "יעל י.",
+        "rating": 0,
+        "text": "חוויה נוראית.\nאבי מרוכז בעצמו ולא קשוב. מפנקים אותך בכוסות מים עם נענע ולימון והפוך טעים אבל בפועל זה ניסיון פתטי להצדיק את המחיר הלא הגיוני בעליל שדופקים לך בסוף. על הבהרה בשורש, צביעת שורש ותספורת(וכשאני מתכוונת לתספורת בנות גזירת קצוות היא לא תספורת\nלא יצאתי מרוצה",
+        "source": ""
+      },
+      {
+        "reviewer": "דוד ס.",
+        "rating": 2,
+        "text": "מחרים גבוהים מאוד !!",
+        "source": ""
+      },
+      {
+        "reviewer": "Yaffa T.",
+        "rating": 2,
+        "text": "מחירים גבוהים!",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "8",
+    "description": "מאפרת / איפור כלות ואירועים. אבי פדידה, פתרונות בתוספות שיער, עיבוי שיער, הארכת שיער",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/293221110712248",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 985,
+    "name": "לילך לויאן",
+    "clean_name": "לילך לויאן",
+    "phone": null,
+    "real_phone": "050-2996636",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/Lilach_levian/",
+    "address": "אנדריוס 6, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/10027753_1776705003081_0.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Ortal B.",
+        "rating": 5,
+        "text": "מדהימה אני איתה כבר כמה שנים טובות",
+        "source": ""
+      },
+      {
+        "reviewer": "טל כ.",
+        "rating": 5,
+        "text": "אחלה לק, אהבתי מאוד",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "2",
+    "description": "📍איפור קבוע בכל השיטות - גבות פודרה שיטת השערה , שפתיים , איילינר . 📍עיצוב ושיקום גבות - חוט/ שעווה צבע-חינה . 📍הרמת ריסים/גבות 📍 פדיקור - רפואי/קוסמטי 📍 מניקור . לק ג'ל . 📍בניית ציפורניים בכל השיטות אקריל/ג'ל",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Lilach_levian/",
+    "facebook": "https://www.facebook.com/lilachlvian",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 986,
+    "name": "מספרת רועי ראובני",
+    "clean_name": "מספרת רועי ראובני",
+    "phone": null,
+    "real_phone": "052-6968697",
+    "category": "לחתן ולכלה",
+    "website": "http://linktr.ee/",
+    "address": "בזל 33, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/8949285.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Adi R.",
+        "rating": 5,
+        "text": "את רועי הכרתי מהמלצה ומאז לא מוותרת על נסיעה עד תל אביב למגע קסמיו יותר מעשור!! :))\nשירותו האישי והמסור, המקצועיות וכמובן האישיות ההומוריסטית והקוסמת משאירים אותי מרוצה ולא מוכנה להחליפו. יודע בדיוק אלו גוונים אוהבת ובאחו חומרים מתאימים להשתמש. ממםיצה בחום ❤",
+        "source": ""
+      },
+      {
+        "reviewer": "Hadar P.",
+        "rating": 5,
+        "text": "סומכת עליו בעיניים עצומות, מגיעה ואומרת לו תתפרע. מקשיב לי, לשיער שלי, ולא מתפשר על איכות! ומה שנכון לשיער שלי גם אם בא לי באותו רגע לעשות משהו שכנראה יהיה הדבר הכי לא בריא לשיער... על איכות לא מתפשרים! ובכל פעם יוצאת משם עם השיער הכי מושלם בעולם",
+        "source": ""
+      },
+      {
+        "reviewer": "יפית ר.",
+        "rating": 5,
+        "text": "רועי סופר מקצועי, יודע להתאים את התספורת למבנה הפנים ולסוג השיער.\nתמיד יחס חם, לבבי ואכפתי.\nמשתמש בתכשירים טובים ונותן הדרכה  לתחזוקת השיער בבית. \nאני מרגישה שהשיער שלי נראה היום יותר טוב ממה שהיה בהתחלה בזכותו. מומלץ בחום💕",
+        "source": ""
+      },
+      {
+        "reviewer": "Rinat P.",
+        "rating": 5,
+        "text": "לקוחה של רועי שנים רבות, התנסתי בתספורות, גוונים, צבע, תסרוקות... הכל.. אני וגם בנות המשפחה שלי נהנות מהמקצועיות שלו!\nמעבר לכך, הוא בן אדם מקסים, מצחיק, סבלני, משרה אווירה טובה. המספרה בבזל יפיפה ונעימה! ממליצה בחום ואהבה❤️",
+        "source": ""
+      },
+      {
+        "reviewer": "Sharona A.",
+        "rating": 5,
+        "text": "לרועי הגעתי דרך אמא שלי שממש מרוצה מהשירות והמקצועיות ,ניסיתי וכבר בפעם הראשונה הבנתי עד כמה הוא מקצועי ומדהים.\nממליצה בחום למתולתלות שמפחדות להתנסות במקצועיות שלו.\nמעבר לכך שהוא ממש מצחיק וגורם לתחושה נעימה, כמו חבר אמיתי.",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "268",
+    "description": "מאפרת / איפור כלות ואירועים. לרועי ראובני ניסיון של מעל 25 שנים בעיצוב וצביעת שיער, כשמתוכן הוא בילה חמש שנים במספרות המובילות במנהטן כ-Colorist/hair stylist בכיר.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/100001275626458",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 987,
+    "name": "ביוטי סטייל",
+    "clean_name": "ביוטי סטייל",
+    "phone": null,
+    "real_phone": "03-6728659",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/328944153895762",
+    "address": "הרא\"ה 34, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/4331294.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Dorin M.",
+        "rating": 5,
+        "text": "מקום מדהיים ממולץ בחום",
+        "source": ""
+      },
+      {
+        "reviewer": "Vavi S.",
+        "rating": 5,
+        "text": "היה כייף גדול \nנינה סופר מקצועית \nאחזור ...",
+        "source": ""
+      },
+      {
+        "reviewer": "Nofar O.",
+        "rating": 5,
+        "text": "אחרי צבע ותספורת קיבלתי המון מחמאות\nצוות מדהים ממליצה בחום",
+        "source": ""
+      },
+      {
+        "reviewer": "Danit A.",
+        "rating": 5,
+        "text": "מספרה שהיא בית השירות הכי טוב שקיים",
+        "source": ""
+      },
+      {
+        "reviewer": "rotem g.",
+        "rating": 5,
+        "text": "צוות מדהים ומקצועי! \nממליצה בחום",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "117",
+    "description": "ביוטי-סטייל עיצוב שיער, איפור, טיפוח הציפורניים, הסרת שיער, עיצוב גבות ועוד...כל הפינוקים במקום אחד! בהנהלת שם טוב וענת אזולאי",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/328944153895762",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 988,
+    "name": "עופר פיכמן",
+    "clean_name": "עופר פיכמן",
+    "phone": null,
+    "real_phone": "03-9503015",
+    "category": "לחתן ולכלה",
+    "website": "",
+    "address": "השדה 12, ראשון לציון",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/category/ip8/4033b.png"
+    ],
+    "reviews": [
+      {
+        "reviewer": "ניר ז.",
+        "rating": 0,
+        "text": "לא מומלץ בכלל!!!!!\nשיקות ברמה הכי ירודה שיש... אם בכלל תגיע למצב שתקבל שירות!!!\nקובע איתך לשעה שהוא בוחר,ועדיין נותן לך לשבת לחכות בזמן שהוא מכניס אחרים לפנייך!!!\nעוד 2 מטר שמאלה יש מספרה עדיפה בהרבה!!!!!!",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "51",
+    "description": "הכל אודות עופר פיכמן בהשדה 12, ראשון לציון - טלפון, שעות פתיחה, ניווט, ביקורות ועוד איפור כלות תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 989,
+    "name": "מוטי עמר עיצוב שיער",
+    "clean_name": "מוטי עמר עיצוב שיער",
+    "phone": null,
+    "real_phone": "054-5673366",
+    "category": "לחתן ולכלה",
+    "website": "http://motiamar.co.il/",
+    "address": "כצנלסון 134, גבעתיים",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/StaticLogo/8832683_1.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Go..77@ho..com",
+        "rating": 5,
+        "text": "נהדר! נעים, מקצועי, וקלע בול בצבע שקיוויתי לו תוך כדי מתן שירות אדיב ואיכפתי. לא מזמן עברתי לאיזור, והגעתי למוטי הודות להמלצות שקדמו לי בעמוד הזה. אני כ\"כ שמחה על שהקשבתי להן, ובאופן אישי ממליצה בחום!!בנוסף, מוטי שומר על כל כללי הבטיחות הנדרשים לאור מציאות ימינו הקשה, וזה נתן לי שלום וביטחון לשבת וליהנות ברוגע, ולצאת מרוצה ושמחה.",
+        "source": ""
+      },
+      {
+        "reviewer": "Yael C.",
+        "rating": 5,
+        "text": "מוטי האלוף! אני כבר ככ רגילה להתאכזב מספרים, לא לקבל בדיוק את מה שאני רוצה ששכחתי כבר שאפשר אחרת. מוטי הבין אותי ותיקן לי טעויות שאנשים אחרים עשו. באופן הכי מקצועי, נוח, חברותי והוגן שיש. ממליצה לכולן, אין מה להתלבט עוד.",
+        "source": ""
+      },
+      {
+        "reviewer": "Stav N.",
+        "rating": 5,
+        "text": "הגעתי למוטי עם שיער הרוס, שבור ומקורזל ויצאתי עם חיוך ענקי! \n\nמוטי מאד קשוב ללקוח ולרצונותיו, הוא מקצועי ואכפתי, חשוב לו שכל לקוח שמגיע יצא מרוצה, אכפת לו מהתהליך, התוצאה והאיכות של העבודה שעושה ולא רק ממספר השניות בשעון.  חווית שירות מעולה!\n\nממליצה בחום 😊",
+        "source": ""
+      },
+      {
+        "reviewer": "S G.",
+        "rating": 5,
+        "text": "הגעתי למוטי עם שיער הרוס, חסר חיים ויצאתי עם חיוך ענק!!!\nהעבודה מדהימה, הסבלנות של מוטי והכיף שהיה בתהליך😁\nללא ספק בידיים טובות, ממליצה בחום! אכפת לו לגמרי מהלקוח, משהו שלא רואים הרבה- אדיבות ונעימות. תודה מוטי שמחה שבחרתי בך, מספר 1!",
+        "source": ""
+      },
+      {
+        "reviewer": "Michal S.",
+        "rating": 5,
+        "text": "הגעתי במקור רק לפן אבל משהו באינטואציה שלי אמר לי לנסות גם צבע ואכן לא התאכזבתי- מוטי שאל עד שהגיע לרצון המדוייק שלי  היה נעים ומקצועי ואני מרוצה מאוד מהתוצאה:) בסוף גם הוספתי תספורת ובהחלט אחזור🥰",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "92",
+    "description": "מאפרת / איפור כלות ואירועים. עיצוב שיער. אצלנו השינוי מתחיל בראש.את הניסיון והידע שלי בתחום מעל 23 שנים אני יעניק לכם עם שירות מכל הלב.ומקצועיות ברמה גבוה בטכניקות מתקדמות.החלקות/גוונים/צבעים/תס' נשים וגברים.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/moti.amar2",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 990,
+    "name": "גבי דנהירש",
+    "clean_name": "גבי דנהירש",
+    "phone": null,
+    "real_phone": "03-6768070",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/my_bike_tel_aviv/",
+    "address": "עוזיאל 27, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/category/ip8/2718b.png"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Anna M.",
+        "rating": 5,
+        "text": "זו לא סתם מספרה, זו חוויה שלמה!\nאני רוצה להמליץ מכל הלב על המספרה הכי מדהימה שהייתי בה, ובאמת שהייתי במספרות גם בארץ וגם בעולם.\n\nגבי והצוות שלו הם פשוט נבחרת של סופרסטארים. מקצועיים ברמות, עם ידי זהב, יחס אישי, אנרגיות טובות, והכי חשוב, יודעים להוציא כל לקוח ולקוחה עם שיער מושלם וחיוך ענק על הפנים.\n\nגם הילדים שלי מסתפרים כאן, ומבחינתם להגיע למספרה זה כבר בילוי. הם מחכים לזה, נהנים מהאווירה, ויוצאי",
+        "source": ""
+      },
+      {
+        "reviewer": "נופר י.",
+        "rating": 5,
+        "text": "הגעתי מהצפון הרחוק כדי להתפנק אצל הידיים הכי טובות שיש.. יצאתי מאוהבת....\nצוות של אלופים יחס חם ומפנק...\nשווה את כל הדרך...\nאני יחזור שוב כדי לצאת עם חיוך מאוזן לאוזן..\n😍🍭🦋",
+        "source": ""
+      },
+      {
+        "reviewer": "Laurie M.",
+        "rating": 5,
+        "text": "Outstanding customer service! Awesome shampoo! Awesome haircut! Make sure you allow yourself a chunk of time. The experience is not quick.",
+        "source": ""
+      },
+      {
+        "reviewer": "Guy R.",
+        "rating": 5,
+        "text": "ספר שהוא אח שהוא ספר שהוא משפחה",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "99",
+    "description": "מאפרת / איפור כלות ואירועים. סלון לעיצוב שיער ותספורות, קוסמטיקה רפואית ויופי.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/my_bike_tel_aviv/",
+    "facebook": "https://www.facebook.com/100043327720739",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 991,
+    "name": "קלי דולב איפור ושיער",
+    "clean_name": "קלי דולב איפור ושיער",
+    "phone": null,
+    "real_phone": "054-8016015",
+    "category": "לחתן ולכלה",
+    "website": "http://dibiz.com/kellydolev",
+    "address": "קהילת ונציה 15, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/2819224_1691612069311.png"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "12",
+    "description": "שמי קלי דולב מאפרת ומעצבת שיער משנת 2003 מתל אביב, נשואה באושר ואמא ל 3 בנות♥ אני מתמחה באיפור ותסרוקות לכלות ובנות משפחתן, איפור ושיער לאירועים, לתצוגות אופנה, מאפרת מפורסמים להפקות טלוויזיוניות שונות, מעבירה סדנאות איפור לנערות ונשים, מדריכה מאפרות ומורה בכירה למקצועות האיפור.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Kellydolev.makeup.hair/",
+    "facebook": "https://www.facebook.com/kelly.makeupartist",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 992,
+    "name": "יערה מרדכי איפור כלות וערב",
+    "clean_name": "יערה מרדכי איפור כלות וערב",
+    "phone": null,
+    "real_phone": "052-5236578",
+    "category": "לחתן ולכלה",
+    "website": "http://yaaram.mitchatnim.co.il/",
+    "address": "מרזוק ועזר 11, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/8950630.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "9",
+    "description": "הכל אודות יערה מרדכי איפור כלות וערב במרזוק ועזר 11, תל אביב יפו - טלפון, שעות פתיחה, ניווט, ביקורות ועוד איפור כלות תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 993,
+    "name": "ענת נוימן",
+    "clean_name": "ענת נוימן",
+    "phone": null,
+    "real_phone": "052-3970689",
+    "category": "לחתן ולכלה",
+    "website": "",
+    "address": "שלומציון המלכה 6, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/8955035.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "5",
+    "description": "הכל אודות ענת נוימן בשלומציון המלכה 6, תל אביב יפו - טלפון, שעות פתיחה, ניווט, ביקורות ועוד איפור כלות תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 994,
+    "name": "עיצוב שיער עליזה",
+    "clean_name": "עיצוב שיער עליזה",
+    "phone": null,
+    "real_phone": "050-6786908",
+    "category": "לחתן ולכלה",
+    "website": "",
+    "address": "הרא\"ה 118, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/category/ip8/4033b.png"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": null,
+    "description": "הכל אודות עיצוב שיער עליזה בהרא\"ה 118, רמת גן - טלפון, שעות פתיחה, ניווט, ביקורות ועוד איפור כלות תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 995,
+    "name": "לירון שמואל",
+    "clean_name": "לירון שמואל",
+    "phone": null,
+    "real_phone": "054-2323843",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/Lironshmuel28/",
+    "address": "יהושע חנקין 81, חולון",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/10035153_1541521827717.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "לילך נ.",
+        "rating": 5,
+        "text": "לירון הוא ספר מספר אחד ביקום כולו יש לו ידי קסם ידי זהב כיף גדול לעשות אצלו טיפול משקם קרטין לאסיו שרק עושה טוב לשיער ועושה אותו נוח לסידור רך למגע והוא גם מומחה מספר אחד לגוונים היחס שהוא נותן תמיד חם אדיב מתחשב הוא יודע להעניק מעצמו עד הסוף בכדי שרק תצאי מרוצה עד הסוף ועם חיוך ענקקק\nממליצה בחום רב❤️❤️❤️❤️",
+        "source": ""
+      },
+      {
+        "reviewer": "rinat a.",
+        "rating": 5,
+        "text": "כל מי שמכיר אותי מכיר את הרגישות שלי לתלתלים שלי ולטיפול בהם. למעצבי שיער יש נטייה להקשיב ללקוחה ב'כאילו' ואז לעשות את מה שהם חושבים שנכון לה. אז אחרי שעברתי לא מעט כאלה נחתתי אצל לירון בהמלצת חברה וזה הרגיש כאילו הגעתי הביתה.\nהוא מקשיב לך, הוא מכוון אותך, הוא חופף בחסד עליון ( לפעמים אני באה רק כדי לחפוף את השיער😉). המגע והאישיות העדינים שלו לא מובנים מאליהם והכי חשוב המבט של אחרי במראה משאיר אות",
+        "source": ""
+      },
+      {
+        "reviewer": "לילך א.",
+        "rating": 5,
+        "text": "הגעתי כי ראיתי תספורת של חברה שהסתפרה אצלו ויצא ואו. הייתי סקרנית איך זה יראה עלי. אגרתי הרבה אומץ כי 34 שנים  אני עם אותה תספורת שזה בעצם סתם שיער ארוך עד לאן שמצליח אצלי. לירון עשה לי מהפך ענק . זה בדיוק השינוי שרציתי. יש,לו ידי זהב בתלתלים",
+        "source": ""
+      },
+      {
+        "reviewer": "Shelly B.",
+        "rating": 5,
+        "text": "על כל איש מקצוע תשמעו כאן מילים טובות ופייר יכול להיות שבאמת מגיע אני תמיד בעד לפרגן - במקרה של לירון שמואל, כל מילה טובה  מגיעה לו בזכות !! \nכי לא רק שהוא אמן שיער הוא באמת באמת יודע להקשיב לכל לקוחה ובכך להתאים את הרצונות שלה עם ה\"לוק\" הכי טוב עבורה \nאני לא זזה בלעדיו !!! \nמומלץ באהבה גדולה - תודו לי אח\"כ . בעצם תודו כבר ללירון :)",
+        "source": ""
+      },
+      {
+        "reviewer": "Adise M.",
+        "rating": 5,
+        "text": "הגעתי ללירון קצת חוששת \nלירון קיבל אותי בחיוך ובפנים פתוחות, הקשיב לי באמת, שאל את השאלות הנכונות, ויחד דייקנו בדיוק את הסגנון שרציתי.\nהוא היה סבלני, מקצועי, קשוב – והתוצאה יצאה לא פחות ממושלמת!\nממליצה עליו בלב שלם – סוף סוף מצאתי ספר שאפשר לסמוך עליו!!",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "61",
+    "description": "מאפרת / איפור כלות ואירועים. מספרת נשים, תסרוקות כלה, תסרוקות ערב,מוברש,אסוף כל סוגיי ההחלקות המאושרת במשרד הבריאות גוונים צבעים ותספורת יחס אישי רצוי לתאם מראש מגיע אליך ביום האירוע",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/Lironshmuel28/",
+    "facebook": "https://www.facebook.com/864260477046918",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 996,
+    "name": "איתי דמול",
+    "clean_name": "איתי דמול",
+    "phone": null,
+    "real_phone": "03-6030195",
+    "category": "לחתן ולכלה",
+    "website": "",
+    "address": "תובל 26, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/9020456_1533971885959.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "יונתן נ.",
+        "rating": 5,
+        "text": "הוא היה מעולה בצביעת שיער...",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "43",
+    "description": "מתמחים בכל סוגי התספורות , תלתלים זה החלום:) תוספות שיער , החלקות , תסרוקת ערב ואיפור מושלם🤩",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 997,
+    "name": "ליאור ברקוביץ' makeup",
+    "clean_name": "ליאור ברקוביץ' makeup",
+    "phone": null,
+    "real_phone": "054-7388381",
+    "category": "לחתן ולכלה",
+    "website": "http://liorberko123.wixsite.com/liorberkovichmakeup",
+    "address": "בר גיורא 11, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/10162052_1773650667777_0.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": null,
+    "description": "שמי ליאור ברקוביץ, מאפרת כלות וערב. מעבירה סדנאות לנשים בארגונים.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/liorberkovich.makeup/",
+    "facebook": "https://www.facebook.com/lior.berkovich.378",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 998,
+    "name": "עדי כצנלסון",
+    "clean_name": "עדי כצנלסון",
+    "phone": null,
+    "real_phone": "052-2522413",
+    "category": "לחתן ולכלה",
+    "website": "",
+    "address": "אסירי ציון 26, פתח תקווה",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/8955476.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "16",
+    "description": "הכל אודות עדי כצנלסון באסירי ציון 26, פתח תקווה - טלפון, שעות פתיחה, ניווט, ביקורות ועוד איפור כלות תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 999,
+    "name": "ריקי ציון",
+    "clean_name": "ריקי ציון",
+    "phone": null,
+    "real_phone": "052-4433163",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/riki_zion_makeup_hair/",
+    "address": "שרה אהרונסון 8, פתח תקווה",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/10042548_1546896877165.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "37",
+    "description": "ריקי ציון איפור ועיצוב שיער לכלות- איפור ועיצוב שיער מקצועי ייחודי ואיכותי שלא יזוז לך עד סוף הערב באחריות ! התקשרי לשריין את היום שלך, שניפגש רק בשמחות (: ריקי",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/riki_zion_makeup_hair/",
+    "facebook": "https://www.facebook.com/456664887756025",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 1000,
+    "name": "ציפורן טיפוח ושיזוף",
+    "clean_name": "ציפורן טיפוח ושיזוף",
+    "phone": null,
+    "real_phone": "03-6421271",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/ziporen2/",
+    "address": "אופנהיימר 13, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/StaticLogo/1695085_1.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "אלמוג נ.",
+        "rating": 0,
+        "text": "חוויה לא נעימה בכלל. המנהלת פירסמה שלט גדול עם מבצע, אני הגעתי בעקבות המבצע ובפועל היא לא עשתה לי את המחיר הרשום ובנוסף ביקשה מחיר כפול. לאחר שהסברתי לה כי יש שלט גדול שרשום עליו מחיר שונה התחילה לצעוק עלי מול כל הלקוחות. הרגשתי מאד מאויימת ואין ספק שלא אחזור לשם.",
+        "source": ""
+      },
+      {
+        "reviewer": "Yuval A.",
+        "rating": 0,
+        "text": "לא יודעת למה מנהלת המקום מגיעה למצב בו היא פשוט צועקת על חברה שלי מול כל הלקוחות... יצאנו בתחושה של תרמית. כאשר המחיר של כרטיסיה משתנה משבוע לשבוע ואין שום עדכון לכך, פשוט מיתרה של 300 שח בקופה היא מבקשת 500(?!?!?!)",
+        "source": ""
+      },
+      {
+        "reviewer": "Shira G.",
+        "rating": 5,
+        "text": "מקצועיות ונעימות!",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "62",
+    "description": "מאפרת / איפור כלות ואירועים. בציפורן טיפוח ושיזוף מתמחים במגוון טיפולים כגון: טיפולי פנים על ידי קוסמטיקאית מקצועית בעזרת חומרים איכותיים מבית חוה זינגבוים וכמו כן גם מכירתם. מניקור פדיקור, מניקור ג׳ל ,פדיקור רפואי, בניית ציפורניים,הסרת שיער מכל הגוף בשעווה איכותית ובטכנולוגיה מתקדמת.הרמת ריסיםYumilashes’s הסרת שיער הפנים באפילציה , חוט ושעווה. עיצוב גבות, מיטת שיזוף בעמידה , וכל זה במקצועיות וובאוירה נעימה.",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/ziporen2/",
+    "facebook": "https://www.facebook.com/100001167257140",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 1001,
+    "name": "ITZIK DABACH",
+    "clean_name": "ITZIK DABACH",
+    "phone": null,
+    "real_phone": "050-4400162",
+    "category": "לחתן ולכלה",
+    "website": "https://www.facebook.com/1477673255879510",
+    "address": "מח\"ל 36, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/category/ip8/268b.png"
+    ],
+    "reviews": [
+      {
+        "reviewer": "galit o.",
+        "rating": 5,
+        "text": "ספר אלוףףףף\nמקצוען, עובד מהר ולעניין.\nממליצה בחום",
+        "source": ""
+      },
+      {
+        "reviewer": "Tomer H.",
+        "rating": 5,
+        "text": "הוא מספר מטורף",
+        "source": ""
+      },
+      {
+        "reviewer": "sapirjackson1",
+        "rating": 5,
+        "text": "מקסים מקצועי ותקתקן!!! ממליצה בחום!",
+        "source": ""
+      },
+      {
+        "reviewer": "Michael A.",
+        "rating": 5,
+        "text": "יחס טוב מאוד שירות מעולה! מחירים פצצה",
+        "source": ""
+      },
+      {
+        "reviewer": "Kobi S.",
+        "rating": 5,
+        "text": "איציק נפלא ואין כמוהו. מספרה ממוזגת ונקיה",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "85",
+    "description": "מאפרת / איפור כלות ואירועים. Imagine your hair style- עיצוב שיער לנשים וגברים.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": "https://www.facebook.com/1477673255879510",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 1002,
+    "name": "ניחוח אשה",
+    "clean_name": "ניחוח אשה",
+    "phone": null,
+    "real_phone": "03-6709012",
+    "category": "לחתן ולכלה",
+    "website": "http://didinails.co.il/",
+    "address": "דרך זאב ז'בוטינסקי 44, רמת גן",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/5406636_1482304191559.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "65",
+    "description": "מאפרת / איפור כלות ואירועים. מכון יופי המתמחה בהסרת שיער לצמיתות | מספק את כל טיפולי",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/adisabandd/",
+    "facebook": "https://www.facebook.com/154509137930934",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 1003,
+    "name": "המספרה של אנה",
+    "clean_name": "המספרה של אנה",
+    "phone": null,
+    "real_phone": "03-6203353",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/annahaircreator/",
+    "address": "שלמה המלך 29, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/24315163_1677319864766.png"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "110",
+    "description": "מאפרת / איפור כלות ואירועים. במספרה תזכו ליחס אישי ומטפח הודות לעיצוב השיער הייחודי לפי הטרנדים הקיימים בעולם. עיצוב השיער שלכן ייעשה ברמה המקצועית הגבוהה ביותר, בזכות הניסיון הבינלאומי של אנה, הכולל את קנדה ארה\"ב ואירופה",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/annahaircreator/",
+    "facebook": "https://www.facebook.com/Anna.Hair12",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 1004,
+    "name": "בן רביבו",
+    "clean_name": "בן רביבו",
+    "phone": null,
+    "real_phone": "054-5514667",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/benravivo/",
+    "address": "שפינוזה 1, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/UserThumbs/20856775_1523709059033.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "57",
+    "description": "איפור שיער וסטיילינג",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/benravivo/",
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 1005,
+    "name": "שירן אוריאל מאפרת ומסרקת כלות גבעת שמואל",
+    "clean_name": "שירן אוריאל מאפרת ומסרקת כלות גבעת שמואל",
+    "phone": null,
+    "real_phone": "052-5049898",
+    "category": "לחתן ולכלה",
+    "website": "",
+    "address": "הסיבים 46, פתח תקווה",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/category/ip8/4033b.png"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "22",
+    "description": "הכל אודות שירן אוריאל מאפרת ומסרקת כלות גבעת שמואל בהסיבים 46, פתח תקווה - טלפון, שעות פתיחה, ניווט, ביקורות ועוד שירותי איפור תוכלו למצוא באתר איזי.",
+    "portfolio": [],
+    "instagram": null,
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 1006,
+    "name": "ראשם",
+    "clean_name": "ראשם",
+    "phone": null,
+    "real_phone": "03-6200476",
+    "category": "לחתן ולכלה",
+    "website": "http://hroshem.com/",
+    "address": "דיזנגוף סנטר, תל אביב יפו",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/StaticLogo/5882375_1.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "הדר ר.",
+        "rating": 5,
+        "text": "ספר נחמד ממש\nברמה מאוד גבוהה\nקצת יקר מדי (100 שקלים לתספורת) אבל באמת עבודה מושלמת",
+        "source": ""
+      },
+      {
+        "reviewer": "Michael H.",
+        "rating": 5,
+        "text": "מקום שנותן שירות פצצה והספרים מקצוענים \nוהכי חשוב שכיף לדבר איתם במהלך שאתה מסתפר",
+        "source": ""
+      },
+      {
+        "reviewer": "yaniv s.",
+        "rating": 0,
+        "text": "גועל נפש.\nהגעתי כעובר אורח בבקשה להסתפר\nשאלתי אם ניתן להסתפר נאמר לי שלא ללא הסבר\nגברת עם שיער לבן קצוץ פשוט הסתכלה במסך הטלפון והיה לה יותר חשוב לראות סרטון",
+        "source": ""
+      },
+      {
+        "reviewer": "הדס י.",
+        "rating": 5,
+        "text": "חוויה מצויינת!",
+        "source": ""
+      },
+      {
+        "reviewer": "Gal T.",
+        "rating": 5,
+        "text": "פשוט מדהים, נעים תספורת מדהימה, לא הכי זול",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "98",
+    "description": "מאפרת / איפור כלות ואירועים. באווירה חמה וצוות מקצועי מספרה ברחוב יוסף קארו 15 , שכונ?",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/roshemhd/",
+    "facebook": "https://www.facebook.com/RosheM036200476",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 1007,
+    "name": "אצל רותם",
+    "clean_name": "אצל רותם",
+    "phone": null,
+    "real_phone": "054-5777732",
+    "category": "לחתן ולכלה",
+    "website": "http://rotembeauty.co.il/",
+    "address": "סירקין 5, גבעתיים",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/5325601.jpg"
+    ],
+    "reviews": [
+      {
+        "reviewer": "Odia A.",
+        "rating": 5,
+        "text": "אני לקוחה של רותם שנים רבות. מעבר למיקצועיות הבלתי מתפשרת, ותשומת הלב המירבית שכל ציפורן מקבלת, אני תמיד מקבלת בנוסף הקשבה וריפוי לנפש. עבורי החוויה מושלמת ותמיד יוצאת עם חיוך וציפורניים צבעוניות ושמחות. ממליצה מעומק הלב. מי שתגיע תזכה!",
+        "source": ""
+      },
+      {
+        "reviewer": "Tamar G.",
+        "rating": 5,
+        "text": "מאוד נעימה ועדינה בעבודתה, בהחלט אחזור אליה",
+        "source": ""
+      }
+    ],
+    "google_rating": null,
+    "reviews_count": "101",
+    "description": "מאפרת / איפור כלות ואירועים. מקום שיש בו הכל מכון שיזוף מספרה קוסמטיקה לק גל ועוד",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/rotempinto/",
+    "facebook": "https://www.facebook.com/torotem",
+    "source_import": "maparot-csv-2026-07"
+  },
+  {
+    "id": 1008,
+    "name": "שלומית פדידה",
+    "clean_name": "שלומית פדידה",
+    "phone": null,
+    "real_phone": "052-2502563",
+    "category": "לחתן ולכלה",
+    "website": "https://www.instagram.com/shlomitfedida/",
+    "address": "שכונת נווה הדרים, ראשון לציון",
+    "engaged_url": null,
+    "images": [
+      "https://media.easy.co.il/images/PICS/3608953.jpg"
+    ],
+    "reviews": [],
+    "google_rating": null,
+    "reviews_count": "51",
+    "description": "איפור ושיער לכלות ולאירועים . קוסמטיקה פרארפואית מתקדמת. טיפולי פנים בטכנולוגיות מתקדמות הסרת שיער בלייזר עיצוב גבות טבעיות הסרת שיער בשעווה מכירת מוצרי קוסמטיקה ואיפור גם מרחוק לאחר אבחון !",
+    "portfolio": [],
+    "instagram": "https://www.instagram.com/shlomitfedida/",
+    "facebook": null,
+    "source_import": "maparot-csv-2026-07"
   }
 ]

@@ -1,0 +1,288 @@
+/**
+ * Import מאפרות CSV → suppliers_complete.json (+ production CSV append)
+ * Dedupes by normalized phone against existing records.
+ *
+ * Usage:
+ *   node scripts/import-maparot-csv.mjs "C:\Users\123\Desktop\מאפרות מעודכן.csv"
+ */
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import Papa from 'papaparse';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, '..');
+const JSON_PATH = path.join(ROOT, 'data', 'suppliers_complete.json');
+const CSV_PATH = path.join(ROOT, 'scraping', 'engaged_suppliers_final_production.csv');
+
+const csvFile = process.argv[2];
+if (!csvFile || !fs.existsSync(csvFile)) {
+  console.error('Usage: node scripts/import-maparot-csv.mjs <path-to-csv>');
+  process.exit(1);
+}
+
+function na(v) {
+  if (v == null) return '';
+  const s = String(v).trim();
+  if (!s || s === 'N/A' || s === 'nan' || s === 'FAILED') return '';
+  return s;
+}
+
+function normalizePhone(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('972') && digits.length >= 11) return '0' + digits.slice(3);
+  return digits;
+}
+
+function formatPhone(phone) {
+  const d = normalizePhone(phone);
+  if (!d) return '';
+  if (d.length === 10 && d.startsWith('05')) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  if (d.length === 9 && d.startsWith('0')) return `${d.slice(0, 2)}-${d.slice(2)}`;
+  if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return d;
+}
+
+function pickWebsite(row) {
+  return (
+    na(row['אתר / קישור מוביל']) ||
+    na(row['אינסטגרם']) ||
+    na(row['פייסבוק']) ||
+    ''
+  );
+}
+
+function parseReviewCount(easyRating, reviewCountCol) {
+  const fromCol = na(reviewCountCol);
+  if (fromCol && /^\d+$/.test(fromCol)) return fromCol;
+  const text = na(easyRating);
+  const m = text.match(/(\d+)\s*ביקורות/);
+  return m ? m[1] : '';
+}
+
+function parseReviews(raw, easyUrl) {
+  const text = na(raw);
+  if (!text) return [];
+
+  const blocks = text.split(/\n(?=\[)/).map((b) => b.trim()).filter(Boolean);
+  const reviews = [];
+
+  for (const block of blocks) {
+    const m = block.match(/^\[([^\]]*?)\s*-\s*דירוג\s*(\d+(?:\.\d+)?)\s*\/\s*5\]\s*:?\s*([\s\S]*)$/);
+    if (m) {
+      const reviewer = m[1].trim();
+      const rating = Number(m[2]);
+      let body = m[3].trim();
+      // Skip aggregate-only lines like "210 ביקורות"
+      if (/^\d+\s*ביקורות\s*$/.test(body)) {
+        reviews.push({
+          reviewer,
+          rating: Number.isFinite(rating) ? rating : 5,
+          text: body,
+          source: easyUrl || '',
+        });
+        continue;
+      }
+      reviews.push({
+        reviewer: reviewer || 'לקוח מרוצה',
+        rating: Number.isFinite(rating) ? rating : 5,
+        text: body || reviewer,
+        source: easyUrl || '',
+      });
+      continue;
+    }
+    if (block.length > 20) {
+      reviews.push({
+        reviewer: 'לקוח מרוצה',
+        rating: 5,
+        text: block,
+        source: easyUrl || '',
+      });
+    }
+  }
+
+  return reviews.slice(0, 12);
+}
+
+function ensureMakeupSignal(name, description) {
+  const hay = `${name} ${description}`.toLowerCase();
+  if (/מאפר|איפור|makeup|mua/.test(hay)) return description;
+  const prefix = 'מאפרת / איפור כלות ואירועים.';
+  return description ? `${prefix} ${description}` : prefix;
+}
+
+function rowToSupplier(row, id) {
+  const name = na(row['שם המאפרת']);
+  const phone = formatPhone(row['טלפון נייד']);
+  const address = na(row['כתובת']);
+  const easyUrl = na(row['קישור איזי']);
+  const website = pickWebsite(row);
+  const mainImage = na(row['תמונה ראשית']);
+  const galleryRaw = na(row['גלריה']);
+  const description = ensureMakeupSignal(name, na(row['תיאור עסק']));
+  const reviewsCount = parseReviewCount(row['דירוג איזי'], row['מספר חוות דעת']);
+  const reviews = parseReviews(row['חוות דעת של לקוחות'], easyUrl);
+
+  const images = [];
+  if (mainImage) images.push(mainImage);
+  if (galleryRaw) {
+    galleryRaw.split(/[|,;]/).map((s) => s.trim()).filter(Boolean).forEach((img) => {
+      if (!images.includes(img)) images.push(img);
+    });
+  }
+
+  const cleanName = name.split('|')[0].trim();
+
+  return {
+    id,
+    name,
+    clean_name: cleanName,
+    phone: null,
+    real_phone: phone,
+    category: 'לחתן ולכלה',
+    website,
+    address: address || null,
+    engaged_url: easyUrl || null,
+    images,
+    reviews,
+    google_rating: null,
+    reviews_count: reviewsCount || null,
+    description,
+    portfolio: [],
+    // Keep socials for enrichment / future use
+    instagram: na(row['אינסטגרם']) || null,
+    facebook: na(row['פייסבוק']) || null,
+    source_import: 'maparot-csv-2026-07',
+  };
+}
+
+function toProductionCsvRow(supplier) {
+  return {
+    'Supplier Name': supplier.name,
+    'Phone Number': supplier.real_phone || '',
+    Category: supplier.category,
+    URL: supplier.engaged_url || '',
+    'Main Image': supplier.images?.[0] || '',
+    Gallery: (supplier.images || []).slice(1).join('|'),
+    'Real Phone': supplier.real_phone || '',
+    Website: supplier.website || '',
+    'Google Reviews Link': '',
+    'Google Image': '',
+    'Google Rating': '',
+    'Reviews Count': supplier.reviews_count || '',
+    Address: supplier.address || '',
+  };
+}
+
+const text = fs.readFileSync(csvFile, 'utf8');
+const parsed = Papa.parse(text, {
+  header: true,
+  skipEmptyLines: true,
+  dynamicTyping: false,
+});
+
+if (parsed.errors?.length) {
+  console.warn('CSV parse warnings:', parsed.errors.slice(0, 5));
+}
+
+const rows = parsed.data.filter((r) => na(r['שם המאפרת']) && na(r['טלפון נייד']));
+console.log(`CSV rows with name+phone: ${rows.length}`);
+
+const existing = JSON.parse(fs.readFileSync(JSON_PATH, 'utf8'));
+const phoneIndex = new Map();
+existing.forEach((s, idx) => {
+  const key = normalizePhone(s.real_phone || s.phone);
+  if (key) phoneIndex.set(key, idx);
+});
+
+let nextId = Math.max(0, ...existing.map((s) => Number(s.id) || 0)) + 1;
+const added = [];
+const enriched = [];
+const skippedNoPhone = [];
+
+for (const row of rows) {
+  const phoneKey = normalizePhone(row['טלפון נייד']);
+  if (!phoneKey) {
+    skippedNoPhone.push(na(row['שם המאפרת']));
+    continue;
+  }
+
+  if (phoneIndex.has(phoneKey)) {
+    const idx = phoneIndex.get(phoneKey);
+    const cur = existing[idx];
+    let changed = false;
+
+    const incoming = rowToSupplier(row, cur.id);
+    // Enrich gaps only — don't wipe richer existing data
+    if (!na(cur.description) && na(incoming.description)) {
+      cur.description = incoming.description;
+      changed = true;
+    }
+    if (!na(cur.address) && na(incoming.address)) {
+      cur.address = incoming.address;
+      changed = true;
+    }
+    if (!na(cur.website) && na(incoming.website)) {
+      cur.website = incoming.website;
+      changed = true;
+    }
+    if (!na(cur.engaged_url) && na(incoming.engaged_url)) {
+      cur.engaged_url = incoming.engaged_url;
+      changed = true;
+    }
+    if ((!cur.images || cur.images.length === 0) && incoming.images.length) {
+      cur.images = incoming.images;
+      changed = true;
+    }
+    if ((!cur.reviews || cur.reviews.length === 0) && incoming.reviews.length) {
+      cur.reviews = incoming.reviews;
+      changed = true;
+    }
+    if (!na(cur.reviews_count) && na(incoming.reviews_count)) {
+      cur.reviews_count = incoming.reviews_count;
+      changed = true;
+    }
+    // Ensure makeup signal for Moran grouping
+    const hay = `${cur.name || ''} ${cur.description || ''}`.toLowerCase();
+    if (!/מאפר|איפור|makeup|mua/.test(hay)) {
+      cur.description = ensureMakeupSignal(cur.name || '', cur.description || '');
+      changed = true;
+    }
+    if (changed) enriched.push(cur.name);
+    continue;
+  }
+
+  const supplier = rowToSupplier(row, nextId++);
+  existing.push(supplier);
+  phoneIndex.set(phoneKey, existing.length - 1);
+  added.push(supplier);
+}
+
+fs.writeFileSync(JSON_PATH, JSON.stringify(existing, null, 2), 'utf8');
+console.log(`Wrote ${JSON_PATH}`);
+console.log(`Total suppliers now: ${existing.length}`);
+console.log(`Added: ${added.length}`);
+console.log(`Enriched existing: ${enriched.length}`);
+if (skippedNoPhone.length) console.log(`Skipped no phone: ${skippedNoPhone.length}`);
+
+// Append new rows to production CSV
+if (added.length) {
+  const csvText = fs.readFileSync(CSV_PATH, 'utf8');
+  const existingCsv = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+  const csvPhones = new Set(
+    existingCsv.data.map((r) => normalizePhone(r['Real Phone'] || r['Phone Number'])).filter(Boolean)
+  );
+  const toAppend = added.filter((s) => !csvPhones.has(normalizePhone(s.real_phone)));
+  if (toAppend.length) {
+    const appendCsv = Papa.unparse(toAppend.map(toProductionCsvRow), { header: false });
+    const needsNewline = !csvText.endsWith('\n');
+    fs.appendFileSync(CSV_PATH, (needsNewline ? '\n' : '') + appendCsv + '\n', 'utf8');
+    console.log(`Appended ${toAppend.length} rows to production CSV`);
+  }
+}
+
+console.log('\n--- Sample added ---');
+added.slice(0, 5).forEach((s) => {
+  console.log(`#${s.id} ${s.name} | ${s.real_phone} | imgs=${s.images.length} reviews=${s.reviews.length}`);
+});
