@@ -423,7 +423,10 @@ export default function SuppliersDashboard() {
           return !name || name === 'ספק ללא שם';
         }).length;
 
-        if (source !== 'json' || data.length > 850 || emptyInPayload > 5) {
+        // Health check: wrong source / too many nameless rows / suspiciously tiny payload.
+        // Do NOT flag a high count — the catalog grows (e.g. מאפרות import → ~900+).
+        const suspiciouslySmall = data.length > 0 && data.length < 200;
+        if (source !== 'json' || emptyInPayload > 5 || suspiciouslySmall) {
           setApiHealthWarning(
             `השרת מריץ גרסה ישנה (${data.length} רשומות, ${emptyInPayload} ללא שם). סגור את החלון של npm run dev והרץ: restart-dashboard.bat — או בטרמינל: npm run dev:fresh`
           );

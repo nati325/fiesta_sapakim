@@ -4,6 +4,7 @@
  *
  * Usage:
  *   node scripts/import-maparot-csv.mjs "C:\Users\123\Desktop\מאפרות מעודכן.csv"
+ *   node scripts/import-maparot-csv.mjs "..." --force   # overwrite images/reviews on matches
  */
 import fs from 'fs';
 import path from 'path';
@@ -16,8 +17,9 @@ const JSON_PATH = path.join(ROOT, 'data', 'suppliers_complete.json');
 const CSV_PATH = path.join(ROOT, 'scraping', 'engaged_suppliers_final_production.csv');
 
 const csvFile = process.argv[2];
+const FORCE = process.argv.includes('--force');
 if (!csvFile || !fs.existsSync(csvFile)) {
-  console.error('Usage: node scripts/import-maparot-csv.mjs <path-to-csv>');
+  console.error('Usage: node scripts/import-maparot-csv.mjs <path-to-csv> [--force]');
   process.exit(1);
 }
 
@@ -61,7 +63,7 @@ function parseReviewCount(easyRating, reviewCountCol) {
   return m ? m[1] : '';
 }
 
-function parseReviews(raw, easyUrl) {
+function parseReviews(raw) {
   const text = na(raw);
   if (!text) return [];
 
@@ -73,36 +75,36 @@ function parseReviews(raw, easyUrl) {
     if (m) {
       const reviewer = m[1].trim();
       const rating = Number(m[2]);
-      let body = m[3].trim();
+      const body = m[3].trim();
       // Skip aggregate-only lines like "210 ביקורות"
-      if (/^\d+\s*ביקורות\s*$/.test(body)) {
-        reviews.push({
-          reviewer,
-          rating: Number.isFinite(rating) ? rating : 5,
-          text: body,
-          source: easyUrl || '',
-        });
+      if (/^\d+\s*ביקורות\s*$/i.test(body)) continue;
+      if (!body || body.length < 12) continue;
+      if (
+        /^(google maps|פייסבוק|mit4mit|facebook)\b/i.test(reviewer) &&
+        body.length < 40 &&
+        /ביקורות/.test(body)
+      ) {
         continue;
       }
       reviews.push({
         reviewer: reviewer || 'לקוח מרוצה',
         rating: Number.isFinite(rating) ? rating : 5,
-        text: body || reviewer,
-        source: easyUrl || '',
+        text: body,
+        source: '', // never expose Easy
       });
       continue;
     }
-    if (block.length > 20) {
+    if (block.length > 25 && !/^\d+\s*ביקורות/.test(block)) {
       reviews.push({
         reviewer: 'לקוח מרוצה',
         rating: 5,
         text: block,
-        source: easyUrl || '',
+        source: '',
       });
     }
   }
 
-  return reviews.slice(0, 12);
+  return reviews.slice(0, 20);
 }
 
 function ensureMakeupSignal(name, description) {
@@ -122,7 +124,7 @@ function rowToSupplier(row, id) {
   const galleryRaw = na(row['גלריה']);
   const description = ensureMakeupSignal(name, na(row['תיאור עסק']));
   const reviewsCount = parseReviewCount(row['דירוג איזי'], row['מספר חוות דעת']);
-  const reviews = parseReviews(row['חוות דעת של לקוחות'], easyUrl);
+  const reviews = parseReviews(row['חוות דעת של לקוחות']);
 
   const images = [];
   if (mainImage) images.push(mainImage);
@@ -143,7 +145,9 @@ function rowToSupplier(row, id) {
     category: 'לחתן ולכלה',
     website,
     address: address || null,
-    engaged_url: easyUrl || null,
+    // Keep Easy out of visible source fields
+    engaged_url: null,
+    easy_url_internal: easyUrl || null,
     images,
     reviews,
     google_rating: null,
@@ -162,7 +166,7 @@ function toProductionCsvRow(supplier) {
     'Supplier Name': supplier.name,
     'Phone Number': supplier.real_phone || '',
     Category: supplier.category,
-    URL: supplier.engaged_url || '',
+    URL: '',
     'Main Image': supplier.images?.[0] || '',
     Gallery: (supplier.images || []).slice(1).join('|'),
     'Real Phone': supplier.real_phone || '',
@@ -214,7 +218,29 @@ for (const row of rows) {
     let changed = false;
 
     const incoming = rowToSupplier(row, cur.id);
-    // Enrich gaps only — don't wipe richer existing data
+
+    if (FORCE || cur.source_import === 'maparot-csv-2026-07') {
+      // Full refresh from expanded CSV for maparot imports
+      if (incoming.images.length) {
+        cur.images = incoming.images;
+        changed = true;
+      }
+      cur.reviews = incoming.reviews;
+      if (na(incoming.description)) cur.description = incoming.description;
+      if (na(incoming.address)) cur.address = incoming.address;
+      if (na(incoming.website)) cur.website = incoming.website;
+      if (na(incoming.reviews_count)) cur.reviews_count = incoming.reviews_count;
+      if (incoming.instagram) cur.instagram = incoming.instagram;
+      if (incoming.facebook) cur.facebook = incoming.facebook;
+      cur.engaged_url = null;
+      if (incoming.easy_url_internal) cur.easy_url_internal = incoming.easy_url_internal;
+      cur.source_import = 'maparot-csv-2026-07';
+      changed = true;
+      enriched.push(cur.name);
+      continue;
+    }
+
+    // Enrich gaps only for non-maparot existing records
     if (!na(cur.description) && na(incoming.description)) {
       cur.description = incoming.description;
       changed = true;
@@ -225,10 +251,6 @@ for (const row of rows) {
     }
     if (!na(cur.website) && na(incoming.website)) {
       cur.website = incoming.website;
-      changed = true;
-    }
-    if (!na(cur.engaged_url) && na(incoming.engaged_url)) {
-      cur.engaged_url = incoming.engaged_url;
       changed = true;
     }
     if ((!cur.images || cur.images.length === 0) && incoming.images.length) {
@@ -263,26 +285,44 @@ fs.writeFileSync(JSON_PATH, JSON.stringify(existing, null, 2), 'utf8');
 console.log(`Wrote ${JSON_PATH}`);
 console.log(`Total suppliers now: ${existing.length}`);
 console.log(`Added: ${added.length}`);
-console.log(`Enriched existing: ${enriched.length}`);
+console.log(`Enriched/updated existing: ${enriched.length}`);
 if (skippedNoPhone.length) console.log(`Skipped no phone: ${skippedNoPhone.length}`);
 
-// Append new rows to production CSV
-if (added.length) {
+// Sync production CSV: append new + update gallery/images for maparot phones
+{
   const csvText = fs.readFileSync(CSV_PATH, 'utf8');
   const existingCsv = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-  const csvPhones = new Set(
-    existingCsv.data.map((r) => normalizePhone(r['Real Phone'] || r['Phone Number'])).filter(Boolean)
-  );
-  const toAppend = added.filter((s) => !csvPhones.has(normalizePhone(s.real_phone)));
-  if (toAppend.length) {
-    const appendCsv = Papa.unparse(toAppend.map(toProductionCsvRow), { header: false });
-    const needsNewline = !csvText.endsWith('\n');
-    fs.appendFileSync(CSV_PATH, (needsNewline ? '\n' : '') + appendCsv + '\n', 'utf8');
-    console.log(`Appended ${toAppend.length} rows to production CSV`);
+  const csvPhones = new Map();
+  existingCsv.data.forEach((r, i) => {
+    const key = normalizePhone(r['Real Phone'] || r['Phone Number']);
+    if (key) csvPhones.set(key, i);
+  });
+
+  let csvUpdated = 0;
+  for (const s of existing.filter((x) => x.source_import === 'maparot-csv-2026-07')) {
+    const key = normalizePhone(s.real_phone);
+    const row = toProductionCsvRow(s);
+    if (csvPhones.has(key)) {
+      const i = csvPhones.get(key);
+      existingCsv.data[i] = { ...existingCsv.data[i], ...row };
+      csvUpdated++;
+    } else {
+      existingCsv.data.push(row);
+      csvPhones.set(key, existingCsv.data.length - 1);
+    }
   }
+
+  const out = Papa.unparse(existingCsv.data, { header: true });
+  fs.writeFileSync(CSV_PATH, out.endsWith('\n') ? out : out + '\n', 'utf8');
+  console.log(`Production CSV synced (updated/inserted maparot rows: ${csvUpdated + added.length})`);
 }
 
-console.log('\n--- Sample added ---');
-added.slice(0, 5).forEach((s) => {
-  console.log(`#${s.id} ${s.name} | ${s.real_phone} | imgs=${s.images.length} reviews=${s.reviews.length}`);
-});
+console.log('\n--- Sample updated ---');
+existing
+  .filter((s) => s.source_import === 'maparot-csv-2026-07')
+  .slice(0, 5)
+  .forEach((s) => {
+    console.log(
+      `#${s.id} ${s.name} | ${s.real_phone} | imgs=${s.images?.length || 0} reviews=${s.reviews?.length || 0}`
+    );
+  });
