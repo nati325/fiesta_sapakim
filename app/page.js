@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Upload, MessageCircle, Phone, Calendar, CheckCircle2, User, LogOut, Search, Image as ImageIcon, Globe, ExternalLink, FileText, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supplierMatchesSearch } from '../lib/searchUtils';
 import {
   clearSession,
   getSupplierPhone,
@@ -44,6 +43,44 @@ import {
 } from '../lib/fiestaCategoryMap';
 import './globals.css';
 
+function normalizeSupplierRow(s) {
+  const category = s.Category || s.category || '';
+  const supplierName = (s['Supplier Name'] || s.name || s.Name || s.clean_name || '').trim();
+  const cleanName = (s.clean_name || supplierName.split('|')[0]?.trim() || supplierName).trim();
+  const realPhone = s['Real Phone'] || s.real_phone || s.phone || s['Phone Number'] || '';
+  return {
+    ...s,
+    id: s.id ?? null,
+    clean_name: cleanName,
+    'Supplier Name': supplierName || cleanName || 'ספק ללא שם',
+    'Real Phone': realPhone,
+    phone: realPhone,
+    Category: category.trim() !== '' ? category : 'ספקים ללא קטגוריה',
+    Address: s.Address || s.address || '',
+    Website: s.Website || s.website || '',
+    URL: s.URL || s.engaged_url || '',
+    engaged_url: s.engaged_url || s.URL || '',
+    description: s.description || '',
+    images: s.images || [],
+    reviews: s.reviews || [],
+  };
+}
+
+function isValidSupplierRow(s) {
+  const name = (s['Supplier Name'] || s.clean_name || '').trim();
+  const phone = s['Real Phone'] || s.phone || '';
+  return name && name !== 'ספק ללא שם' && phone && phone !== 'FAILED' && phone !== 'N/A';
+}
+
+function parseSupplierIndexQuery(raw) {
+  const q = String(raw || '').trim();
+  const m1 = q.match(/^#?(\d+)$/);
+  if (m1) return Number(m1[1]);
+  const m2 = q.match(/^ספק\s+(\d+)$/);
+  if (m2) return Number(m2[1]);
+  return null;
+}
+
 export default function SuppliersDashboard() {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +96,10 @@ export default function SuppliersDashboard() {
   const [showReminderSuccess, setShowReminderSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
+  const [searchResults, setSearchResults] = useState(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const isSearchMode = searchQuery.trim() !== '';
+  const effectiveSearchQuery = isSearchMode ? debouncedSearchQuery.trim() : '';
   const [selectedSupplierProfile, setSelectedSupplierProfile] = useState(null);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescriptionText, setEditedDescriptionText] = useState('');
@@ -419,6 +460,56 @@ export default function SuppliersDashboard() {
     }
   }, [loading, suppliers, isLoggedIn, activeAgent]);
 
+  const clearSearch = () => setSearchQuery('');
+
+  useEffect(() => {
+    if (!isSearchMode) {
+      setSearchResults(null);
+      setSearchLoading(false);
+      return;
+    }
+
+    if (!effectiveSearchQuery) {
+      setSearchLoading(true);
+      return;
+    }
+
+    const indexQuery = parseSupplierIndexQuery(effectiveSearchQuery);
+    if (indexQuery !== null) {
+      const match = indexQuery > 0 && indexQuery <= suppliers.length ? suppliers[indexQuery - 1] : null;
+      setSearchResults(match ? [match] : []);
+      setSearchLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setSearchLoading(true);
+
+    fetch(`/api/suppliers?lite=1&search=${encodeURIComponent(effectiveSearchQuery)}`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!Array.isArray(data)) {
+          setSearchResults([]);
+          return;
+        }
+        setSearchResults(data.map(normalizeSupplierRow).filter(isValidSupplierRow));
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          console.error('Search failed:', err);
+          setSearchResults([]);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSearchLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [isSearchMode, effectiveSearchQuery, suppliers]);
+
   useEffect(() => {
     fetch('/api/suppliers?lite=1', { cache: 'no-store' })
       .then(async (res) => {
@@ -446,32 +537,11 @@ export default function SuppliersDashboard() {
           setApiHealthWarning(null);
         }
 
-        const normalizeRow = (s) => {
-          const category = s.Category || s.category || '';
-          const supplierName = (s['Supplier Name'] || s.name || s.Name || s.clean_name || '').trim();
-          const cleanName = (s.clean_name || supplierName.split('|')[0]?.trim() || supplierName).trim();
-          const realPhone = s['Real Phone'] || s.real_phone || s.phone || s['Phone Number'] || '';
-          return {
-            ...s,
-            id: s.id ?? null,
-            clean_name: cleanName,
-            'Supplier Name': supplierName || cleanName || 'ספק ללא שם',
-            'Real Phone': realPhone,
-            phone: realPhone,
-            Category: category.trim() !== '' ? category : 'ספקים ללא קטגוריה',
-            Address: s.Address || s.address || '',
-            Website: s.Website || s.website || '',
-            URL: s.URL || s.engaged_url || '',
-            engaged_url: s.engaged_url || s.URL || '',
-            description: s.description || '',
-            images: s.images || [],
-            reviews: s.reviews || [],
-          };
-        };
+        const normalizeRow = normalizeSupplierRow;
 
         const processedData = data
           .map(normalizeRow)
-          .filter((s) => s['Supplier Name'] && s['Supplier Name'] !== 'ספק ללא שם' && (s['Real Phone'] || s.phone));
+          .filter(isValidSupplierRow);
         setSuppliers(processedData);
 
         const localStates = loadAllSupplierStatesLocal();
@@ -1882,63 +1952,53 @@ export default function SuppliersDashboard() {
     return null;
   };
 
-  const filteredSuppliers = suppliers
-    .filter((s) => {
-      if (debouncedSearchQuery) return true;
+  const filteredSuppliers = useMemo(() => {
+    if (isSearchMode) {
+      return (searchResults ?? []).filter(isValidSupplierRow);
+    }
 
-      if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
-      if (activeAgent === 'הודיה') return false;
-      const allowedCategories = agentCategoryMap[activeAgent] || [];
+    return suppliers
+      .filter((s) => {
+        if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
+        if (activeAgent === 'הודיה') return false;
+        const allowedCategories = agentCategoryMap[activeAgent] || [];
+        if (s.Category === 'ספקים ללא קטגוריה' || !s.Category) return true;
+        return allowedCategories.some((cat) => s.Category.includes(cat));
+      })
+      .filter((s) => {
+        const phone = s['Real Phone'] || s.phone;
+        const exitInfo = exitingSuppliers[phone];
+        if (exitInfo?.fromTab === activeTab) return true;
 
-      if (s.Category === 'ספקים ללא קטגוריה' || !s.Category) return true;
+        const state = stateFor(phone);
+        const isHandled = state.status === 'not-interested' || state.status === 'contract';
+        const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
 
-      return allowedCategories.some((cat) => s.Category.includes(cat));
-    })
-    .filter((s) => {
-      if (debouncedSearchQuery) return true;
-
-      const phone = s['Real Phone'] || s.phone;
-      const exitInfo = exitingSuppliers[phone];
-      if (exitInfo?.fromTab === activeTab) return true;
-
-      const state = stateFor(phone);
-      const isHandled = state.status === 'not-interested' || state.status === 'contract';
-      const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
-
-      if (activeTab === 'לא נגעו בכלל') {
-        return !isSupplierTouched(state);
-      }
-
-      if (state.status === 'not-available') {
-        return activeTab === 'לא ענו';
-      }
-      if (state.status === 'not-signed') {
-        return activeTab === 'עדיין לא חתם';
-      }
-
-      if (activeTab === 'לחזור אליהם') return !isHandled && isCallback;
-      if (activeTab === 'לא ענו') return false;
-      if (activeTab === 'עדיין לא חתם') return false;
-      return isHandled;
-    })
-    .filter((s) => {
-      if (!debouncedSearchQuery) return true;
-      const key = phoneKey(s['Real Phone'] || s.phone);
-      const supplierNumber = key ? supplierIndexByPhone.get(key) : null;
-      return supplierMatchesSearch(s, debouncedSearchQuery, supplierNumber);
-    })
-    .filter((s) => {
-      const name = (s['Supplier Name'] || s.clean_name || '').trim();
-      const phone = s['Real Phone'] || s.phone || '';
-      return name && name !== 'ספק ללא שם' && phone && phone !== 'FAILED' && phone !== 'N/A';
-    })
-    .filter((s) => {
-      if (activeAgent !== 'מורן' || debouncedSearchQuery) return true;
-      return getMoranSupplierGroup(s) !== 'other';
-    });
+        if (activeTab === 'לא נגעו בכלל') return !isSupplierTouched(state);
+        if (state.status === 'not-available') return activeTab === 'לא ענו';
+        if (state.status === 'not-signed') return activeTab === 'עדיין לא חתם';
+        if (activeTab === 'לחזור אליהם') return !isHandled && isCallback;
+        if (activeTab === 'לא ענו') return false;
+        if (activeTab === 'עדיין לא חתם') return false;
+        return isHandled;
+      })
+      .filter(isValidSupplierRow)
+      .filter((s) => {
+        if (activeAgent !== 'מורן') return true;
+        return getMoranSupplierGroup(s) !== 'other';
+      });
+  }, [
+    isSearchMode,
+    searchResults,
+    suppliers,
+    activeAgent,
+    activeTab,
+    exitingSuppliers,
+    supplierStates,
+  ]);
 
   const displaySuppliers = filteredSuppliers;
-  const displayList = buildDisplayList(filteredSuppliers, activeAgent, debouncedSearchQuery);
+  const displayList = buildDisplayList(filteredSuppliers, activeAgent, isSearchMode ? effectiveSearchQuery : '');
   const tabCounts = getTabCounts();
 
   const openSupplierProfile = async (supplier) => {
@@ -2317,12 +2377,15 @@ export default function SuppliersDashboard() {
               placeholder="חפש ספק לפי שם, טלפון או מספר ספק (#)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') clearSearch();
+              }}
             />
             {searchQuery && (
               <button
                 type="button"
                 className="search-clear"
-                onClick={() => setSearchQuery('')}
+                onClick={clearSearch}
                 aria-label="נקה חיפוש"
               >
                 ✕
@@ -2330,14 +2393,16 @@ export default function SuppliersDashboard() {
             )}
           </div>
 
-          {searchQuery && (
+          {isSearchMode && (
             <div className="search-hint animate-in">
               <span>
-                נמצאו {displaySuppliers.length} תוצאות עבור &quot;{searchQuery}&quot; (מכל הלשוניות)
+                {searchLoading
+                  ? `מחפש "${searchQuery}"...`
+                  : `נמצאו ${displaySuppliers.length} תוצאות עבור "${effectiveSearchQuery || searchQuery}" (מכל הלשוניות)`}
               </span>
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
+                onClick={clearSearch}
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -2381,7 +2446,16 @@ export default function SuppliersDashboard() {
           </div>
 
           <div className="suppliers-grid">
-            {displaySuppliers.length === 0 ? (
+            {isSearchMode && searchLoading ? (
+              <div style={{
+                gridColumn: '1 / -1',
+                textAlign: 'center',
+                padding: '60px 20px',
+                color: 'var(--text-muted)',
+              }}>
+                מחפש...
+              </div>
+            ) : displaySuppliers.length === 0 ? (
               <div style={{ 
                 gridColumn: '1 / -1', 
                 textAlign: 'center', 
@@ -2538,7 +2612,7 @@ export default function SuppliersDashboard() {
                       <div className="supplier-card-top">
                         <div className="supplier-card-tags">
                           <span className="category-tag">
-                            {activeAgent === 'מורן' && !searchQuery
+                            {activeAgent === 'מורן' && !isSearchMode
                               ? moranGroupLabels[item.moranGroup || getMoranSupplierGroup(s)]
                               : (s['Category'] || 'כללי')}
                           </span>
@@ -2549,7 +2623,7 @@ export default function SuppliersDashboard() {
                           {state.callbackScheduled && !['contract', 'not-interested'].includes(state.status) && (
                             <span className="status-pill callback">לחזור</span>
                           )}
-                          {searchQuery && supplierTab !== activeTab && (
+                          {isSearchMode && supplierTab !== activeTab && (
                             <span className="category-tag">{supplierTab}</span>
                           )}
                         </div>
