@@ -128,6 +128,7 @@ export default function SuppliersDashboard() {
   const [supplierImages, setSupplierImages] = useState({}); // phone → imageUrl | 'loading' | 'error'
   const [fetchingAllImages, setFetchingAllImages] = useState(false);
   const [imageFetchProgress, setImageFetchProgress] = useState({ done: 0, total: 0 });
+  const imageFetchAttemptedRef = useRef(new Set());
   const [sessionRestored, setSessionRestored] = useState(false);
   const pendingRestoreRef = useRef({ scrollY: null, selectedPhone: null });
   const scrollSaveTimerRef = useRef(null);
@@ -294,6 +295,60 @@ export default function SuppliersDashboard() {
     if (supplier.Category === 'ספקים ללא קטגוריה' || !supplier.Category) return true;
     return allowedCategories.some((cat) => supplier.Category.includes(cat));
   };
+
+  const getSupplierTab = (phone) => {
+    const state = stateFor(phone);
+    const isHandled = state.status === 'not-interested' || state.status === 'contract';
+    const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
+
+    if (!isSupplierTouched(state)) return 'לא נגעו בכלל';
+    if (state.status === 'not-available') return 'לא ענו';
+    if (state.status === 'not-signed') return 'עדיין לא חתם';
+    if (isHandled) return 'טופלו';
+    if (isCallback) return 'לחזור אליהם';
+    return null;
+  };
+
+  const feedSuppliers = useMemo(() => {
+    if (isSearchMode) {
+      return (searchResults ?? []).filter(isValidSupplierRow);
+    }
+
+    return suppliers
+      .filter((s) => supplierBelongsToAgent(s, activeAgent))
+      .filter((s) => {
+        const phone = s['Real Phone'] || s.phone;
+        const exitInfo = exitingSuppliers[phone];
+        if (exitInfo?.fromTab === activeTab) return true;
+
+        const state = stateFor(phone);
+        const isHandled = state.status === 'not-interested' || state.status === 'contract';
+        const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
+
+        if (activeTab === 'לא נגעו בכלל') return !isSupplierTouched(state);
+        if (state.status === 'not-available') return activeTab === 'לא ענו';
+        if (state.status === 'not-signed') return activeTab === 'עדיין לא חתם';
+        if (activeTab === 'לחזור אליהם') return !isHandled && isCallback;
+        if (activeTab === 'לא ענו') return false;
+        if (activeTab === 'עדיין לא חתם') return false;
+        return isHandled;
+      })
+      .filter(isValidSupplierRow)
+      .filter((s) => activeAgent !== 'מורן' || getMoranSupplierGroup(s) !== 'other');
+  }, [
+    isSearchMode,
+    searchResults,
+    suppliers,
+    activeAgent,
+    activeTab,
+    exitingSuppliers,
+    supplierStates,
+  ]);
+
+  const feedImageKey = useMemo(
+    () => feedSuppliers.map((s) => s['Real Phone'] || s.phone).join('|'),
+    [feedSuppliers]
+  );
 
   const getAgentFeedSuppliers = (agent) => {
     if (!agent || agent === 'נתנאל' || agent === 'מאגר כללי' || agent === 'הודיה') return [];
@@ -873,12 +928,12 @@ export default function SuppliersDashboard() {
     setFetchingAllImages(false);
   };
 
-  // Pre-load cached http images + auto-fetch missing in background
+  // Load images for the agent's current feed (tab / search), not the entire database
   useEffect(() => {
-    if (!suppliers.length || loading) return;
+    if (!isLoggedIn || loading || !feedSuppliers.length) return;
 
     const seeded = {};
-    suppliers.forEach((s) => {
+    feedSuppliers.forEach((s) => {
       const phone = s['Real Phone'] || s.phone || '';
       if (!phone) return;
       const best = pickBestStoredImage(s);
@@ -888,20 +943,26 @@ export default function SuppliersDashboard() {
       setSupplierImages((prev) => ({ ...seeded, ...prev }));
     }
 
-    const missing = suppliers.filter((s) => !supplierHasHttpImage(s) && getEngagedUrl(s)).slice(0, 30);
-    if (missing.length === 0) return;
-
     let cancelled = false;
     (async () => {
+      const missing = feedSuppliers
+        .filter((s) => !supplierHasHttpImage(s) && (getEngagedUrl(s) || getGoogleImageUrl(s)))
+        .filter((s) => {
+          const phone = s['Real Phone'] || s.phone || '';
+          return phone && !imageFetchAttemptedRef.current.has(phone);
+        });
+
+      missing.forEach((s) => imageFetchAttemptedRef.current.add(s['Real Phone'] || s.phone));
+
       for (let i = 0; i < missing.length; i += 5) {
         if (cancelled) break;
         await Promise.all(missing.slice(i, i + 5).map((s) => fetchImageForSupplier(s)));
-        await new Promise((r) => setTimeout(r, 500));
+        if (i + 5 < missing.length) await new Promise((r) => setTimeout(r, 400));
       }
     })();
 
     return () => { cancelled = true; };
-  }, [suppliers.length, loading]);
+  }, [feedImageKey, isLoggedIn, loading]);
 
   // ── Trigger Fiesta Push Modal ─────────────────────────────────────────────
   const collectPushImages = (supplier, cachedImg) => {
@@ -1943,14 +2004,6 @@ export default function SuppliersDashboard() {
     );
   };
 
-  const supplierMatchesAgentFeed = (supplier) => {
-    if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
-    if (activeAgent === 'הודיה') return false;
-    const allowedCategories = agentCategoryMap[activeAgent] || [];
-    if (supplier.Category === 'ספקים ללא קטגוריה' || !supplier.Category) return true;
-    return allowedCategories.some((cat) => supplier.Category.includes(cat));
-  };
-
   const getTabCounts = () => {
     const counts = {
       'לא נגעו בכלל': 0,
@@ -1961,7 +2014,7 @@ export default function SuppliersDashboard() {
     };
 
     suppliers.forEach((supplier) => {
-      if (!supplierMatchesAgentFeed(supplier)) return;
+      if (!supplierBelongsToAgent(supplier, activeAgent)) return;
       if (activeAgent === 'מורן' && getMoranSupplierGroup(supplier) === 'other') return;
 
       const name = (supplier['Supplier Name'] || supplier.clean_name || '').trim();
@@ -1975,55 +2028,7 @@ export default function SuppliersDashboard() {
     return counts;
   };
 
-  const getSupplierTab = (phone) => {
-    const state = stateFor(phone);
-    const isHandled = state.status === 'not-interested' || state.status === 'contract';
-    const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
-
-    if (!isSupplierTouched(state)) return 'לא נגעו בכלל';
-    if (state.status === 'not-available') return 'לא ענו';
-    if (state.status === 'not-signed') return 'עדיין לא חתם';
-    if (isHandled) return 'טופלו';
-    if (isCallback) return 'לחזור אליהם';
-    return null;
-  };
-
-  const filteredSuppliers = (() => {
-    if (isSearchMode) {
-      return (searchResults ?? []).filter(isValidSupplierRow);
-    }
-
-    return suppliers
-      .filter((s) => {
-        if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
-        if (activeAgent === 'הודיה') return false;
-        const allowedCategories = agentCategoryMap[activeAgent] || [];
-        if (s.Category === 'ספקים ללא קטגוריה' || !s.Category) return true;
-        return allowedCategories.some((cat) => s.Category.includes(cat));
-      })
-      .filter((s) => {
-        const phone = s['Real Phone'] || s.phone;
-        const exitInfo = exitingSuppliers[phone];
-        if (exitInfo?.fromTab === activeTab) return true;
-
-        const state = stateFor(phone);
-        const isHandled = state.status === 'not-interested' || state.status === 'contract';
-        const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
-
-        if (activeTab === 'לא נגעו בכלל') return !isSupplierTouched(state);
-        if (state.status === 'not-available') return activeTab === 'לא ענו';
-        if (state.status === 'not-signed') return activeTab === 'עדיין לא חתם';
-        if (activeTab === 'לחזור אליהם') return !isHandled && isCallback;
-        if (activeTab === 'לא ענו') return false;
-        if (activeTab === 'עדיין לא חתם') return false;
-        return isHandled;
-      })
-      .filter(isValidSupplierRow)
-      .filter((s) => {
-        if (activeAgent !== 'מורן') return true;
-        return getMoranSupplierGroup(s) !== 'other';
-      });
-  })();
+  const filteredSuppliers = feedSuppliers;
 
   const displaySuppliers = filteredSuppliers;
   const displayList = buildDisplayList(filteredSuppliers, activeAgent, isSearchMode ? effectiveSearchQuery : '');
@@ -2607,6 +2612,8 @@ export default function SuppliersDashboard() {
                             <img
                               src={imgUrl}
                               alt={s['Supplier Name'] || ''}
+                              loading="lazy"
+                              decoding="async"
                               onLoad={(e) => handleSupplierImageLoad(s, e)}
                               onError={(e) => { e.target.parentElement.style.display = 'none'; }}
                             />
