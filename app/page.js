@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Upload, MessageCircle, Phone, Calendar, CheckCircle2, User, LogOut, Search, Image as ImageIcon, Globe, ExternalLink, FileText, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supplierMatchesSearch } from '../lib/searchUtils';
@@ -11,6 +11,8 @@ import {
   saveSession,
   saveUiState,
 } from '../lib/agentSession';
+import { phoneKey, getSupplierState } from '../lib/phoneUtils';
+import { useDebouncedValue } from '../lib/useDebouncedValue';
 import {
   collectLocalMedia,
   extractInstagramUrls,
@@ -56,11 +58,13 @@ export default function SuppliersDashboard() {
   const [activeTab, setActiveTab] = useState('לא נגעו בכלל');
   const [showReminderSuccess, setShowReminderSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
   const [selectedSupplierProfile, setSelectedSupplierProfile] = useState(null);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescriptionText, setEditedDescriptionText] = useState('');
   const [descriptionSaving, setDescriptionSaving] = useState(false);
   const [apiHealthWarning, setApiHealthWarning] = useState(null);
+  const [statesLoadWarning, setStatesLoadWarning] = useState(null);
   const [supplierImages, setSupplierImages] = useState({}); // phone → imageUrl | 'loading' | 'error'
   const [fetchingAllImages, setFetchingAllImages] = useState(false);
   const [imageFetchProgress, setImageFetchProgress] = useState({ done: 0, total: 0 });
@@ -148,6 +152,16 @@ export default function SuppliersDashboard() {
     suit: 'חליפות חתן',
     other: 'אחר',
   };
+  const supplierIndexByPhone = useMemo(() => {
+    const map = new Map();
+    suppliers.forEach((s, index) => {
+      const key = phoneKey(s['Real Phone'] || s.phone);
+      if (key) map.set(key, index + 1);
+    });
+    return map;
+  }, [suppliers]);
+
+  const stateFor = (phone) => getSupplierState(supplierStates, phone);
 
   const getMoranSupplierGroup = (supplier) => {
     const text = [
@@ -237,7 +251,7 @@ export default function SuppliersDashboard() {
     let touched = 0;
     feed.forEach((supplier) => {
       const phone = supplier['Real Phone'] || supplier.phone;
-      if (isSupplierTouched(supplierStates[phone])) touched += 1;
+      if (isSupplierTouched(stateFor(phone))) touched += 1;
     });
     return { total: feed.length, touched, untouched: feed.length - touched };
   };
@@ -406,7 +420,7 @@ export default function SuppliersDashboard() {
   }, [loading, suppliers, isLoggedIn, activeAgent]);
 
   useEffect(() => {
-    fetch('/api/suppliers', { cache: 'no-store' })
+    fetch('/api/suppliers?lite=1', { cache: 'no-store' })
       .then(async (res) => {
         const source = res.headers.get('X-Suppliers-Source');
         const data = await res.json();
@@ -423,8 +437,6 @@ export default function SuppliersDashboard() {
           return !name || name === 'ספק ללא שם';
         }).length;
 
-        // Health check: wrong source / too many nameless rows / suspiciously tiny payload.
-        // Do NOT flag a high count — the catalog grows (e.g. מאפרות import → ~900+).
         const suspiciouslySmall = data.length > 0 && data.length < 200;
         if (source !== 'json' || emptyInPayload > 5 || suspiciouslySmall) {
           setApiHealthWarning(
@@ -438,12 +450,14 @@ export default function SuppliersDashboard() {
           const category = s.Category || s.category || '';
           const supplierName = (s['Supplier Name'] || s.name || s.Name || s.clean_name || '').trim();
           const cleanName = (s.clean_name || supplierName.split('|')[0]?.trim() || supplierName).trim();
+          const realPhone = s['Real Phone'] || s.real_phone || s.phone || s['Phone Number'] || '';
           return {
             ...s,
             id: s.id ?? null,
             clean_name: cleanName,
             'Supplier Name': supplierName || cleanName || 'ספק ללא שם',
-            'Real Phone': s['Real Phone'] || s.real_phone || s.phone || s['Phone Number'] || '',
+            'Real Phone': realPhone,
+            phone: realPhone,
             Category: category.trim() !== '' ? category : 'ספקים ללא קטגוריה',
             Address: s.Address || s.address || '',
             Website: s.Website || s.website || '',
@@ -459,52 +473,39 @@ export default function SuppliersDashboard() {
           .map(normalizeRow)
           .filter((s) => s['Supplier Name'] && s['Supplier Name'] !== 'ספק ללא שם' && (s['Real Phone'] || s.phone));
         setSuppliers(processedData);
-        const today = new Date().toISOString().split('T')[0];
-        const initialStates = {};
-        processedData.forEach((s) => {
-          const phone = s["Real Phone"] || s["phone"];
-          initialStates[phone] = {
-            uploadedImage: null,
-            closingDate: today,
-            showDatePicker: false,
-            status: null,
-            reminder: null,
-            agent: null
-          };
-        });
-        
+
         const localStates = loadAllSupplierStatesLocal();
 
-        // Fetch saved states
         fetch('/api/states', { cache: 'no-store' })
-          .then(res => res.json())
-          .then(savedStates => {
-            const mergedStates = { ...initialStates };
-            for (const key in localStates) {
-              mergedStates[key] = {
-                ...(mergedStates[key] || {}),
-                ...localStates[key],
-              };
+          .then(async (res) => {
+            let savedStates = {};
+            if (res.ok) {
+              savedStates = await res.json();
+              if (savedStates?.error) {
+                setStatesLoadWarning('לא הצלחנו לטעון סטטוסים מהענן — מוצגים רק נתונים מקומיים. רענון עשוי לעזור.');
+                savedStates = {};
+              } else {
+                setStatesLoadWarning(null);
+              }
+            } else {
+              setStatesLoadWarning('שגיאה בטעינת סטטוסים מהענן — ייתכן שחלק מהעבודה לא יוצג. נסי לרענן.');
+              savedStates = {};
             }
-            for (const key in savedStates) {
-              mergedStates[key] = {
-                ...(mergedStates[key] || {}),
-                ...savedStates[key],
-              };
+
+            const mergedStates = { ...localStates };
+            for (const [key, state] of Object.entries(savedStates)) {
+              const nk = phoneKey(key);
+              if (!nk) continue;
+              mergedStates[nk] = { ...(mergedStates[nk] || {}), ...state };
             }
+
             setSupplierStates(mergedStates);
             saveAllSupplierStatesLocal(mergedStates);
             setLoading(false);
           })
           .catch(() => {
-            const mergedStates = { ...initialStates };
-            for (const key in localStates) {
-              mergedStates[key] = {
-                ...(mergedStates[key] || {}),
-                ...localStates[key],
-              };
-            }
-            setSupplierStates(mergedStates);
+            setStatesLoadWarning('שגיאת רשת בטעינת סטטוסים — מוצגים נתונים מקומיים בלבד.');
+            setSupplierStates({ ...localStates });
             setLoading(false);
           });
       })
@@ -535,8 +536,9 @@ export default function SuppliersDashboard() {
         setSupplierStates((prev) => {
           const next = { ...prev };
           assignments.forEach((item) => {
-            next[item.phone] = {
-              ...(next[item.phone] || {}),
+            const key = phoneKey(item.phone);
+            next[key] = {
+              ...(next[key] || {}),
               assignedAgent: item.assignedAgent,
               assignedCategory: item.assignedCategory,
               moranGroup: item.moranGroup,
@@ -560,8 +562,8 @@ export default function SuppliersDashboard() {
 
       suppliers.forEach((s, index) => {
         const phone = s["Real Phone"] || s["phone"];
-        const state = supplierStates[phone];
-        if (!state) return;
+        const state = stateFor(phone);
+        if (!state || Object.keys(state).length === 0) return;
 
         // Condition for active, non-dismissed callback reminder
         if (state.callbackTimestamp && now >= state.callbackTimestamp && state.callbackDismissed !== true) {
@@ -846,7 +848,7 @@ export default function SuppliersDashboard() {
 
     const pushImages = collectPushImages(supplier, cachedImg);
 
-    const state = supplierStates[phone];
+    const state = stateFor(phone);
     const rawUploaded = state?.uploadedImage || '';
     const uploadedImage = rawUploaded && rawUploaded !== '[stored]' ? rawUploaded : '';
     const isSigned = targetStatus ? (targetStatus === 'contract') : (state ? (state.status === 'contract') : false);
@@ -1134,14 +1136,18 @@ export default function SuppliersDashboard() {
   };
 
   const updateSupplierState = (phone, newState) => {
+    const key = phoneKey(phone);
+    if (!key) return;
+
     const touchFields = ['status', 'callbackScheduled', 'reminder', 'notes', 'uploadedImage'];
     const isTouchAction = touchFields.some((field) => field in newState);
     const enrichedState = { ...newState };
+    const prevState = supplierStates[key] || {};
 
     if (isTouchAction) {
       enrichedState.lastTouchedAt = Date.now();
       enrichedState.lastTouchedBy = activeAgent;
-      if (!supplierStates[phone]?.firstTouchedAt) {
+      if (!prevState.firstTouchedAt) {
         enrichedState.firstTouchedAt = Date.now();
         enrichedState.firstTouchedBy = activeAgent;
       }
@@ -1149,13 +1155,13 @@ export default function SuppliersDashboard() {
       const activityAction = resolveActivityAction(newState);
       if (activityAction && activeAgent) {
         enrichedState.activityLog = appendActivityLog(
-          supplierStates[phone]?.activityLog,
+          prevState.activityLog,
           buildActivityEntry(activityAction.action, activeAgent, activityAction)
         );
       }
 
       if (activeAgent === 'מורן' || activeAgent === 'ינון') {
-        const supplier = suppliers.find((s) => (s['Real Phone'] || s.phone) === phone);
+        const supplier = suppliers.find((s) => phoneKey(s['Real Phone'] || s.phone) === key);
         if (supplier) {
           enrichedState.assignedAgent = activeAgent;
           enrichedState.supplierName = supplier['Supplier Name'] || supplier.clean_name || '';
@@ -1170,18 +1176,18 @@ export default function SuppliersDashboard() {
       }
     }
 
-    setSupplierStates(prev => {
-      const merged = { ...prev[phone], ...enrichedState };
+    setSupplierStates((prev) => {
+      const merged = { ...(prev[key] || {}), ...enrichedState };
       saveSupplierStateLocal(phone, merged);
       return {
         ...prev,
-        [phone]: merged,
+        [key]: merged,
       };
     });
     fetch('/api/states', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, state: enrichedState })
+      body: JSON.stringify({ phone, state: enrichedState }),
     })
     .then(async res => {
       if (!res.ok) {
@@ -1406,7 +1412,7 @@ export default function SuppliersDashboard() {
   };
 
   const toggleDatePicker = (phone) => {
-    updateSupplierState(phone, { showDatePicker: !supplierStates[phone].showDatePicker });
+    updateSupplierState(phone, { showDatePicker: !stateFor(phone).showDatePicker });
   };
 
   const MOVE_META = {
@@ -1452,7 +1458,7 @@ export default function SuppliersDashboard() {
   };
 
   const resetSupplierToUntouched = (phone) => {
-    const prevState = supplierStates[phone] || {};
+    const prevState = stateFor(phone);
     const resetState = {
       status: null,
       reminder: null,
@@ -1499,7 +1505,7 @@ export default function SuppliersDashboard() {
       return;
     }
 
-    const isReset = status === 'not-signed' && supplierStates[phone]?.status === 'not-signed';
+    const isReset = status === 'not-signed' && stateFor(phone).status === 'not-signed';
     const metaKey = isReset
       ? 'reset-untouched'
       : status === 'not-interested'
@@ -1526,7 +1532,7 @@ export default function SuppliersDashboard() {
   };
 
   const addToCalendar = (phone, supplier, overrideReminder = null) => {
-    const state = supplierStates[phone];
+    const state = stateFor(phone);
     const reminderType = overrideReminder || state.reminder;
     if (!reminderType) return;
 
@@ -1551,7 +1557,7 @@ export default function SuppliersDashboard() {
   };
 
   const sendToWhatsApp = async (phone, supplier) => {
-    const state = supplierStates[phone];
+    const state = stateFor(phone);
     if (!state.uploadedImage) {
       alert("יש להעלות צילום מסך או חוזה לפני הדיווח!");
       return;
@@ -1864,7 +1870,7 @@ export default function SuppliersDashboard() {
   };
 
   const getSupplierTab = (phone) => {
-    const state = supplierStates[phone] || { status: null };
+    const state = stateFor(phone);
     const isHandled = state.status === 'not-interested' || state.status === 'contract';
     const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
 
@@ -1877,31 +1883,28 @@ export default function SuppliersDashboard() {
   };
 
   const filteredSuppliers = suppliers
-    .filter((s, i) => {
-      if (searchQuery) return true;
-      
+    .filter((s) => {
+      if (debouncedSearchQuery) return true;
+
       if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return true;
       if (activeAgent === 'הודיה') return false;
       const allowedCategories = agentCategoryMap[activeAgent] || [];
-      
-      if (s.Category === "ספקים ללא קטגוריה" || !s.Category) return true;
-      
-      const matches = allowedCategories.some(cat => s.Category.includes(cat));
-      if (!matches) return false;
 
-      return true;
+      if (s.Category === 'ספקים ללא קטגוריה' || !s.Category) return true;
+
+      return allowedCategories.some((cat) => s.Category.includes(cat));
     })
     .filter((s) => {
-      if (searchQuery) return true;
-      
-      const phone = s["Real Phone"] || s["phone"];
+      if (debouncedSearchQuery) return true;
+
+      const phone = s['Real Phone'] || s.phone;
       const exitInfo = exitingSuppliers[phone];
       if (exitInfo?.fromTab === activeTab) return true;
 
-      const state = supplierStates[phone] || { status: null };
+      const state = stateFor(phone);
       const isHandled = state.status === 'not-interested' || state.status === 'contract';
       const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
-      
+
       if (activeTab === 'לא נגעו בכלל') {
         return !isSupplierTouched(state);
       }
@@ -1912,16 +1915,17 @@ export default function SuppliersDashboard() {
       if (state.status === 'not-signed') {
         return activeTab === 'עדיין לא חתם';
       }
-      
+
       if (activeTab === 'לחזור אליהם') return !isHandled && isCallback;
       if (activeTab === 'לא ענו') return false;
       if (activeTab === 'עדיין לא חתם') return false;
       return isHandled;
     })
     .filter((s) => {
-      if (!searchQuery) return true;
-      const supplierNumber = suppliers.indexOf(s) + 1;
-      return supplierMatchesSearch(s, searchQuery, supplierNumber);
+      if (!debouncedSearchQuery) return true;
+      const key = phoneKey(s['Real Phone'] || s.phone);
+      const supplierNumber = key ? supplierIndexByPhone.get(key) : null;
+      return supplierMatchesSearch(s, debouncedSearchQuery, supplierNumber);
     })
     .filter((s) => {
       const name = (s['Supplier Name'] || s.clean_name || '').trim();
@@ -1929,13 +1933,35 @@ export default function SuppliersDashboard() {
       return name && name !== 'ספק ללא שם' && phone && phone !== 'FAILED' && phone !== 'N/A';
     })
     .filter((s) => {
-      if (activeAgent !== 'מורן' || searchQuery) return true;
+      if (activeAgent !== 'מורן' || debouncedSearchQuery) return true;
       return getMoranSupplierGroup(s) !== 'other';
     });
 
   const displaySuppliers = filteredSuppliers;
-  const displayList = buildDisplayList(filteredSuppliers, activeAgent, searchQuery);
+  const displayList = buildDisplayList(filteredSuppliers, activeAgent, debouncedSearchQuery);
   const tabCounts = getTabCounts();
+
+  const openSupplierProfile = async (supplier) => {
+    setSelectedSupplierProfile(supplier);
+    const phone = supplier['Real Phone'] || supplier.phone;
+    if (!phone || !supplier.lite) return;
+
+    try {
+      const res = await fetch(`/api/suppliers?phone=${encodeURIComponent(phone)}`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const full = await res.json();
+      setSelectedSupplierProfile(full);
+      setSuppliers((prev) =>
+        prev.map((s) =>
+          phoneKey(s['Real Phone'] || s.phone) === phoneKey(phone)
+            ? { ...s, ...full, lite: false }
+            : s
+        )
+      );
+    } catch (err) {
+      console.error('Failed to load full supplier profile:', err);
+    }
+  };
 
   return (
     <div className="dashboard-container" dir="rtl">
@@ -1953,6 +1979,22 @@ export default function SuppliersDashboard() {
           borderBottom: '2px solid #ef4444',
         }}>
           {apiHealthWarning}
+        </div>
+      )}
+      {statesLoadWarning && (
+        <div style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 9998,
+          background: '#92400e',
+          color: '#fff',
+          padding: '12px 16px',
+          textAlign: 'center',
+          fontSize: '0.95rem',
+          fontWeight: 600,
+          borderBottom: '2px solid #f59e0b',
+        }}>
+          {statesLoadWarning}
         </div>
       )}
       {activeAgent === 'נתנאל' && (
@@ -2394,8 +2436,8 @@ export default function SuppliersDashboard() {
 
                 const s = item.supplier;
                 const phone = s["Real Phone"] || s["phone"];
-                const state = supplierStates[phone] || { status: null };
-                const supplierNumber = suppliers.indexOf(s) + 1;
+                const state = stateFor(phone);
+                const supplierNumber = supplierIndexByPhone.get(phoneKey(phone)) || suppliers.indexOf(s) + 1;
                 const cardKey = `${s.id ?? 'no-id'}-${phone}-${supplierNumber}`;
                 const supplierTab = getSupplierTab(phone);
                 const moveFx = moveEffects[phone];
@@ -2575,7 +2617,7 @@ export default function SuppliersDashboard() {
 
                       <button
                         type="button"
-                        onClick={() => setSelectedSupplierProfile(s)}
+                        onClick={() => openSupplierProfile(s)}
                         className="btn-profile"
                       >
                         <FileText size={16} />

@@ -1,32 +1,48 @@
 import { NextResponse } from 'next/server';
 import getMongoClient from '../../../lib/mongodb';
+import { phoneKey } from '../../../lib/phoneUtils';
 
 export const dynamic = 'force-dynamic';
+
+function normalizeStatesObject(allStatesArray) {
+  const statesObject = {};
+  allStatesArray.forEach((doc) => {
+    const { _id, phone, ...stateData } = doc;
+    const key = phoneKey(phone);
+    if (!key) return;
+    if (stateData.uploadedImage && String(stateData.uploadedImage).startsWith('data:')) {
+      stateData.uploadedImage = '[stored]';
+    }
+    statesObject[key] = {
+      ...(statesObject[key] || {}),
+      ...stateData,
+      phone: phone || stateData.phone,
+    };
+  });
+  return statesObject;
+}
 
 export async function GET() {
   try {
     const client = await getMongoClient();
     const db = client.db('fiesta_crm');
     const collection = db.collection('supplier_states');
-    
-    const allStatesArray = await collection.find({}).toArray();
-    
-    const statesObject = {};
-    allStatesArray.forEach(doc => {
-      const { _id, phone, ...stateData } = doc;
-      if (phone) {
-        // Don't send huge base64 images in list response — slows dashboard
-        if (stateData.uploadedImage && String(stateData.uploadedImage).startsWith('data:')) {
-          stateData.uploadedImage = '[stored]';
-        }
-        statesObject[phone] = stateData;
-      }
-    });
 
-    return NextResponse.json(statesObject);
+    const allStatesArray = await collection.find({}).toArray();
+    const statesObject = normalizeStatesObject(allStatesArray);
+
+    return NextResponse.json(statesObject, {
+      headers: { 'X-States-Count': String(Object.keys(statesObject).length) },
+    });
   } catch (error) {
-    console.error("MongoDB GET Error:", error);
-    return NextResponse.json({});
+    console.error('MongoDB GET Error:', error);
+    return NextResponse.json(
+      { error: error.message || 'MongoDB unavailable' },
+      {
+        status: 503,
+        headers: { 'X-States-Error': '1' },
+      }
+    );
   }
 }
 

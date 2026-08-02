@@ -4,8 +4,50 @@ import path from 'path';
 import { loadSuppliersFromJson, normalizeSupplierRecord } from '../../../lib/supplierEnrichment';
 import { cleanDescription } from '../../../lib/cleanDescription';
 import { supplierMatchesSearch } from '../../../lib/searchUtils';
+import { phoneKey } from '../../../lib/phoneUtils';
 
 export const dynamic = 'force-dynamic';
+
+function filterValidSuppliers(list) {
+  return list.filter((s) => {
+    const name = (s['Supplier Name'] || s.clean_name || '').trim();
+    const phone = s['Real Phone'] || s['Phone Number'] || '';
+    return (
+      name &&
+      name !== 'ספק ללא שם' &&
+      phone &&
+      phone !== 'FAILED' &&
+      phone !== 'N/A'
+    );
+  });
+}
+
+function toLiteSupplier(s) {
+  const images = (s.images || []).filter(Boolean);
+  const main = s['Main Image'] || images[0] || '';
+  return {
+    id: s.id ?? null,
+    clean_name: s.clean_name,
+    'Supplier Name': s['Supplier Name'],
+    name: s['Supplier Name'] || s.name,
+    'Real Phone': s['Real Phone'],
+    phone: s['Real Phone'] || s.phone,
+    'Phone Number': s['Phone Number'] || '',
+    Category: s.Category || s.category || '',
+    category: s.Category || s.category || '',
+    Address: s.Address || s.address || '',
+    Website: s.Website || s.website || '',
+    URL: s.URL || s.engaged_url || '',
+    engaged_url: s.engaged_url || s.URL || '',
+    'Main Image': main,
+    images: main ? [main] : [],
+    description: '',
+    reviews: [],
+    reviews_count: s['Reviews Count'] || s.reviews_count || null,
+    google_rating: s['Google Rating'] || s.google_rating || null,
+    lite: true,
+  };
+}
 
 export async function GET(request) {
   try {
@@ -32,23 +74,31 @@ export async function GET(request) {
     }
 
     const { list } = loadSuppliersFromJson();
-    const suppliers = list
-      .map((item) => normalizeSupplierRecord(item))
-      .filter((s) => {
-        const name = (s['Supplier Name'] || s.clean_name || '').trim();
-        const phone = s['Real Phone'] || s['Phone Number'] || '';
-        return (
-          name &&
-          name !== 'ספק ללא שם' &&
-          phone &&
-          phone !== 'FAILED' &&
-          phone !== 'N/A'
-        );
-      });
+    const suppliers = filterValidSuppliers(list.map((item) => normalizeSupplierRecord(item)));
 
-    console.log(`GET /api/suppliers: returning ${suppliers.length} suppliers (json source)`);
-    return NextResponse.json(suppliers, {
-      headers: { 'X-Suppliers-Source': 'json', 'X-Suppliers-Count': String(suppliers.length) },
+    const lite = searchParams.get('lite') === '1';
+    const phoneQuery = searchParams.get('phone');
+
+    if (phoneQuery) {
+      const key = phoneKey(phoneQuery);
+      const match = suppliers.find((s) => phoneKey(s['Real Phone'] || s.phone) === key);
+      if (!match) {
+        return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
+      }
+      return NextResponse.json(match);
+    }
+
+    const payload = lite ? suppliers.map(toLiteSupplier) : suppliers;
+
+    console.log(
+      `GET /api/suppliers: returning ${payload.length} suppliers (${lite ? 'lite' : 'full'} source=json)`
+    );
+    return NextResponse.json(payload, {
+      headers: {
+        'X-Suppliers-Source': 'json',
+        'X-Suppliers-Count': String(payload.length),
+        'X-Suppliers-Mode': lite ? 'lite' : 'full',
+      },
     });
   } catch (error) {
     console.error('API Error during GET:', error);
