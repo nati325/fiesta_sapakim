@@ -72,6 +72,25 @@ function isValidSupplierRow(s) {
   return name && name !== 'ספק ללא שם' && phone && phone !== 'FAILED' && phone !== 'N/A';
 }
 
+function LoadingSpinner({ size = 40, label = 'טוען...' }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+      <div
+        style={{
+          width: `${size}px`,
+          height: `${size}px`,
+          border: '3px solid var(--border)',
+          borderTopColor: 'var(--accent)',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+          margin: '0 auto 14px',
+        }}
+      />
+      {label ? <p style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem' }}>{label}</p> : null}
+    </div>
+  );
+}
+
 function parseSupplierIndexQuery(raw) {
   const q = String(raw || '').trim();
   const m1 = q.match(/^#?(\d+)$/);
@@ -1757,11 +1776,17 @@ export default function SuppliersDashboard() {
 
               {agent !== 'הודיה' && (
                 <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--border)', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  כיסוי פיד: <strong style={{ color: '#10b981' }}>{getAgentFeedStats(agent).touched}</strong>
-                  {' / '}
-                  {getAgentFeedStats(agent).total}
-                  {' · '}
-                  לא נגעו: <strong style={{ color: '#ef4444' }}>{getAgentFeedStats(agent).untouched}</strong>
+                  {loading ? (
+                    <span style={{ color: 'var(--text-muted)' }}>טוען כיסוי פיד...</span>
+                  ) : (
+                    <>
+                      כיסוי פיד: <strong style={{ color: '#10b981' }}>{getAgentFeedStats(agent).touched}</strong>
+                      {' / '}
+                      {getAgentFeedStats(agent).total}
+                      {' · '}
+                      לא נגעו: <strong style={{ color: '#ef4444' }}>{getAgentFeedStats(agent).untouched}</strong>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -1823,6 +1848,16 @@ export default function SuppliersDashboard() {
       : null;
 
     const feedStatsCard = feedStats ? (
+      loading ? (
+        <div className="glass-card" style={{
+          padding: '8px',
+          marginBottom: '20px',
+          border: '1px solid var(--border)',
+          background: 'var(--card-bg)',
+        }}>
+          <LoadingSpinner size={36} label="טוען נתוני פיד..." />
+        </div>
+      ) : (
       <div className="glass-card" style={{
         padding: '18px 20px',
         marginBottom: '20px',
@@ -1855,6 +1890,7 @@ export default function SuppliersDashboard() {
           </button>
         </div>
       </div>
+      )
     ) : null;
 
     const dailyTarget = activeAgent === 'מורן' ? 7 : 50;
@@ -2329,7 +2365,7 @@ export default function SuppliersDashboard() {
       {activeAgent === 'נתנאל' && renderManagerStats()}
       {renderAgentTargets()}
 
-      {activeAgent && activeAgent !== 'נתנאל' && activeAgent !== 'מאגר כללי' && (
+      {activeAgent && activeAgent !== 'נתנאל' && activeAgent !== 'מאגר כללי' && !loading && (
         <div className="tab-bar">
           {[
             { key: 'לא נגעו בכלל', label: 'לא נגעו', count: tabCounts['לא נגעו בכלל'] },
@@ -2353,10 +2389,7 @@ export default function SuppliersDashboard() {
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '100px', color: 'var(--text-muted)' }}>
-          <div style={{ width: '40px', height: '40px', border: '3px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }}></div>
-          טוען ספקים...
-        </div>
+        <LoadingSpinner size={44} label="טוען ספקים וסטטוסים..." />
       ) : (
         <>
           {/* Search */}
