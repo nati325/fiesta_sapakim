@@ -5,6 +5,14 @@ import { loadSuppliersFromJson, normalizeSupplierRecord } from '../../../lib/sup
 import { cleanDescription } from '../../../lib/cleanDescription';
 import { supplierMatchesSearch } from '../../../lib/searchUtils';
 import { phoneKey } from '../../../lib/phoneUtils';
+import {
+  countSuppliersInMongo,
+  findSupplierByPhone,
+  findSuppliers,
+  jsonItemToMongoDoc,
+  bulkUpsertSuppliers,
+  updateSupplierFields,
+} from '../../../lib/suppliersMongo';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,13 +20,7 @@ function filterValidSuppliers(list) {
   return list.filter((s) => {
     const name = (s['Supplier Name'] || s.clean_name || '').trim();
     const phone = s['Real Phone'] || s['Phone Number'] || '';
-    return (
-      name &&
-      name !== 'ספק ללא שם' &&
-      phone &&
-      phone !== 'FAILED' &&
-      phone !== 'N/A'
-    );
+    return name && name !== 'ספק ללא שם' && phone && phone !== 'FAILED' && phone !== 'N/A';
   });
 }
 
@@ -49,54 +51,94 @@ function toLiteSupplier(s) {
   };
 }
 
+async function loadFromJsonFallback({ lite, phoneQuery, search }) {
+  const { list } = loadSuppliersFromJson();
+  let suppliers = filterValidSuppliers(list.map((item) => normalizeSupplierRecord(item)));
+
+  if (phoneQuery) {
+    const key = phoneKey(phoneQuery);
+    const match = suppliers.find((s) => phoneKey(s['Real Phone'] || s.phone) === key);
+    return { suppliers: match ? [match] : [], source: 'json' };
+  }
+
+  if (search) {
+    const q = search.trim();
+    suppliers = suppliers.filter((s, i) => supplierMatchesSearch(s, q, i + 1));
+  }
+
+  return {
+    suppliers: lite ? suppliers.map(toLiteSupplier) : suppliers,
+    source: 'json',
+  };
+}
+
+async function loadFromMongo({ lite, phoneQuery, search, category }) {
+  const mongoCount = await countSuppliersInMongo();
+  if (mongoCount === 0) return null;
+
+  if (phoneQuery) {
+    const match = await findSupplierByPhone(phoneQuery, { lite: false });
+    return { suppliers: match ? [match] : [], source: 'mongodb', total: mongoCount };
+  }
+
+  const suppliers = await findSuppliers({
+    lite,
+    search: search || '',
+    category: category || '',
+  });
+
+  return { suppliers, source: 'mongodb', total: mongoCount };
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
+
     if (searchParams.get('verify') === '1') {
-      const { list } = loadSuppliersFromJson();
-      const lior = list.find((s) => (s['Supplier Name'] || '').includes('ליאור פרץ'));
-      const liorIndex = lior ? list.indexOf(lior) + 1 : null;
-      return NextResponse.json({
-        ok: true,
-        totalSuppliers: list.length,
-        lior: lior
-          ? { found: true, name: lior['Supplier Name'], phone: lior['Real Phone'], index: liorIndex }
-          : { found: false },
-        searchLiorTypo: lior
-          ? supplierMatchesSearch(lior, 'ליאר פרץ', liorIndex)
-          : false,
-      });
-    }
+      let total = 0;
+      let source = 'json';
+      try {
+        total = await countSuppliersInMongo();
+        if (total > 0) source = 'mongodb';
+      } catch {
+        total = loadSuppliersFromJson().list.length;
+      }
+      if (total === 0) total = loadSuppliersFromJson().list.length;
 
-    const dataDir = path.join(process.cwd(), 'data');
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
+      return NextResponse.json({ ok: true, totalSuppliers: total, source });
     }
-
-    const { list } = loadSuppliersFromJson();
-    const suppliers = filterValidSuppliers(list.map((item) => normalizeSupplierRecord(item)));
 
     const lite = searchParams.get('lite') === '1';
-    const phoneQuery = searchParams.get('phone');
+    const phoneQuery = searchParams.get('phone') || '';
+    const search = searchParams.get('search') || '';
+    const category = searchParams.get('category') || '';
 
-    if (phoneQuery) {
-      const key = phoneKey(phoneQuery);
-      const match = suppliers.find((s) => phoneKey(s['Real Phone'] || s.phone) === key);
-      if (!match) {
-        return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
-      }
-      return NextResponse.json(match);
+    let result = null;
+    try {
+      result = await loadFromMongo({ lite, phoneQuery, search, category });
+    } catch (mongoErr) {
+      console.error('MongoDB suppliers read failed, falling back to JSON:', mongoErr.message);
     }
 
-    const payload = lite ? suppliers.map(toLiteSupplier) : suppliers;
+    if (!result) {
+      result = await loadFromJsonFallback({ lite, phoneQuery, search });
+    }
+
+    const { suppliers, source, total } = result;
+
+    if (phoneQuery && !suppliers.length) {
+      return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
+    }
 
     console.log(
-      `GET /api/suppliers: returning ${payload.length} suppliers (${lite ? 'lite' : 'full'} source=json)`
+      `GET /api/suppliers: ${suppliers.length} rows (${lite ? 'lite' : 'full'} source=${source}${search ? ` search="${search}"` : ''})`
     );
-    return NextResponse.json(payload, {
+
+    return NextResponse.json(suppliers, {
       headers: {
-        'X-Suppliers-Source': 'json',
-        'X-Suppliers-Count': String(payload.length),
+        'X-Suppliers-Source': source,
+        'X-Suppliers-Count': String(total ?? suppliers.length),
+        'X-Suppliers-Returned': String(suppliers.length),
         'X-Suppliers-Mode': lite ? 'lite' : 'full',
       },
     });
@@ -123,6 +165,18 @@ export async function POST(req) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
+    let savedTo = 'json';
+
+    try {
+      const mongoCount = await countSuppliersInMongo();
+      if (mongoCount > 0) {
+        const ok = await updateSupplierFields(phone, updateFields);
+        if (ok) savedTo = 'mongodb';
+      }
+    } catch (mongoErr) {
+      console.error('MongoDB supplier update failed:', mongoErr.message);
+    }
+
     const jsonPath = path.join(process.cwd(), 'data', 'suppliers_complete.json');
     if (fs.existsSync(jsonPath)) {
       try {
@@ -134,23 +188,19 @@ export async function POST(req) {
           );
         }
         const rawData = JSON.parse(content);
-        let updated = false;
 
         const updatedData = rawData.map((item) => {
-          const itemPhone = (item.real_phone || item.phone || '').replace(/\D/g, '');
-          const searchPhone = String(phone).replace(/\D/g, '');
+          const itemPhone = phoneKey(item.real_phone || item.phone);
+          const searchPhone = phoneKey(phone);
           if (itemPhone && searchPhone && itemPhone === searchPhone) {
-            updated = true;
             return { ...item, ...updateFields };
           }
           return item;
         });
 
-        if (updated) {
-          fs.writeFileSync(jsonPath, JSON.stringify(updatedData, null, 2), 'utf-8');
-        }
+        fs.writeFileSync(jsonPath, JSON.stringify(updatedData, null, 2), 'utf-8');
       } catch (jsonError) {
-        console.error('Failed to update local JSON fallback:', jsonError.message);
+        console.error('Failed to update JSON fallback:', jsonError.message);
       }
     }
 
@@ -184,9 +234,28 @@ export async function POST(req) {
       }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, savedTo });
   } catch (error) {
     console.error('API Error during POST:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+/** One-time sync endpoint for admin — POST with { sync: true } could be added later */
+export async function PUT() {
+  try {
+    const jsonPath = path.join(process.cwd(), 'data', 'suppliers_complete.json');
+    if (!fs.existsSync(jsonPath)) {
+      return NextResponse.json({ error: 'suppliers_complete.json not found' }, { status: 404 });
+    }
+
+    const raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+    const docs = raw.map(jsonItemToMongoDoc).filter(Boolean);
+    const result = await bulkUpsertSuppliers(docs);
+    const total = await countSuppliersInMongo();
+
+    return NextResponse.json({ success: true, ...result, total });
+  } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

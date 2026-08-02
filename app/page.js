@@ -438,9 +438,9 @@ export default function SuppliersDashboard() {
         }).length;
 
         const suspiciouslySmall = data.length > 0 && data.length < 200;
-        if (source !== 'json' || emptyInPayload > 5 || suspiciouslySmall) {
+        if ((source !== 'json' && source !== 'mongodb') || emptyInPayload > 5 || suspiciouslySmall) {
           setApiHealthWarning(
-            `השרת מריץ גרסה ישנה (${data.length} רשומות, ${emptyInPayload} ללא שם). סגור את החלון של npm run dev והרץ: restart-dashboard.bat — או בטרמינל: npm run dev:fresh`
+            `השרת מריץ גרסה ישנה (${data.length} רשומות, מקור: ${source || 'לא ידוע'}). רענן את הדף — אם נמשך, redeploy ב-Vercel.`
           );
         } else {
           setApiHealthWarning(null);

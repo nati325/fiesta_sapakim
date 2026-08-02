@@ -537,3 +537,28 @@ console.log('\n--- Sample new suppliers ---');
 added.slice(0, 5).forEach((s) => {
   console.log(`  #${s.id} ${s.name} | ${s.category} | ${s.real_phone} | imgs=${s.images?.length || 0} reviews=${s.reviews?.length || 0}`);
 });
+
+// ── Sync to MongoDB ───────────────────────────────────────────────────────────
+try {
+  const envPath = path.join(ROOT, '.env.local');
+  if (fs.existsSync(envPath)) {
+    for (const line of fs.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) continue;
+      const i = t.indexOf('=');
+      if (i < 0) continue;
+      const k = t.slice(0, i).trim();
+      let v = t.slice(i + 1).trim();
+      if (!process.env[k]) process.env[k] = v;
+    }
+  }
+  if (process.env.MONGODB_URI) {
+    const { bulkUpsertSuppliers, jsonItemToMongoDoc, countSuppliersInMongo } = await import('../lib/suppliersMongo.js');
+    const docs = existing.map(jsonItemToMongoDoc).filter(Boolean);
+    const mongoResult = await bulkUpsertSuppliers(docs);
+    const mongoTotal = await countSuppliersInMongo();
+    console.log(`\nMongoDB synced: upserted=${mongoResult.upserted} modified=${mongoResult.modified} total=${mongoTotal}`);
+  }
+} catch (mongoErr) {
+  console.warn('MongoDB sync skipped:', mongoErr.message);
+}
