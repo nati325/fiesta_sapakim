@@ -1952,7 +1952,7 @@ export default function SuppliersDashboard() {
     return null;
   };
 
-  const filteredSuppliers = useMemo(() => {
+  const filteredSuppliers = (() => {
     if (isSearchMode) {
       return (searchResults ?? []).filter(isValidSupplierRow);
     }
@@ -1987,15 +1987,7 @@ export default function SuppliersDashboard() {
         if (activeAgent !== 'מורן') return true;
         return getMoranSupplierGroup(s) !== 'other';
       });
-  }, [
-    isSearchMode,
-    searchResults,
-    suppliers,
-    activeAgent,
-    activeTab,
-    exitingSuppliers,
-    supplierStates,
-  ]);
+  })();
 
   const displaySuppliers = filteredSuppliers;
   const displayList = buildDisplayList(filteredSuppliers, activeAgent, isSearchMode ? effectiveSearchQuery : '');
