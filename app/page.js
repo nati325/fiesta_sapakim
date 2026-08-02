@@ -131,10 +131,10 @@ export default function SuppliersDashboard() {
   
   // Categories mapping
   const agentCategoryMap = {
-    'ינון': ['צלמים', 'צילום', 'צלם', 'וידאו', 'סושיאל'],
+    'ינון': ['צלמים', 'צילום', 'צלם', 'וידאו', 'סושיאל', 'photographer'],
     'מורן': [
       'מאפרות', 'איפור', 'שיער', 'כלות', 'לחתן ולכלה',
-      'שמלות כלה', 'חליפות חתן',
+      'שמלות כלה', 'חליפות חתן', 'makeup', 'hair', 'dresses', 'suits',
     ],
     'הודיה': [], // פיד ריק — כל קטגוריות הכלה/איפור/שיער/שמלות עברו למורן
     'נתנאל': [] // Sees all
@@ -903,15 +903,41 @@ export default function SuppliersDashboard() {
             discount,
             discountType: fiestaPushForm.discountDisplayType,
             agentName: activeAgent,
-            images: fiestaPushForm.selectedImages || fiestaPushForm.images || fiestaPushSupplier?.images || [],
-            reviews: fiestaPushForm.reviews || fiestaPushSupplier?.reviews || []
+            images: (fiestaPushForm.selectedImages || fiestaPushForm.images || fiestaPushSupplier?.images || []).filter(
+              (img) => {
+                const s = String(img || '').trim();
+                return (
+                  s.startsWith('http://') ||
+                  s.startsWith('https://') ||
+                  s.startsWith('/media/') ||
+                  s.startsWith('data:image/')
+                );
+              }
+            ),
+            reviews: Array.isArray(fiestaPushForm.reviews)
+              ? fiestaPushForm.reviews
+              : Array.isArray(fiestaPushSupplier?.reviews)
+                ? fiestaPushSupplier.reviews
+                : Array.isArray(fiestaPushSupplier?.reviews?.reviews)
+                  ? fiestaPushSupplier.reviews.reviews
+                  : [],
           }
         })
       });
-      const data = await res.json();
+      const raw = await res.text();
+      let data = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        setFiestaPushResult('error');
+        setFiestaPushError(
+          `תשובה לא תקינה מהשרת (HTTP ${res.status}): ${raw.slice(0, 180) || 'ריק'}`
+        );
+        return;
+      }
       if (!res.ok || data.error) {
         setFiestaPushResult('error');
-        setFiestaPushError(data.error || 'שגיאה לא ידועה');
+        setFiestaPushError(data.error || `שגיאה מהשרת (HTTP ${res.status})`);
         return;
       }
 
@@ -1065,7 +1091,7 @@ export default function SuppliersDashboard() {
     if (!supplier) return;
     
     // Filter out target review by index
-    const updatedReviews = (supplier.reviews || []).filter((_, idx) => idx !== reviewIdx);
+    const updatedReviews = (Array.isArray(supplier.reviews) ? supplier.reviews : []).filter((_, idx) => idx !== reviewIdx);
     
     // Update local state suppliers list
     setSuppliers(prev => prev.map(s => {
@@ -2964,7 +2990,7 @@ export default function SuppliersDashboard() {
                 </div>
               )}
 
-              {selectedSupplierProfile.reviews && selectedSupplierProfile.reviews.length > 0 && (
+              {Array.isArray(selectedSupplierProfile.reviews) && selectedSupplierProfile.reviews.length > 0 && (
                 <div style={{ marginBottom: '25px' }}>
                   <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '15px', color: 'var(--accent)' }}>ביקורות נבחרות</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

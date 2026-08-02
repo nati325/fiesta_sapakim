@@ -33477,5 +33477,18 @@
     "google_rating": "51 ביקורות",
     "reviews_count": "nan",
     "last_updated": "2026-07-27 17:24:14"
+  },
+  "": {
+    "reviews": [
+      {
+        "reviewer": "mit4mit",
+        "rating": 4,
+        "text": "910 ביקורות",
+        "source": "easy.co.il"
+      }
+    ],
+    "google_rating": "982 ביקורות",
+    "reviews_count": "N/A",
+    "last_updated": "2026-07-29 19:26:15"
   }
 }

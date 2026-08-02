@@ -15,6 +15,7 @@
     "repair-data": "node scripts/repair-data.mjs",
     "verify-dashboard": "node scripts/verify-dashboard.mjs",
     "clean-states": "node scripts/clean-orphan-states.mjs",
+    "import-weekend": "node scripts/import-weekend-suppliers-csv.mjs",
     "bulk-push": "node scripts/bulk-push-to-fiesta.mjs --file data/fiesta-push-queue.json",
     "bulk-push-contract": "node scripts/bulk-push-to-fiesta.mjs --contract",
     "list-pending-fiesta": "node scripts/list-pending-fiesta.mjs",

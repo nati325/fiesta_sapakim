@@ -7,9 +7,25 @@ export const maxDuration = 60;
 
 let fiestaClient = null;
 
+function cleanMongoUri(raw) {
+  let uri = String(raw || '').trim();
+  if (
+    (uri.startsWith('"') && uri.endsWith('"')) ||
+    (uri.startsWith("'") && uri.endsWith("'"))
+  ) {
+    uri = uri.slice(1, -1).trim();
+  }
+  return uri;
+}
+
 async function getFiestaDb() {
-  const uri = process.env.FIESTA_MONGODB_URI;
+  const uri = cleanMongoUri(process.env.FIESTA_MONGODB_URI);
   if (!uri) throw new Error('FIESTA_MONGODB_URI לא מוגדר ב-.env.local');
+  if (!uri.startsWith('mongodb://') && !uri.startsWith('mongodb+srv://')) {
+    throw new Error(
+      'FIESTA_MONGODB_URI לא תקין (חייב להתחיל ב-mongodb:// או mongodb+srv://). בדוק שאין מרכאות מיותרות ב-Vercel/.env'
+    );
+  }
 
   if (!fiestaClient) {
     fiestaClient = new MongoClient(uri, {
@@ -83,26 +99,36 @@ export async function POST(req) {
       updateIfExists: true,
     });
 
+    const vendorId = result.vendorId?.toString?.() || result.vendorId;
+
     if (result.status === 'updated') {
       return NextResponse.json({
         success: true,
         updated: true,
-        vendorId: result.vendorId,
+        vendorId,
         name: result.name,
       });
     }
 
     if (result.status === 'exists') {
-      return NextResponse.json({ exists: true, vendorId: result.vendorId });
+      return NextResponse.json({ exists: true, vendorId });
     }
 
     return NextResponse.json({
       success: true,
-      vendorId: result.vendorId,
+      vendorId,
       name: result.name,
     });
   } catch (error) {
     console.error('Push to Fiesta MongoDB error:', error);
-    return NextResponse.json({ error: error.message || 'שגיאה בשליחה לפייסטה' }, { status: 500 });
+    const message = error?.message || 'שגיאה בשליחה לפייסטה';
+    const hint =
+      /expected pattern|Invalid URL|Invalid scheme|unescaped/i.test(message)
+        ? ' — בדקו FIESTA_MONGODB_URI וכתובות תמונות (URL לא תקין)'
+        : '';
+    return NextResponse.json(
+      { error: `${message}${hint}`, errorName: error?.name || 'Error' },
+      { status: 500 }
+    );
   }
 }

@@ -13,9 +13,23 @@ export const dynamic = 'force-dynamic';
 let fiestaClient = null;
 let crmClient = null;
 
+function cleanMongoUri(raw) {
+  let uri = String(raw || '').trim();
+  if (
+    (uri.startsWith('"') && uri.endsWith('"')) ||
+    (uri.startsWith("'") && uri.endsWith("'"))
+  ) {
+    uri = uri.slice(1, -1).trim();
+  }
+  return uri;
+}
+
 async function getFiestaDb() {
-  const uri = process.env.FIESTA_MONGODB_URI;
+  const uri = cleanMongoUri(process.env.FIESTA_MONGODB_URI);
   if (!uri) throw new Error('FIESTA_MONGODB_URI לא מוגדר ב-.env.local');
+  if (!uri.startsWith('mongodb://') && !uri.startsWith('mongodb+srv://')) {
+    throw new Error('FIESTA_MONGODB_URI לא תקין (בדוק מרכאות ב-.env / Vercel)');
+  }
 
   if (!fiestaClient) {
     fiestaClient = new MongoClient(uri, {
@@ -28,8 +42,11 @@ async function getFiestaDb() {
 }
 
 async function getCrmDb() {
-  const uri = process.env.MONGODB_URI;
+  const uri = cleanMongoUri(process.env.MONGODB_URI);
   if (!uri) throw new Error('MONGODB_URI לא מוגדר ב-.env.local');
+  if (!uri.startsWith('mongodb://') && !uri.startsWith('mongodb+srv://')) {
+    throw new Error('MONGODB_URI לא תקין (בדוק מרכאות ב-.env / Vercel)');
+  }
 
   if (!crmClient) {
     crmClient = new MongoClient(uri, {
