@@ -89,7 +89,11 @@ function ilsShort(value) {
   return `₪${(Number(value) || 0).toLocaleString('he-IL')}`;
 }
 
-/** Make /media/... and other relative paths previewable in the CRM browser. */
+/**
+ * Make /media/... and other relative paths previewable in the CRM browser.
+ * Optional NEXT_PUBLIC_MEDIA_BASE_URL hosts media on another origin (disk/CDN)
+ * without putting binaries in Mongo.
+ */
 function resolveWizardImageSrc(url) {
   const value = String(url || '').trim();
   if (!value) return '';
@@ -101,7 +105,13 @@ function resolveWizardImageSrc(url) {
   ) {
     return value;
   }
-  if (value.startsWith('/') && typeof window !== 'undefined') {
+  if (!value.startsWith('/')) return value;
+
+  const mediaBase = (process.env.NEXT_PUBLIC_MEDIA_BASE_URL || '').replace(/\/$/, '');
+  if (mediaBase && value.startsWith('/media/')) {
+    return `${mediaBase}${value}`;
+  }
+  if (typeof window !== 'undefined') {
     return `${window.location.origin}${value}`;
   }
   return value;
@@ -993,6 +1003,43 @@ export default function SuppliersDashboard() {
     return pickBestStoredImage(supplier);
   };
 
+  const handleSupplierImageError = (supplier, e) => {
+    const phone = supplier['Real Phone'] || supplier.phone || '';
+    const img = e.currentTarget;
+    const srcAttr = img.getAttribute('src') || '';
+    let current = srcAttr;
+    try {
+      const abs = new URL(img.src, window.location.origin);
+      current = abs.pathname.startsWith('/media/') ? abs.pathname : srcAttr;
+    } catch {
+      current = srcAttr;
+    }
+
+    const next = getNextImageCandidate(supplier, current);
+    if (next && next !== current) {
+      setSupplierImages((prev) => ({ ...prev, [phone]: next }));
+      applyImageToSupplier(phone, next);
+      img.src = resolveWizardImageSrc(next);
+      return;
+    }
+
+    const fetchKey = `err:${phone}`;
+    if (phone && !imageFetchAttemptedRef.current.has(fetchKey)) {
+      imageFetchAttemptedRef.current.add(fetchKey);
+      fetchImageForSupplier(supplier).then((url) => {
+        if (url) {
+          img.src = resolveWizardImageSrc(url);
+          img.parentElement && (img.parentElement.style.display = '');
+        } else if (img.parentElement) {
+          img.parentElement.style.display = 'none';
+        }
+      });
+      return;
+    }
+
+    if (img.parentElement) img.parentElement.style.display = 'none';
+  };
+
   const handleSupplierImageLoad = (supplier, e) => {
     const phone = supplier['Real Phone'] || supplier.phone || '';
     const img = e.currentTarget;
@@ -1023,9 +1070,7 @@ export default function SuppliersDashboard() {
 
     const existing = pickBestStoredImage(supplier);
     if (existing) {
-      if (String(existing).startsWith('http')) {
-        setSupplierImages((prev) => ({ ...prev, [phone]: existing }));
-      }
+      setSupplierImages((prev) => ({ ...prev, [phone]: existing }));
       return existing;
     }
 
@@ -1115,7 +1160,8 @@ export default function SuppliersDashboard() {
       const phone = s['Real Phone'] || s.phone || '';
       if (!phone) return;
       const best = pickBestStoredImage(s);
-      if (best && String(best).startsWith('http')) seeded[phone] = best;
+      // Seed both local /media/ and remote http — binaries stay on disk, not in Mongo.
+      if (best) seeded[phone] = best;
     });
     if (Object.keys(seeded).length) {
       setSupplierImages((prev) => ({ ...seeded, ...prev }));
@@ -1124,7 +1170,7 @@ export default function SuppliersDashboard() {
     let cancelled = false;
     (async () => {
       const missing = feedSuppliers
-        .filter((s) => !supplierHasHttpImage(s) && (getEngagedUrl(s) || getGoogleImageUrl(s)))
+        .filter((s) => !pickBestStoredImage(s) && (getEngagedUrl(s) || getGoogleImageUrl(s)))
         .filter((s) => {
           const phone = s['Real Phone'] || s.phone || '';
           return phone && !imageFetchAttemptedRef.current.has(phone);
@@ -2797,12 +2843,12 @@ export default function SuppliersDashboard() {
                           <div className="supplier-media">
                             <span className="supplier-num">#{supplierNumber}</span>
                             <img
-                              src={imgUrl}
+                              src={resolveWizardImageSrc(imgUrl)}
                               alt={s['Supplier Name'] || ''}
                               loading="lazy"
                               decoding="async"
                               onLoad={(e) => handleSupplierImageLoad(s, e)}
-                              onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+                              onError={(e) => handleSupplierImageError(s, e)}
                             />
                           </div>
                         );
@@ -3162,11 +3208,11 @@ export default function SuppliersDashboard() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
                 {getSupplierImage(selectedSupplierProfile) && (
                   <img 
-                    src={getSupplierImage(selectedSupplierProfile)} 
+                    src={resolveWizardImageSrc(getSupplierImage(selectedSupplierProfile))} 
                     style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--primary)' }} 
                     alt="" 
                     onLoad={(e) => handleSupplierImageLoad(selectedSupplierProfile, e)}
-                    onError={(e) => { e.target.style.display = 'none'; }}
+                    onError={(e) => handleSupplierImageError(selectedSupplierProfile, e)}
                   />
                 )}
                 <div style={{ flex: 1 }}>
@@ -3292,10 +3338,17 @@ export default function SuppliersDashboard() {
                     {selectedSupplierProfile.images.map((img, idx) => (
                       <div key={idx} style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', height: '120px', background: '#f1f5f9', border: '1px solid var(--border)' }}>
                         <img 
-                          src={img} 
+                          src={resolveWizardImageSrc(img)} 
                           alt="" 
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                          onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+                          onError={(e) => {
+                            const next = getNextImageCandidate(selectedSupplierProfile, img);
+                            if (next && next !== img) {
+                              e.currentTarget.src = resolveWizardImageSrc(next);
+                              return;
+                            }
+                            e.currentTarget.parentElement.style.display = 'none';
+                          }}
                         />
                         <button
                           onClick={() => {
