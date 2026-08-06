@@ -40,8 +40,72 @@ import {
   mapCategoryToFiesta,
   buildDefaultDescription,
   extractRegionFromAddress,
+  FIESTA_REGIONS,
+  normalizeFiestaRegion,
 } from '../lib/fiestaCategoryMap';
+import {
+  priceProduct,
+  supplierNetPercent,
+  isLowMargin,
+  toAmount,
+  toPercent,
+  LOW_MARGIN_THRESHOLD_PERCENT,
+} from '../lib/pricing';
 import './globals.css';
+
+function makeWizardProduct(index) {
+  return { id: `p${Date.now().toString(36)}${index}`, name: '', originalPrice: '', kind: 'main' };
+}
+
+/** Turn the agent's list prices into the full product records Fiesta stores. */
+function buildPricedProducts(products, discountPercent, commissionPercent) {
+  return (products || [])
+    .filter((p) => String(p.name || '').trim() && toAmount(p.originalPrice) > 0)
+    .map((p, i) => {
+      const computed = priceProduct(p.originalPrice, discountPercent, commissionPercent);
+      return {
+        id: p.id || `p${i + 1}`,
+        name: String(p.name).trim(),
+        description: '',
+        originalPrice: String(computed.listPrice),
+        price: String(computed.clientPrice),
+        image: '',
+        kind: p.kind === 'addon' ? 'addon' : 'main',
+        commissionAmount: computed.commission,
+        order: i,
+        active: true,
+      };
+    });
+}
+
+/** The package the vendor card will advertise. */
+function cheapestPricedPackage(pricedProducts) {
+  return pricedProducts
+    .filter((p) => p.kind === 'main' && Number(p.price) > 0)
+    .sort((a, b) => Number(a.price) - Number(b.price))[0];
+}
+
+function ilsShort(value) {
+  return `₪${(Number(value) || 0).toLocaleString('he-IL')}`;
+}
+
+/** Make /media/... and other relative paths previewable in the CRM browser. */
+function resolveWizardImageSrc(url) {
+  const value = String(url || '').trim();
+  if (!value) return '';
+  if (
+    value.startsWith('http://') ||
+    value.startsWith('https://') ||
+    value.startsWith('data:') ||
+    value.startsWith('blob:')
+  ) {
+    return value;
+  }
+  if (value.startsWith('/') && typeof window !== 'undefined') {
+    return `${window.location.origin}${value}`;
+  }
+  return value;
+}
 
 function normalizeSupplierRow(s) {
   const category = s.Category || s.category || '';
@@ -100,6 +164,101 @@ function parseSupplierIndexQuery(raw) {
   return null;
 }
 
+function WizardGalleryThumb({ imgUrl, idx, onRemove }) {
+  const [status, setStatus] = useState('loading'); // loading | ok | error
+  const src = resolveWizardImageSrc(imgUrl);
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        aspectRatio: '1',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        border: status === 'error' ? '1.5px solid #fca5a5' : '1px solid var(--border)',
+        background: '#e2e8f0',
+      }}
+    >
+      {status === 'loading' && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '0.65rem',
+            fontWeight: 700,
+            color: '#64748b',
+            zIndex: 1,
+          }}
+        >
+          טוען…
+        </div>
+      )}
+      {status === 'error' ? (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '4px',
+            textAlign: 'center',
+            fontSize: '0.62rem',
+            fontWeight: 700,
+            color: '#b91c1c',
+            background: '#fef2f2',
+          }}
+        >
+          לא נטען
+        </div>
+      ) : (
+        <img
+          src={src}
+          alt={`img-${idx}`}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            opacity: status === 'ok' ? 1 : 0,
+            transition: 'opacity 0.15s',
+          }}
+          onLoad={() => setStatus('ok')}
+          onError={() => setStatus('error')}
+        />
+      )}
+      <button
+        onClick={onRemove}
+        type="button"
+        style={{
+          position: 'absolute',
+          top: '3px',
+          left: '3px',
+          width: '18px',
+          height: '18px',
+          borderRadius: '50%',
+          background: '#ef4444',
+          color: 'white',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: '9px',
+          fontWeight: '800',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2,
+        }}
+        title="הסר תמונה"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 export default function SuppliersDashboard() {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -150,13 +309,32 @@ export default function SuppliersDashboard() {
     type: '',
     description: '',
     region: '',
-    originalPrice: '',    // מחיר מחירון (מה שהספק לוקח בשוק)
-    price: '',            // מחיר ללקוח דרך Fiesta (אחרי הנחה)
-    agentCommission: '',  // עמלת הסוכן
-    commissionAmount: '', // עמלת Fiesta
-    discountDisplayType: 'percent', // 'percent' | 'amount'
+    discountPercent: '',   // הנחה ללקוח — חלה על כל המוצרים (לחישוב)
+    discountDisplayType: 'percent', // איך התגית באתר: percent | amount
+    commissionPercent: '', // עמלת Fiesta — אחוז מהמחירון
+    products: [],
     agreementSigned: false
   });
+
+  // Everything the agent sees in step 3 is derived from the two rates above.
+  const pushDiscountPercent = toPercent(fiestaPushForm.discountPercent);
+  const pushCommissionPercent = toPercent(fiestaPushForm.commissionPercent);
+  const pushPricedProducts = buildPricedProducts(
+    fiestaPushForm.products,
+    pushDiscountPercent,
+    pushCommissionPercent
+  );
+  const pushBaseProduct = cheapestPricedPackage(pushPricedProducts);
+  const pushNetPercent = supplierNetPercent(pushDiscountPercent, pushCommissionPercent);
+  const pushLowMargin =
+    (fiestaPushForm.products || []).length > 0 &&
+    isLowMargin(pushDiscountPercent, pushCommissionPercent);
+
+  const updatePushProduct = (index, patch) =>
+    setFiestaPushForm((f) => ({
+      ...f,
+      products: f.products.map((p, i) => (i === index ? { ...p, ...patch } : p)),
+    }));
 
   // All Fiesta categories — exact slugs from categoryData in /category/[type]/page.jsx
   const FIESTA_CATEGORIES = [
@@ -990,7 +1168,7 @@ export default function SuppliersDashboard() {
   const triggerFiestaPush = (supplier, targetStatus = null) => {
     const mappedType = mapCategoryToFiesta(supplier.Category || supplier.category, supplier);
     const address = supplier['Address'] || supplier.address || '';
-    const region = extractRegionFromAddress(address);
+    const region = normalizeFiestaRegion(extractRegionFromAddress(address));
 
     const phone = supplier['Real Phone'] || supplier['phone'] || '';
     const cachedImg = phone && typeof supplierImages[phone] === 'string' && supplierImages[phone].startsWith('http')
@@ -1011,11 +1189,10 @@ export default function SuppliersDashboard() {
       type: mappedType,
       description: buildDefaultDescription(supplier),
       region,
-      originalPrice: '',
-      price: '',
-      agentCommission: '',
-      commissionAmount: '',
+      discountPercent: '',
       discountDisplayType: 'percent',
+      commissionPercent: '',
+      products: [makeWizardProduct(0)],
       agreementSigned: isSigned,
       selectedImages: pushImages,
       agreementImage: uploadedImage,
@@ -1035,15 +1212,19 @@ export default function SuppliersDashboard() {
     setFiestaPushResult(null);
     setFiestaPushError('');
     try {
-      // Auto-calculate discount from prices
-      const orig = parseFloat(fiestaPushForm.originalPrice) || 0;
-      const cust = parseFloat(fiestaPushForm.price) || 0;
-      let discount = '0';
-      if (orig > 0 && cust > 0 && cust < orig) {
-        discount = fiestaPushForm.discountDisplayType === 'percent'
-          ? String(Math.round((1 - cust / orig) * 100))
-          : String(Math.round(orig - cust));
-      }
+      const discountPercent = toPercent(fiestaPushForm.discountPercent);
+      const commissionPercent = toPercent(fiestaPushForm.commissionPercent);
+      const products = buildPricedProducts(fiestaPushForm.products, discountPercent, commissionPercent);
+      const base = cheapestPricedPackage(products);
+      // Display choice only: site badge shows % or ₪ savings of the card package.
+      const displayAsAmount = fiestaPushForm.discountDisplayType === 'amount';
+      const baseSavings = base
+        ? Math.max(0, Number(base.originalPrice) - Number(base.price))
+        : 0;
+      const discountForSite = displayAsAmount
+        ? String(baseSavings)
+        : String(discountPercent);
+      const discountTypeForSite = displayAsAmount ? 'amount' : 'percent';
 
       const res = await fetch('/api/push-to-fiesta', {
         method: 'POST',
@@ -1052,8 +1233,14 @@ export default function SuppliersDashboard() {
           supplier: fiestaPushSupplier,
           fiestaData: {
             ...fiestaPushForm,
-            discount,
-            discountType: fiestaPushForm.discountDisplayType,
+            products,
+            mainProductId: base?.id || '',
+            discount: discountForSite,
+            discountType: discountTypeForSite,
+            commissionPercent,
+            originalPrice: base?.originalPrice || '0',
+            price: base?.price || '0',
+            commissionAmount: base?.commissionAmount || 0,
             agentName: activeAgent,
             images: (fiestaPushForm.selectedImages || fiestaPushForm.images || fiestaPushSupplier?.images || []).filter(
               (img) => {
@@ -3362,12 +3549,16 @@ export default function SuppliersDashboard() {
                     {/* Region */}
                     <div>
                       <label style={{ fontSize: '0.8rem', fontWeight: '700', display: 'block', marginBottom: '5px' }}>אזור</label>
-                      <input
-                        value={fiestaPushForm.region}
+                      <select
+                        value={fiestaPushForm.region || ''}
                         onChange={e => setFiestaPushForm(f => ({ ...f, region: e.target.value }))}
-                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem' }}
-                        placeholder="לדוגמה: מרכז, תל אביב..."
-                      />
+                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem', fontFamily: 'inherit', background: 'white' }}
+                      >
+                        <option value="">בחרו אזור...</option>
+                        {FIESTA_REGIONS.map((r) => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
@@ -3396,95 +3587,151 @@ export default function SuppliersDashboard() {
                   </p>
 
                   <div style={{ textAlign: 'right', display: 'grid', gap: '14px', marginBottom: '24px' }}>
-                    {/* Row 1: Original price + Customer price */}
+                    {/* The two rates that drive every number below */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                       <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#666' }}>מחיר מחירון (₪)</label>
+                        <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#166534' }}>הנחה ללקוח (%)</label>
                         <input
                           type="number"
-                          value={fiestaPushForm.originalPrice}
-                          onChange={e => setFiestaPushForm(f => ({ ...f, originalPrice: e.target.value }))}
-                          style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem' }}
-                          placeholder="מה הספק לוקח בשוק"
+                          inputMode="numeric"
+                          value={fiestaPushForm.discountPercent}
+                          onChange={e => setFiestaPushForm(f => ({ ...f, discountPercent: e.target.value }))}
+                          style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem', fontWeight: '800' }}
+                          placeholder="למשל 20"
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#666' }}>מחיר לקוח (₪)</label>
+                        <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#666' }}>עמלת Fiesta (%)</label>
                         <input
                           type="number"
-                          value={fiestaPushForm.price}
-                          onChange={e => setFiestaPushForm(f => ({ ...f, price: e.target.value }))}
-                          style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem' }}
-                          placeholder="מחיר מיוחד ללקוח"
+                          inputMode="numeric"
+                          value={fiestaPushForm.commissionPercent}
+                          onChange={e => setFiestaPushForm(f => ({ ...f, commissionPercent: e.target.value }))}
+                          style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem', fontWeight: '800' }}
+                          placeholder="למשל 15"
                         />
                       </div>
                     </div>
 
-                    {/* Auto-calculated discount preview */}
-                    {fiestaPushForm.originalPrice && fiestaPushForm.price && parseFloat(fiestaPushForm.price) < parseFloat(fiestaPushForm.originalPrice) && (
-                      <div style={{ background: '#dcfce7', borderRadius: '8px', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#166534' }}>
-                          הנחה אוטומטית:
-                        </span>
-                        <span style={{ fontWeight: '800', color: '#166534', fontSize: '0.95rem' }}>
-                          {fiestaPushForm.discountDisplayType === 'percent'
-                            ? `${Math.round((1 - parseFloat(fiestaPushForm.price) / parseFloat(fiestaPushForm.originalPrice)) * 100)}%`
-                            : `₪${Math.round(parseFloat(fiestaPushForm.originalPrice) - parseFloat(fiestaPushForm.price))}`
-                          }
-                        </span>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '6px', color: '#555' }}>
+                        איך ההנחה תוצג באתר?
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setFiestaPushForm(f => ({ ...f, discountDisplayType: 'percent' }))}
+                          style={{
+                            padding: '10px 8px',
+                            borderRadius: '8px',
+                            border: fiestaPushForm.discountDisplayType !== 'amount' ? '2px solid var(--accent)' : '1px solid var(--border)',
+                            background: fiestaPushForm.discountDisplayType !== 'amount' ? 'var(--accent-soft)' : 'white',
+                            fontWeight: '700',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            fontFamily: 'inherit',
+                          }}
+                        >
+                          באחוזים
+                          {pushDiscountPercent > 0 ? ` (${pushDiscountPercent}%)` : ''}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFiestaPushForm(f => ({ ...f, discountDisplayType: 'amount' }))}
+                          style={{
+                            padding: '10px 8px',
+                            borderRadius: '8px',
+                            border: fiestaPushForm.discountDisplayType === 'amount' ? '2px solid var(--accent)' : '1px solid var(--border)',
+                            background: fiestaPushForm.discountDisplayType === 'amount' ? 'var(--accent-soft)' : 'white',
+                            fontWeight: '700',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            fontFamily: 'inherit',
+                          }}
+                        >
+                          בסכום כסף
+                          {pushBaseProduct
+                            ? ` (${ilsShort(Math.max(0, Number(pushBaseProduct.originalPrice) - Number(pushBaseProduct.price)))})`
+                            : ''}
+                        </button>
+                      </div>
+                      <div style={{ marginTop: '6px', fontSize: '0.72rem', color: '#64748b', fontWeight: '600' }}>
+                        החישוב תמיד לפי האחוז למעלה. הבחירה כאן רק לתגית באתר.
+                      </div>
+                    </div>
+
+                    {pushLowMargin && (
+                      <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '9px 12px', fontSize: '0.8rem', fontWeight: '700', color: '#991b1b' }}>
+                        הספק נשאר עם {pushNetPercent}% מהמחירון בלבד (הסף המומלץ {LOW_MARGIN_THRESHOLD_PERCENT}%).
                       </div>
                     )}
 
-                    {/* Discount display type */}
+                    {/* One row per thing the supplier sells */}
                     <div>
-                      <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '6px', color: '#666' }}>איך להציג את ההנחה ללקוח?</label>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        {[
-                          { value: 'percent', label: '% אחוזים' },
-                          { value: 'amount',  label: '₪ שקלים' }
-                        ].map(opt => (
-                          <button
-                            key={opt.value}
-                            onClick={() => setFiestaPushForm(f => ({ ...f, discountDisplayType: opt.value }))}
-                            style={{
-                              flex: 1, padding: '9px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit',
-                              fontWeight: '700', fontSize: '0.85rem', transition: 'all 0.15s',
-                              border: fiestaPushForm.discountDisplayType === opt.value ? '2px solid var(--accent-strong)' : '1.5px solid var(--border)',
-                              background: fiestaPushForm.discountDisplayType === opt.value ? 'var(--accent-soft)' : 'white',
-                              color: fiestaPushForm.discountDisplayType === opt.value ? 'var(--accent-strong)' : '#555'
-                            }}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
+                      <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '6px', color: '#666' }}>
+                        מה הספק מוכר? הזינו מחיר מחירון, המערכת מחשבת את השאר
+                      </label>
+                      <div style={{ display: 'grid', gap: '8px' }}>
+                        {(fiestaPushForm.products || []).map((p, index) => {
+                          const row = priceProduct(p.originalPrice, pushDiscountPercent, pushCommissionPercent);
+                          return (
+                            <div key={p.id} style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '10px', background: 'white' }}>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <input
+                                  value={p.name}
+                                  onChange={e => updatePushProduct(index, { name: e.target.value })}
+                                  style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.88rem', fontWeight: '700', fontFamily: 'inherit' }}
+                                  placeholder="שם המוצר"
+                                />
+                                <button
+                                  onClick={() => setFiestaPushForm(f => ({ ...f, products: f.products.filter((_, i) => i !== index) }))}
+                                  style={{ width: '36px', borderRadius: '8px', border: '1px solid #fecaca', background: 'white', color: '#dc2626', fontWeight: '800', cursor: 'pointer', fontFamily: 'inherit' }}
+                                  title="מחק מוצר"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  value={p.originalPrice}
+                                  onChange={e => updatePushProduct(index, { originalPrice: e.target.value })}
+                                  style={{ padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.88rem', fontFamily: 'inherit' }}
+                                  placeholder="מחירון ₪"
+                                />
+                                <select
+                                  value={p.kind || 'main'}
+                                  onChange={e => updatePushProduct(index, { kind: e.target.value })}
+                                  style={{ padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.85rem', fontFamily: 'inherit' }}
+                                >
+                                  <option value="main">חבילה</option>
+                                  <option value="addon">תוספת</option>
+                                </select>
+                              </div>
+                              {row.listPrice > 0 && (
+                                <div style={{ marginTop: '8px', background: '#f0fdf4', borderRadius: '6px', padding: '6px 9px', fontSize: '0.78rem', fontWeight: '700', color: '#166534' }}>
+                                  ללקוח {ilsShort(row.clientPrice)} · חוסך {ilsShort(row.savings)} · עמלה {ilsShort(row.commission)}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
+                      <button
+                        onClick={() => setFiestaPushForm(f => ({ ...f, products: [...(f.products || []), makeWizardProduct((f.products || []).length)] }))}
+                        style={{ marginTop: '8px', width: '100%', padding: '9px', borderRadius: '8px', border: '1.5px dashed var(--border)', background: 'white', color: '#555', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit' }}
+                      >
+                        + הוסף מוצר
+                      </button>
                     </div>
 
-                    {/* Company commission + Customer discount % */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#666' }}>עמלת החברה (₪)</label>
-                        <input
-                          type="number"
-                          value={fiestaPushForm.commissionAmount}
-                          onChange={e => setFiestaPushForm(f => ({ ...f, commissionAmount: e.target.value }))}
-                          style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem' }}
-                          placeholder="עמלה ל-Fiesta"
-                        />
+                    {pushBaseProduct && (
+                      <div style={{ background: 'var(--accent-soft)', borderRadius: '8px', padding: '9px 12px', fontSize: '0.8rem', fontWeight: '700', color: 'var(--accent-strong)' }}>
+                        {pushPricedProducts.length} מוצרים · הכרטיס באתר יציג {ilsShort(pushBaseProduct.price)}
+                        {pushPricedProducts.filter(p => p.kind === 'main').length > 1 ? ' (החל מ־)' : ''}
                       </div>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#166534' }}>הנחה ללקוח (%)</label>
-                        <div style={{
-                          padding: '9px', borderRadius: '8px', border: '2px solid #86efac',
-                          background: '#f0fdf4', fontSize: '1rem', fontWeight: '800',
-                          color: '#166534', textAlign: 'center'
-                        }}>
-                          {fiestaPushForm.originalPrice && fiestaPushForm.price && parseFloat(fiestaPushForm.originalPrice) > 0
-                            ? `${Math.round((1 - parseFloat(fiestaPushForm.price || 0) / parseFloat(fiestaPushForm.originalPrice)) * 100)}%`
-                            : '—'}
-                        </div>
-                      </div>
-                    </div>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', gap: '10px' }}>
@@ -3574,7 +3821,26 @@ export default function SuppliersDashboard() {
 
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button
-                      onClick={() => setFiestaPushStep(5)}
+                      onClick={() => {
+                        if (fiestaPushSupplier) {
+                          const phone = fiestaPushSupplier['Real Phone'] || fiestaPushSupplier.phone || '';
+                          const cachedImg =
+                            phone &&
+                            typeof supplierImages[phone] === 'string' &&
+                            supplierImages[phone].startsWith('http')
+                              ? supplierImages[phone]
+                              : null;
+                          const fresh = collectPushImages(fiestaPushSupplier, cachedImg);
+                          setFiestaPushForm((f) => ({
+                            ...f,
+                            selectedImages:
+                              Array.isArray(f.selectedImages) && f.selectedImages.length
+                                ? f.selectedImages
+                                : fresh,
+                          }));
+                        }
+                        setFiestaPushStep(5);
+                      }}
                       className="btn-primary"
                       style={{ flex: 2, padding: '12px' }}
                     >
@@ -3613,43 +3879,17 @@ export default function SuppliersDashboard() {
                         overflowY: 'auto' 
                       }}>
                         {fiestaPushForm.selectedImages.map((imgUrl, idx) => (
-                          <div 
-                            key={`${idx}-${String(imgUrl).slice(0, 24)}`} 
-                            style={{ 
-                              position: 'relative', 
-                              width: '100%', 
-                              aspectRatio: '1', 
-                              borderRadius: '8px', 
-                              overflow: 'hidden', 
-                              border: '1px solid var(--border)'
+                          <WizardGalleryThumb
+                            key={`${idx}-${String(imgUrl).slice(0, 40)}`}
+                            imgUrl={imgUrl}
+                            idx={idx}
+                            onRemove={() => {
+                              setFiestaPushForm(f => ({
+                                ...f,
+                                selectedImages: f.selectedImages.filter(url => url !== imgUrl)
+                              }));
                             }}
-                          >
-                            <img 
-                              src={imgUrl} 
-                              alt={`img-${idx}`} 
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                              onError={(e) => { e.currentTarget.style.opacity = '0.25'; }}
-                            />
-                            <button
-                              onClick={() => {
-                                setFiestaPushForm(f => ({
-                                  ...f,
-                                  selectedImages: f.selectedImages.filter(url => url !== imgUrl)
-                                }));
-                              }}
-                              type="button"
-                              style={{
-                                position: 'absolute', top: '3px', left: '3px',
-                                width: '18px', height: '18px', borderRadius: '50%',
-                                background: '#ef4444', color: 'white', border: 'none',
-                                cursor: 'pointer', fontSize: '9px', fontWeight: '800',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                              }}
-                              title="הסר תמונה"
-                            >
-                              ✕
-                            </button>
-                          </div>
+                          />
                         ))}
                       </div>
                     ) : (
@@ -3663,7 +3903,7 @@ export default function SuppliersDashboard() {
                         fontSize: '0.8rem', 
                         fontWeight: '700' 
                       }}>
-                        לא נבחרו תמונות. האתר יציג תמונת ברירת מחדל.
+                        לא נבחרו תמונות. אפשר להוסיף למטה, או להמשיך — האתר יציג ברירת מחדל.
                       </div>
                     )}
 
@@ -3752,8 +3992,33 @@ export default function SuppliersDashboard() {
                     <div><strong>קטגוריה פייסטה:</strong> {FIESTA_CATEGORIES.find(c => c.value === fiestaPushForm.type)?.label || fiestaPushForm.type}</div>
                     <div><strong>אזור:</strong> {fiestaPushForm.region || 'לא צוין'}</div>
                     <div><strong>תיאור:</strong> {(fiestaPushForm.description || '').slice(0, 120) || 'אין'}{(fiestaPushForm.description || '').length > 120 ? '…' : ''}</div>
-                    {fiestaPushForm.price && <div><strong>מחיר ללקוח:</strong> ₪{fiestaPushForm.price} {fiestaPushForm.originalPrice && `(מחירון: ₪${fiestaPushForm.originalPrice})`}</div>}
-                    <div><strong>עמלת חברה:</strong> ₪{fiestaPushForm.commissionAmount || '0'}</div>
+                    <div>
+                      <strong>תמחור:</strong> הנחה {pushDiscountPercent}% · עמלת Fiesta {pushCommissionPercent}%
+                      {' · '}
+                      תגית באתר:{' '}
+                      {fiestaPushForm.discountDisplayType === 'amount'
+                        ? (pushBaseProduct
+                          ? ilsShort(Math.max(0, Number(pushBaseProduct.originalPrice) - Number(pushBaseProduct.price)))
+                          : '₪…')
+                        : `${pushDiscountPercent}%`}
+                    </div>
+                    {pushPricedProducts.length > 0 ? (
+                      <div style={{ display: 'grid', gap: '4px', marginTop: '2px' }}>
+                        {pushPricedProducts.map((p) => (
+                          <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+                            <span>
+                              {p.name}
+                              {p.kind === 'addon' ? ' (תוספת)' : ''}
+                            </span>
+                            <span style={{ whiteSpace: 'nowrap', fontWeight: '700' }}>
+                              {ilsShort(p.originalPrice)} ← {ilsShort(p.price)} · עמלה {ilsShort(p.commissionAmount)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div><strong>מוצרים:</strong> לא הוזנו — הספק יוצג כ״לתיאום מחיר״</div>
+                    )}
                     <div><strong>חוזה/שיחה:</strong> {fiestaPushForm.agreementImage ? '✅ צורף' : '❌ לא צורף'}</div>
                     <div><strong>חתימת חוזה:</strong> {fiestaPushForm.agreementSigned ? '✍️ חתום' : '⏳ טרם נחתם'}</div>
                     <div><strong>תמונות גלריה:</strong> {fiestaPushForm.selectedImages?.length || 0} תמונות נבחרו</div>

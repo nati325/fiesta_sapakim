@@ -21,10 +21,11 @@
     "bulk-push": "node scripts/bulk-push-to-fiesta.mjs --file data/fiesta-push-queue.json",
     "bulk-push-contract": "node scripts/bulk-push-to-fiesta.mjs --contract",
     "list-pending-fiesta": "node scripts/list-pending-fiesta.mjs",
-    "finish-merge": "node scripts/resolve-json-conflicts.mjs"
+    "finish-merge": "node scripts/resolve-json-conflicts.mjs",
+    "check-pricing": "node scripts/check-pricing-sync.mjs",
+    "e2e-products": "node scripts/e2e-products-roundtrip.mjs"
   },
   "dependencies": {
-    "cloudinary": "^2.10.0",
     "framer-motion": "^11.2.10",
     "lucide-react": "^0.378.0",
     "mongodb": "^7.2.0",

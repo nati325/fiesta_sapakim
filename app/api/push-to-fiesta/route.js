@@ -97,6 +97,7 @@ export async function POST(req) {
       fiestaData: merged,
       origin,
       updateIfExists: true,
+      db,
     });
 
     const vendorId = result.vendorId?.toString?.() || result.vendorId;

@@ -2,7 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
-    serverComponentsExternalPackages: ['cloudinary'],
     outputFileTracingExcludes: {
       '*': ['public/media/**/*'],
     },

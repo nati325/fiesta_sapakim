@@ -156,6 +156,7 @@ export async function POST(req) {
           supplier,
           fiestaData,
           origin,
+          db: fiestaDb,
         });
         results.push({
           name: supplier['Supplier Name'],
