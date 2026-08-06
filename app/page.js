@@ -91,9 +91,12 @@ function ilsShort(value) {
 
 /**
  * Make /media/... and other relative paths previewable in the CRM browser.
- * Optional NEXT_PUBLIC_MEDIA_BASE_URL hosts media on another origin (disk/CDN)
- * without putting binaries in Mongo.
+ * Default CDN hosts compressed copies from github.com/nati325/for-photos
+ * (free jsDelivr). Override with NEXT_PUBLIC_MEDIA_BASE_URL if needed.
+ * Binaries stay off Mongo — only path strings live in the CRM DB.
  */
+const DEFAULT_MEDIA_CDN = 'https://cdn.jsdelivr.net/gh/nati325/for-photos@main';
+
 function resolveWizardImageSrc(url) {
   const value = String(url || '').trim();
   if (!value) return '';
@@ -107,8 +110,8 @@ function resolveWizardImageSrc(url) {
   }
   if (!value.startsWith('/')) return value;
 
-  const mediaBase = (process.env.NEXT_PUBLIC_MEDIA_BASE_URL || '').replace(/\/$/, '');
-  if (mediaBase && value.startsWith('/media/')) {
+  const mediaBase = (process.env.NEXT_PUBLIC_MEDIA_BASE_URL || DEFAULT_MEDIA_CDN).replace(/\/$/, '');
+  if (value.startsWith('/media/')) {
     return `${mediaBase}${value}`;
   }
   if (typeof window !== 'undefined') {
