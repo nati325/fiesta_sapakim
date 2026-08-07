@@ -44,6 +44,13 @@ import {
   normalizeFiestaRegion,
 } from '../lib/fiestaCategoryMap';
 import {
+  ensureUploadedImageUrl,
+  sanitizeImageList,
+  slimSupplierForPush,
+  uploadImageFile,
+  isStoredOrRemoteImageUrl,
+} from '../lib/uploadClientImage';
+import {
   priceProduct,
   supplierNetPercent,
   isLowMargin,
@@ -1275,13 +1282,36 @@ export default function SuppliersDashboard() {
         : String(discountPercent);
       const discountTypeForSite = displayAsAmount ? 'amount' : 'percent';
 
+      // Upload agreement / gallery data URIs first — never put multi‑MB base64 in the push JSON
+      // (Vercel returns 413 Function payload too large).
+      let agreementImage = '';
+      if (fiestaPushForm.agreementImage && fiestaPushForm.agreementImage !== '[stored]') {
+        agreementImage = await ensureUploadedImageUrl(
+          fiestaPushForm.agreementImage,
+          'agreement.jpg'
+        );
+        if (agreementImage !== fiestaPushForm.agreementImage) {
+          setFiestaPushForm((f) => ({ ...f, agreementImage }));
+        }
+      }
+
+      const gallery = await sanitizeImageList(
+        fiestaPushForm.selectedImages || fiestaPushForm.images || []
+      );
+
       const res = await fetch('/api/push-to-fiesta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          supplier: fiestaPushSupplier,
+          supplier: slimSupplierForPush(fiestaPushSupplier),
           fiestaData: {
-            ...fiestaPushForm,
+            type: fiestaPushForm.type,
+            description: fiestaPushForm.description || '',
+            region: fiestaPushForm.region || '',
+            agreementSigned: Boolean(fiestaPushForm.agreementSigned),
+            agreementImage,
+            selectedImages: gallery,
+            images: gallery,
             products,
             mainProductId: base?.id || '',
             discount: discountForSite,
@@ -1291,26 +1321,11 @@ export default function SuppliersDashboard() {
             price: base?.price || '0',
             commissionAmount: base?.commissionAmount || 0,
             agentName: activeAgent,
-            images: (fiestaPushForm.selectedImages || fiestaPushForm.images || fiestaPushSupplier?.images || []).filter(
-              (img) => {
-                const s = String(img || '').trim();
-                return (
-                  s.startsWith('http://') ||
-                  s.startsWith('https://') ||
-                  s.startsWith('/media/') ||
-                  s.startsWith('data:image/')
-                );
-              }
-            ),
             reviews: Array.isArray(fiestaPushForm.reviews)
-              ? fiestaPushForm.reviews
-              : Array.isArray(fiestaPushSupplier?.reviews)
-                ? fiestaPushSupplier.reviews
-                : Array.isArray(fiestaPushSupplier?.reviews?.reviews)
-                  ? fiestaPushSupplier.reviews.reviews
-                  : [],
-          }
-        })
+              ? fiestaPushForm.reviews.slice(0, 30)
+              : slimSupplierForPush(fiestaPushSupplier).reviews,
+          },
+        }),
       });
       const raw = await res.text();
       let data = {};
@@ -1318,14 +1333,22 @@ export default function SuppliersDashboard() {
         data = raw ? JSON.parse(raw) : {};
       } catch {
         setFiestaPushResult('error');
-        setFiestaPushError(
-          `תשובה לא תקינה מהשרת (HTTP ${res.status}): ${raw.slice(0, 180) || 'ריק'}`
-        );
+        const hint413 =
+          res.status === 413
+            ? 'הקובץ/הבקשה גדולים מדי לשרת. העלו מחדש את תמונת החוזה (תידחס אוטומטית) ונסו שוב.'
+            : `תשובה לא תקינה מהשרת (HTTP ${res.status}): ${raw.slice(0, 180) || 'ריק'}`;
+        setFiestaPushError(hint413);
         return;
       }
       if (!res.ok || data.error) {
         setFiestaPushResult('error');
-        setFiestaPushError(data.error || `שגיאה מהשרת (HTTP ${res.status})`);
+        if (res.status === 413) {
+          setFiestaPushError(
+            'הבקשה גדולה מדי לשרת (413). העלו מחדש את תמונת החוזה ונסו שוב בלי תמונות ענק בגלריה.'
+          );
+        } else {
+          setFiestaPushError(data.error || `שגיאה מהשרת (HTTP ${res.status})`);
+        }
         return;
       }
 
@@ -1339,8 +1362,8 @@ export default function SuppliersDashboard() {
           : (fiestaPushForm.agreementSigned ? 'contract' : 'not-signed');
 
         const agreementToSave =
-          fiestaPushForm.agreementImage && fiestaPushForm.agreementImage !== '[stored]'
-            ? fiestaPushForm.agreementImage
+          agreementImage && isStoredOrRemoteImageUrl(agreementImage)
+            ? agreementImage
             : undefined;
 
         updateSupplierState(phone, {
@@ -1373,11 +1396,12 @@ export default function SuppliersDashboard() {
   const handleSkipFiestaPush = () => {
     if (pendingStatusChange) {
       const phone = fiestaPushSupplier['Real Phone'] || fiestaPushSupplier['phone'] || '';
+      const img = fiestaPushForm.agreementImage;
       updateSupplierState(phone, {
         status: pendingStatusChange.status,
         reminder: null,
         agent: activeAgent,
-        uploadedImage: fiestaPushForm.agreementImage
+        ...(isStoredOrRemoteImageUrl(img) ? { uploadedImage: img } : {}),
       });
     }
     setShowFiestaPushModal(false);
@@ -1386,13 +1410,15 @@ export default function SuppliersDashboard() {
     setPendingStatusChange(null);
   };
 
-  const handleModalFileChange = (file) => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFiestaPushForm(f => ({ ...f, agreementImage: reader.result }));
-      };
-      reader.readAsDataURL(file);
+  const handleModalFileChange = async (file) => {
+    if (!file) return;
+    try {
+      setFiestaPushError('');
+      const url = await uploadImageFile(file);
+      setFiestaPushForm((f) => ({ ...f, agreementImage: url }));
+    } catch (err) {
+      setFiestaPushError(err.message || 'העלאת החוזה נכשלה');
+      alert(`⚠️ לא ניתן להעלות את התמונה:\n${err.message}`);
     }
   };
 
@@ -1783,13 +1809,13 @@ export default function SuppliersDashboard() {
     );
   }
 
-  const handleFileChange = (phone, file) => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        updateSupplierState(phone, { uploadedImage: reader.result });
-      };
-      reader.readAsDataURL(file);
+  const handleFileChange = async (phone, file) => {
+    if (!file) return;
+    try {
+      const url = await uploadImageFile(file);
+      updateSupplierState(phone, { uploadedImage: url });
+    } catch (err) {
+      alert(`⚠️ לא ניתן להעלות את התמונה:\n${err.message}`);
     }
   };
 
@@ -3998,21 +4024,20 @@ export default function SuppliersDashboard() {
                         accept="image/*"
                         multiple
                         style={{ display: 'none' }}
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const files = Array.from(e.target.files || []);
                           if (!files.length) return;
-                          files.forEach((file) => {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              const dataUrl = reader.result;
-                              if (!dataUrl) return;
+                          for (const file of files) {
+                            try {
+                              const url = await uploadImageFile(file);
                               setFiestaPushForm((f) => ({
                                 ...f,
-                                selectedImages: [...(f.selectedImages || []), dataUrl],
+                                selectedImages: [...(f.selectedImages || []), url],
                               }));
-                            };
-                            reader.readAsDataURL(file);
-                          });
+                            } catch (err) {
+                              alert(`⚠️ תמונה לא הועלתה: ${err.message}`);
+                            }
+                          }
                           e.target.value = '';
                         }}
                       />

@@ -62,6 +62,19 @@ export async function POST(req) {
         if (key === 'phone') continue;
         if (value === null || value === undefined) {
           unsetFields[key] = '';
+        } else if (
+          key === 'uploadedImage' &&
+          typeof value === 'string' &&
+          value.startsWith('data:')
+        ) {
+          // Never persist multi‑MB data URIs — causes 413 on Vercel and blows CRM docs.
+          return NextResponse.json(
+            {
+              error:
+                'תמונת החוזה גדולה מדי לשמירה ישירה. העלו מחדש דרך האפליקציה (תידחס אוטומטית).',
+            },
+            { status: 413 }
+          );
         } else {
           setFields[key] = value;
         }
