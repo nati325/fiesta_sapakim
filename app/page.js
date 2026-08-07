@@ -329,6 +329,7 @@ export default function SuppliersDashboard() {
   const scrollSaveTimerRef = useRef(null);
   const assignmentsSyncedRef = useRef(false);
   const supplierStatesRef = useRef({});
+  const suppliersRef = useRef([]);
   const [moveEffects, setMoveEffects] = useState({});
   const [exitingSuppliers, setExitingSuppliers] = useState({});
   const [activeMoveButton, setActiveMoveButton] = useState(null);
@@ -729,6 +730,10 @@ export default function SuppliersDashboard() {
   }, [supplierStates]);
 
   useEffect(() => {
+    suppliersRef.current = suppliers;
+  }, [suppliers]);
+
+  useEffect(() => {
     if (!isLoggedIn || !activeAgent || loading) return;
     persistUiMetaForAgent(activeAgent);
   }, [activeTab, searchQuery, selectedSupplierProfile, isLoggedIn, activeAgent, loading]);
@@ -787,6 +792,8 @@ export default function SuppliersDashboard() {
 
   const clearSearch = () => setSearchQuery('');
 
+  // Search must NOT depend on `suppliers` — image/profile updates mutate that array
+  // and were re-triggering fetch + blanking the grid ("appears then vanishes").
   useEffect(() => {
     if (!isSearchMode) {
       setSearchResults(null);
@@ -801,7 +808,12 @@ export default function SuppliersDashboard() {
 
     const indexQuery = parseSupplierIndexQuery(effectiveSearchQuery);
     if (indexQuery !== null) {
-      const match = indexQuery > 0 && indexQuery <= suppliers.length ? suppliers[indexQuery - 1] : null;
+      const list = suppliersRef.current;
+      if (loading && list.length === 0) {
+        setSearchLoading(true);
+        return;
+      }
+      const match = indexQuery > 0 && indexQuery <= list.length ? list[indexQuery - 1] : null;
       setSearchResults(match ? [match] : []);
       setSearchLoading(false);
       return;
@@ -816,6 +828,7 @@ export default function SuppliersDashboard() {
     })
       .then(async (res) => {
         const data = await res.json();
+        if (controller.signal.aborted) return;
         if (!Array.isArray(data)) {
           setSearchResults([]);
           return;
@@ -833,7 +846,7 @@ export default function SuppliersDashboard() {
       });
 
     return () => controller.abort();
-  }, [isSearchMode, effectiveSearchQuery, suppliers]);
+  }, [isSearchMode, effectiveSearchQuery, loading]);
 
   useEffect(() => {
     fetch('/api/suppliers?lite=1', { cache: 'no-store' })
@@ -2843,7 +2856,7 @@ export default function SuppliersDashboard() {
           </div>
 
           <div className="suppliers-grid">
-            {isSearchMode && searchLoading ? (
+            {isSearchMode && searchLoading && searchResults === null ? (
               <div style={{
                 gridColumn: '1 / -1',
                 textAlign: 'center',
