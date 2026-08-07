@@ -1228,7 +1228,7 @@ export default function SuppliersDashboard() {
       if (!img || img === 'N/A' || img === 'nan') return;
       const value = String(img).trim();
       if (!value) return;
-      if (value.startsWith('http') || value.startsWith('/media/') || value.startsWith('data:image/')) {
+      if (value.startsWith('http') || value.startsWith('/media/') || value.startsWith('/api/image/') || value.startsWith('data:image/')) {
         if (!pushImages.includes(value)) pushImages.push(value);
       }
     };
