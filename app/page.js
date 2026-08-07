@@ -3436,8 +3436,9 @@ export default function SuppliersDashboard() {
             style={{
               position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
               background: 'rgba(15,23,42,0.75)', backdropFilter: 'blur(8px)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              zIndex: 11000, padding: '20px'
+              display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+              zIndex: 11000, padding: '20px', overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch'
             }}
           >
             <motion.div
@@ -3445,7 +3446,17 @@ export default function SuppliersDashboard() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.85, opacity: 0 }}
               className="glass-card"
-              style={{ maxWidth: '520px', width: '100%', padding: '36px', textAlign: 'center' }}
+              style={{
+                maxWidth: '520px',
+                width: '100%',
+                maxHeight: 'calc(100vh - 40px)',
+                overflowY: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                padding: '36px',
+                textAlign: 'center',
+                margin: 'auto',
+                overscrollBehavior: 'contain'
+              }}
               dir="rtl"
             >
               {fiestaPushResult === 'exists' ? (
