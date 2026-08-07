@@ -327,14 +327,37 @@ export default function SuppliersDashboard() {
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
   const [fiestaPushForm, setFiestaPushForm] = useState({
     type: '',
+    types: [],
     description: '',
     region: '',
     discountPercent: '',   // הנחה ללקוח — חלה על כל המוצרים (לחישוב)
     discountDisplayType: 'percent', // איך התגית באתר: percent | amount
     commissionPercent: '', // עמלת Fiesta — אחוז מהמחירון
     products: [],
-    agreementSigned: false
+    agreementSigned: false,
+    agreementImages: [],
+    agreementImage: '',
   });
+
+  const pushAgreementImages = Array.isArray(fiestaPushForm.agreementImages)
+    ? fiestaPushForm.agreementImages.filter(Boolean).slice(0, 3)
+    : fiestaPushForm.agreementImage
+      ? [fiestaPushForm.agreementImage]
+      : [];
+  const pushSelectedTypes = [...new Set(
+    [fiestaPushForm.type, ...(Array.isArray(fiestaPushForm.types) ? fiestaPushForm.types : [])]
+      .filter(Boolean)
+  )];
+
+  const togglePushCategory = (slug) => {
+    setFiestaPushForm((f) => {
+      const current = [...new Set([f.type, ...(f.types || [])].filter(Boolean))];
+      const has = current.includes(slug);
+      let next = has ? current.filter((t) => t !== slug) : [...current, slug];
+      if (!next.length) next = [slug];
+      return { ...f, types: next, type: next[0] };
+    });
+  };
 
   // Everything the agent sees in step 3 is derived from the two rates above.
   const pushDiscountPercent = toPercent(fiestaPushForm.discountPercent);
@@ -1243,6 +1266,7 @@ export default function SuppliersDashboard() {
     setFiestaPushStep(1);
     setFiestaPushForm({
       type: mappedType,
+      types: mappedType ? [mappedType] : [],
       description: buildDefaultDescription(supplier),
       region,
       discountPercent: '',
@@ -1252,15 +1276,19 @@ export default function SuppliersDashboard() {
       agreementSigned: isSigned,
       selectedImages: pushImages,
       agreementImage: uploadedImage,
+      agreementImages: uploadedImage ? [uploadedImage] : [],
     });
     setShowFiestaPushModal(true);
   };
 
   // ── Submit to Fiesta API ──────────────────────────────────────────────────
   const submitToFiesta = async () => {
-    if (!fiestaPushForm.type) {
-      setFiestaPushError('יש לבחור קטגוריה לפני השליחה');
-      setFiestaPushStep(2);
+    const selectedTypes = [...new Set(
+      [fiestaPushForm.type, ...(fiestaPushForm.types || [])].filter(Boolean)
+    )];
+    if (!selectedTypes.length) {
+      setFiestaPushError('יש לבחור לפחות קטגוריה אחת לפני השליחה');
+      setFiestaPushStep(1);
       return;
     }
 
@@ -1284,16 +1312,23 @@ export default function SuppliersDashboard() {
 
       // Upload agreement / gallery data URIs first — never put multi‑MB base64 in the push JSON
       // (Vercel returns 413 Function payload too large).
-      let agreementImage = '';
-      if (fiestaPushForm.agreementImage && fiestaPushForm.agreementImage !== '[stored]') {
-        agreementImage = await ensureUploadedImageUrl(
-          fiestaPushForm.agreementImage,
-          'agreement.jpg'
-        );
-        if (agreementImage !== fiestaPushForm.agreementImage) {
-          setFiestaPushForm((f) => ({ ...f, agreementImage }));
-        }
+      const rawAgreements = (
+        Array.isArray(fiestaPushForm.agreementImages) && fiestaPushForm.agreementImages.length
+          ? fiestaPushForm.agreementImages
+          : fiestaPushForm.agreementImage
+            ? [fiestaPushForm.agreementImage]
+            : []
+      )
+        .filter((u) => u && u !== '[stored]')
+        .slice(0, 3);
+
+      const agreementImages = [];
+      for (let i = 0; i < rawAgreements.length; i++) {
+        const url = await ensureUploadedImageUrl(rawAgreements[i], `agreement-${i + 1}.jpg`);
+        if (url && !agreementImages.includes(url)) agreementImages.push(url);
       }
+      const agreementImage = agreementImages[0] || '';
+      setFiestaPushForm((f) => ({ ...f, agreementImages, agreementImage }));
 
       const gallery = await sanitizeImageList(
         fiestaPushForm.selectedImages || fiestaPushForm.images || []
@@ -1305,11 +1340,13 @@ export default function SuppliersDashboard() {
         body: JSON.stringify({
           supplier: slimSupplierForPush(fiestaPushSupplier),
           fiestaData: {
-            type: fiestaPushForm.type,
+            type: selectedTypes[0],
+            types: selectedTypes,
             description: fiestaPushForm.description || '',
             region: fiestaPushForm.region || '',
             agreementSigned: Boolean(fiestaPushForm.agreementSigned),
             agreementImage,
+            agreementImages,
             selectedImages: gallery,
             images: gallery,
             products,
@@ -1396,7 +1433,7 @@ export default function SuppliersDashboard() {
   const handleSkipFiestaPush = () => {
     if (pendingStatusChange) {
       const phone = fiestaPushSupplier['Real Phone'] || fiestaPushSupplier['phone'] || '';
-      const img = fiestaPushForm.agreementImage;
+      const img = pushAgreementImages[0] || fiestaPushForm.agreementImage;
       updateSupplierState(phone, {
         status: pendingStatusChange.status,
         reminder: null,
@@ -1414,12 +1451,30 @@ export default function SuppliersDashboard() {
     if (!file) return;
     try {
       setFiestaPushError('');
+      const current = pushAgreementImages;
+      if (current.length >= 3) {
+        alert('ניתן לצרף עד 3 תמונות חוזה');
+        return;
+      }
       const url = await uploadImageFile(file);
-      setFiestaPushForm((f) => ({ ...f, agreementImage: url }));
+      setFiestaPushForm((f) => {
+        const next = [...(Array.isArray(f.agreementImages) ? f.agreementImages : []), url]
+          .filter(Boolean)
+          .slice(0, 3);
+        return { ...f, agreementImages: next, agreementImage: next[0] || '' };
+      });
     } catch (err) {
       setFiestaPushError(err.message || 'העלאת החוזה נכשלה');
       alert(`⚠️ לא ניתן להעלות את התמונה:\n${err.message}`);
     }
+  };
+
+  const removeAgreementImageAt = (index) => {
+    setFiestaPushForm((f) => {
+      const next = (Array.isArray(f.agreementImages) ? f.agreementImages : [])
+        .filter((_, i) => i !== index);
+      return { ...f, agreementImages: next, agreementImage: next[0] || '' };
+    });
   };
 
   const renderWizardHeader = (step, title) => {
@@ -3538,9 +3593,12 @@ export default function SuppliersDashboard() {
                   </div>
                 </>
               ) : fiestaPushStep === 1 ? (
-                // ── Step 1: Category Picker ─────────────────────────
+                // ── Step 1: Category Picker (multi) ─────────────────────────
                 <>
-                  {renderWizardHeader(1, "בחר קטגוריה")}
+                  {renderWizardHeader(1, "בחר קטגוריות")}
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '12px', textAlign: 'center' }}>
+                    אפשר לבחור כמה קטגוריות — הספק יופיע בכולן באתר
+                  </p>
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
@@ -3548,22 +3606,22 @@ export default function SuppliersDashboard() {
                     maxHeight: '40vh',
                     overflowY: 'auto',
                     paddingLeft: '4px',
-                    marginBottom: '20px'
+                    marginBottom: '12px'
                   }}>
-                    {FIESTA_CATEGORIES.map(cat => (
+                    {FIESTA_CATEGORIES.map(cat => {
+                      const selected = pushSelectedTypes.includes(cat.value);
+                      return (
                       <button
                         key={cat.value}
-                        onClick={() => {
-                          setFiestaPushForm(f => ({ ...f, type: cat.value }));
-                          setFiestaPushStep(2);
-                        }}
+                        type="button"
+                        onClick={() => togglePushCategory(cat.value)}
                         style={{
                           padding: '12px 6px',
                           borderRadius: '12px',
-                          border: fiestaPushForm.type === cat.value
+                          border: selected
                             ? '2px solid var(--accent)'
                             : '1.5px solid var(--border)',
-                          background: fiestaPushForm.type === cat.value
+                          background: selected
                             ? 'var(--accent-soft)'
                             : 'white',
                           cursor: 'pointer',
@@ -3574,33 +3632,40 @@ export default function SuppliersDashboard() {
                           transition: 'all 0.15s',
                           fontFamily: 'inherit'
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-soft)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.background = fiestaPushForm.type === cat.value ? 'var(--accent-soft)' : 'white';
-                          e.currentTarget.style.borderColor = fiestaPushForm.type === cat.value ? 'var(--accent)' : 'var(--border)';
-                        }}
                       >
                         <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text)', textAlign: 'center', lineHeight: '1.2' }}>
-                          {cat.label}
+                          {selected ? '✓ ' : ''}{cat.label}
                         </span>
                       </button>
-                    ))}
+                    );})}
                   </div>
+                  {pushSelectedTypes.length > 0 && (
+                    <p style={{ fontSize: '0.78rem', color: 'var(--accent-strong)', fontWeight: 700, marginBottom: '14px', textAlign: 'center' }}>
+                      נבחרו {pushSelectedTypes.length}: {pushSelectedTypes.map((t) => FIESTA_CATEGORIES.find((c) => c.value === t)?.label || t).join(' · ')}
+                    </p>
+                  )}
 
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button
-                      onClick={handleSkipFiestaPush}
+                      onClick={() => {
+                        if (!pushSelectedTypes.length) {
+                          setFiestaPushError('יש לבחור לפחות קטגוריה אחת');
+                          return;
+                        }
+                        setFiestaPushError('');
+                        setFiestaPushStep(2);
+                      }}
                       className="btn-primary"
-                      style={{ flex: 1, padding: '12px', background: '#64748b' }}
-                      title="דלג על העלאה לפייסטה ושמור רק בתוך CRM"
+                      style={{ flex: 2, padding: '12px' }}
                     >
-                      דלג (שמור ל-CRM)
+                      המשך
                     </button>
                     <button
-                      onClick={handleCloseFiestaPushModal}
-                      style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white', fontFamily: 'inherit' }}
+                      onClick={handleSkipFiestaPush}
+                      style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white', fontFamily: 'inherit', color: '#64748b' }}
+                      title="דלג על העלאה לפייסטה ושמור רק בתוך CRM"
                     >
-                      ביטול
+                      דלג
                     </button>
                   </div>
                 </>
@@ -3613,18 +3678,36 @@ export default function SuppliersDashboard() {
                   </p>
 
                   <div style={{ textAlign: 'right', display: 'grid', gap: '14px', marginBottom: '24px' }}>
-                    {/* Type selection dropdown */}
+                    {/* Multi category chips */}
                     <div>
-                      <label style={{ fontSize: '0.8rem', fontWeight: '700', display: 'block', marginBottom: '5px' }}>קטגוריה באתר Fiesta</label>
-                      <select
-                        value={fiestaPushForm.type}
-                        onChange={e => setFiestaPushForm(f => ({ ...f, type: e.target.value }))}
-                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.95rem' }}
-                      >
-                        {FIESTA_CATEGORIES.map(c => (
-                          <option key={c.value} value={c.value}>{c.label}</option>
-                        ))}
-                      </select>
+                      <label style={{ fontSize: '0.8rem', fontWeight: '700', display: 'block', marginBottom: '5px' }}>
+                        קטגוריות באתר Fiesta ({pushSelectedTypes.length})
+                      </label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {FIESTA_CATEGORIES.map((c) => {
+                          const on = pushSelectedTypes.includes(c.value);
+                          return (
+                            <button
+                              key={c.value}
+                              type="button"
+                              onClick={() => togglePushCategory(c.value)}
+                              style={{
+                                padding: '6px 10px',
+                                borderRadius: '999px',
+                                border: on ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+                                background: on ? 'var(--accent-soft)' : 'white',
+                                color: 'var(--text)',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                fontFamily: 'inherit',
+                              }}
+                            >
+                              {on ? '✓ ' : ''}{c.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     {/* Description */}
@@ -3852,53 +3935,60 @@ export default function SuppliersDashboard() {
                   </p>
 
                   <div style={{ textAlign: 'right', display: 'grid', gap: '14px', marginBottom: '24px' }}>
-                    {/* Styled upload area */}
-                    <div 
-                      className="upload-zone"
-                      onClick={() => document.getElementById(`modal-file-upload`).click()}
-                      style={{ 
-                        border: '2.5px dashed var(--border)',
-                        borderRadius: '12px',
-                        padding: '24px',
-                        textAlign: 'center',
-                        background: fiestaPushForm.agreementImage ? '#f0fdf4' : 'transparent',
-                        borderColor: fiestaPushForm.agreementImage ? '#86efac' : 'var(--border)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      <input 
-                        id="modal-file-upload"
-                        type="file" 
-                        onChange={(e) => handleModalFileChange(e.target.files[0])}
-                        style={{ display: 'none' }}
-                        accept="image/*"
-                      />
-                      {fiestaPushForm.agreementImage ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                          <CheckCircle2 size={30} color="#16a34a" />
-                          <span style={{ color: '#16a34a', fontWeight: '700', fontSize: '0.85rem' }}>חוזה / צילום מסך צורף בהצלחה!</span>
-                          <div style={{ marginTop: '8px', width: '100%', height: '110px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #16a34a' }}>
-                            <img src={fiestaPushForm.agreementImage} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                      עד 3 תמונות חוזה / צילומי מסך ({pushAgreementImages.length}/3)
+                    </p>
+                    {pushAgreementImages.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '8px' }}>
+                        {pushAgreementImages.map((url, idx) => (
+                          <div key={`${url}-${idx}`} style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', border: '1px solid #86efac', height: '110px', background: '#f0fdf4' }}>
+                            <img src={url} alt={`חוזה ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeAgreementImageAt(idx);
+                              }}
+                              style={{ position: 'absolute', top: 4, left: 4, background: '#ef4444', color: 'white', border: 'none', borderRadius: 6, fontSize: '0.7rem', fontWeight: 700, padding: '2px 6px', cursor: 'pointer' }}
+                            >
+                              הסר
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setFiestaPushForm(f => ({ ...f, agreementImage: '' }));
-                            }}
-                            style={{ background: '#ef4444', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', marginTop: '6px' }}
-                          >
-                            הסר תמונה
-                          </button>
-                        </div>
-                      ) : (
+                        ))}
+                      </div>
+                    )}
+                    {pushAgreementImages.length < 3 && (
+                      <div
+                        className="upload-zone"
+                        onClick={() => document.getElementById('modal-file-upload').click()}
+                        style={{
+                          border: '2.5px dashed var(--border)',
+                          borderRadius: '12px',
+                          padding: '24px',
+                          textAlign: 'center',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        <input
+                          id="modal-file-upload"
+                          type="file"
+                          onChange={(e) => {
+                            handleModalFileChange(e.target.files[0]);
+                            e.target.value = '';
+                          }}
+                          style={{ display: 'none' }}
+                          accept="image/*"
+                        />
                         <div style={{ color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
                           <Upload size={32} />
-                          <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>לחץ כאן להעלאת חוזה או צילום מסך מוואטסאפ</span>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>
+                            {pushAgreementImages.length ? 'הוסף תמונת חוזה נוספת' : 'לחץ כאן להעלאת חוזה או צילום מסך מוואטסאפ'}
+                          </span>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                     {/* Agreement signed checkbox */}
                     <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', marginTop: '8px' }}>
@@ -4081,7 +4171,7 @@ export default function SuppliersDashboard() {
                     lineHeight: '1.4'
                   }}>
                     <div><strong>ספק:</strong> {fiestaPushSupplier['Supplier Name']}</div>
-                    <div><strong>קטגוריה פייסטה:</strong> {FIESTA_CATEGORIES.find(c => c.value === fiestaPushForm.type)?.label || fiestaPushForm.type}</div>
+                    <div><strong>קטגוריות פייסטה:</strong> {pushSelectedTypes.map((t) => FIESTA_CATEGORIES.find(c => c.value === t)?.label || t).join(' · ') || '—'}</div>
                     <div><strong>אזור:</strong> {fiestaPushForm.region || 'לא צוין'}</div>
                     <div><strong>תיאור:</strong> {(fiestaPushForm.description || '').slice(0, 120) || 'אין'}{(fiestaPushForm.description || '').length > 120 ? '…' : ''}</div>
                     <div>
@@ -4111,7 +4201,7 @@ export default function SuppliersDashboard() {
                     ) : (
                       <div><strong>מוצרים:</strong> לא הוזנו — הספק יוצג כ״לתיאום מחיר״</div>
                     )}
-                    <div><strong>חוזה/שיחה:</strong> {fiestaPushForm.agreementImage ? '✅ צורף' : '❌ לא צורף'}</div>
+                    <div><strong>חוזה/שיחה:</strong> {pushAgreementImages.length ? `✅ ${pushAgreementImages.length} תמונות` : '❌ לא צורף'}</div>
                     <div><strong>חתימת חוזה:</strong> {fiestaPushForm.agreementSigned ? '✍️ חתום' : '⏳ טרם נחתם'}</div>
                     <div><strong>תמונות גלריה:</strong> {fiestaPushForm.selectedImages?.length || 0} תמונות נבחרו</div>
                   </div>
