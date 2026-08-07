@@ -61,7 +61,23 @@ import {
 import './globals.css';
 
 function makeWizardProduct(index) {
-  return { id: `p${Date.now().toString(36)}${index}`, name: '', originalPrice: '', kind: 'main' };
+  return { id: `p${Date.now().toString(36)}${index}`, name: '', originalPrice: '', kind: 'main', image: '' };
+}
+
+/**
+ * Fill empty product images from the gallery (round-robin). Keeps any image
+ * the agent already picked for a product.
+ */
+function applyGalleryImagesToProducts(products, gallery) {
+  const imgs = (gallery || []).map((u) => String(u || '').trim()).filter(Boolean);
+  if (!imgs.length) return products || [];
+  let autoIdx = 0;
+  return (products || []).map((p) => {
+    if (String(p.image || '').trim()) return p;
+    const image = imgs[autoIdx % imgs.length];
+    autoIdx += 1;
+    return { ...p, image };
+  });
 }
 
 /** Turn the agent's list prices into the full product records Fiesta stores. */
@@ -76,7 +92,7 @@ function buildPricedProducts(products, discountPercent, commissionPercent) {
         description: '',
         originalPrice: String(computed.listPrice),
         price: String(computed.clientPrice),
-        image: '',
+        image: String(p.image || '').trim(),
         kind: p.kind === 'addon' ? 'addon' : 'main',
         commissionAmount: computed.commission,
         order: i,
@@ -330,6 +346,7 @@ export default function SuppliersDashboard() {
     types: [],
     description: '',
     region: '',
+    regions: [],
     discountPercent: '',   // הנחה ללקוח — חלה על כל המוצרים (לחישוב)
     discountDisplayType: 'percent', // איך התגית באתר: percent | amount
     commissionPercent: '', // עמלת Fiesta — אחוז מהמחירון
@@ -348,6 +365,10 @@ export default function SuppliersDashboard() {
     [fiestaPushForm.type, ...(Array.isArray(fiestaPushForm.types) ? fiestaPushForm.types : [])]
       .filter(Boolean)
   )];
+  const pushSelectedRegions = [...new Set(
+    [fiestaPushForm.region, ...(Array.isArray(fiestaPushForm.regions) ? fiestaPushForm.regions : [])]
+      .filter(Boolean)
+  )];
 
   const togglePushCategory = (slug) => {
     setFiestaPushForm((f) => {
@@ -356,6 +377,15 @@ export default function SuppliersDashboard() {
       let next = has ? current.filter((t) => t !== slug) : [...current, slug];
       if (!next.length) next = [slug];
       return { ...f, types: next, type: next[0] };
+    });
+  };
+
+  const togglePushRegion = (slug) => {
+    setFiestaPushForm((f) => {
+      const current = [...new Set([f.region, ...(f.regions || [])].filter(Boolean))];
+      const has = current.includes(slug);
+      let next = has ? current.filter((r) => r !== slug) : [...current, slug];
+      return { ...f, regions: next, region: next[0] || '' };
     });
   };
 
@@ -1269,6 +1299,7 @@ export default function SuppliersDashboard() {
       types: mappedType ? [mappedType] : [],
       description: buildDefaultDescription(supplier),
       region,
+      regions: region ? [region] : [],
       discountPercent: '',
       discountDisplayType: 'percent',
       commissionPercent: '',
@@ -1298,7 +1329,23 @@ export default function SuppliersDashboard() {
     try {
       const discountPercent = toPercent(fiestaPushForm.discountPercent);
       const commissionPercent = toPercent(fiestaPushForm.commissionPercent);
-      const products = buildPricedProducts(fiestaPushForm.products, discountPercent, commissionPercent);
+      const gallery = await sanitizeImageList(
+        fiestaPushForm.selectedImages || fiestaPushForm.images || []
+      );
+      const productsWithImages = applyGalleryImagesToProducts(
+        fiestaPushForm.products,
+        gallery
+      );
+      // Upload any leftover data URIs on product images before building the payload.
+      const productsPrepared = [];
+      for (let i = 0; i < productsWithImages.length; i++) {
+        const p = productsWithImages[i];
+        const image = p.image
+          ? await ensureUploadedImageUrl(p.image, `product-${i + 1}.jpg`)
+          : '';
+        productsPrepared.push({ ...p, image });
+      }
+      const products = buildPricedProducts(productsPrepared, discountPercent, commissionPercent);
       const base = cheapestPricedPackage(products);
       // Display choice only: site badge shows % or ₪ savings of the card package.
       const displayAsAmount = fiestaPushForm.discountDisplayType === 'amount';
@@ -1328,11 +1375,13 @@ export default function SuppliersDashboard() {
         if (url && !agreementImages.includes(url)) agreementImages.push(url);
       }
       const agreementImage = agreementImages[0] || '';
-      setFiestaPushForm((f) => ({ ...f, agreementImages, agreementImage }));
-
-      const gallery = await sanitizeImageList(
-        fiestaPushForm.selectedImages || fiestaPushForm.images || []
-      );
+      setFiestaPushForm((f) => ({
+        ...f,
+        agreementImages,
+        agreementImage,
+        selectedImages: gallery,
+        products: productsPrepared,
+      }));
 
       const res = await fetch('/api/push-to-fiesta', {
         method: 'POST',
@@ -1343,7 +1392,8 @@ export default function SuppliersDashboard() {
             type: selectedTypes[0],
             types: selectedTypes,
             description: fiestaPushForm.description || '',
-            region: fiestaPushForm.region || '',
+            region: pushSelectedRegions[0] || '',
+            regions: pushSelectedRegions,
             agreementSigned: Boolean(fiestaPushForm.agreementSigned),
             agreementImage,
             agreementImages,
@@ -3722,19 +3772,36 @@ export default function SuppliersDashboard() {
                       />
                     </div>
 
-                    {/* Region */}
+                    {/* Region — multi-select like categories */}
                     <div>
-                      <label style={{ fontSize: '0.8rem', fontWeight: '700', display: 'block', marginBottom: '5px' }}>אזור</label>
-                      <select
-                        value={fiestaPushForm.region || ''}
-                        onChange={e => setFiestaPushForm(f => ({ ...f, region: e.target.value }))}
-                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem', fontFamily: 'inherit', background: 'white' }}
-                      >
-                        <option value="">בחרו אזור...</option>
-                        {FIESTA_REGIONS.map((r) => (
-                          <option key={r} value={r}>{r}</option>
-                        ))}
-                      </select>
+                      <label style={{ fontSize: '0.8rem', fontWeight: '700', display: 'block', marginBottom: '5px' }}>
+                        אזורים באתר ({pushSelectedRegions.length})
+                      </label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {FIESTA_REGIONS.map((r) => {
+                          const on = pushSelectedRegions.includes(r);
+                          return (
+                            <button
+                              key={r}
+                              type="button"
+                              onClick={() => togglePushRegion(r)}
+                              style={{
+                                padding: '6px 10px',
+                                borderRadius: '999px',
+                                border: on ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+                                background: on ? 'var(--accent-soft)' : 'white',
+                                color: 'var(--text)',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                fontFamily: 'inherit',
+                              }}
+                            >
+                              {on ? '✓ ' : ''}{r}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
 
@@ -3852,7 +3919,49 @@ export default function SuppliersDashboard() {
                           const row = priceProduct(p.originalPrice, pushDiscountPercent, pushCommissionPercent);
                           return (
                             <div key={p.id} style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '10px', background: 'white' }}>
-                              <div style={{ display: 'flex', gap: '8px' }}>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                <label
+                                  title={p.image ? 'החלף תמונת מוצר' : 'העלה תמונת מוצר'}
+                                  style={{
+                                    width: 44,
+                                    height: 44,
+                                    flexShrink: 0,
+                                    borderRadius: '8px',
+                                    border: '1.5px dashed var(--border)',
+                                    background: '#f8fafc',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    overflow: 'hidden',
+                                  }}
+                                >
+                                  {p.image ? (
+                                    <img
+                                      src={resolveWizardImageSrc(p.image)}
+                                      alt=""
+                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                  ) : (
+                                    <ImageIcon size={16} color="#94a3b8" />
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    style={{ display: 'none' }}
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      e.target.value = '';
+                                      if (!file) return;
+                                      try {
+                                        const url = await uploadImageFile(file);
+                                        updatePushProduct(index, { image: url });
+                                      } catch (err) {
+                                        alert(`⚠️ תמונת מוצר לא הועלתה: ${err.message}`);
+                                      }
+                                    }}
+                                  />
+                                </label>
                                 <input
                                   value={p.name}
                                   onChange={e => updatePushProduct(index, { name: e.target.value })}
@@ -4069,7 +4178,10 @@ export default function SuppliersDashboard() {
                             onRemove={() => {
                               setFiestaPushForm(f => ({
                                 ...f,
-                                selectedImages: f.selectedImages.filter(url => url !== imgUrl)
+                                selectedImages: f.selectedImages.filter(url => url !== imgUrl),
+                                products: (f.products || []).map((p) =>
+                                  p.image === imgUrl ? { ...p, image: '' } : p
+                                ),
                               }));
                             }}
                           />
@@ -4087,6 +4199,152 @@ export default function SuppliersDashboard() {
                         fontWeight: '700' 
                       }}>
                         לא נבחרו תמונות. אפשר להוסיף למטה, או להמשיך — האתר יציג ברירת מחדל.
+                      </div>
+                    )}
+
+                    {(fiestaPushForm.products || []).some((p) => String(p.name || '').trim()) && (
+                      <div style={{ marginTop: '16px' }}>
+                        <label style={{ fontSize: '0.8rem', fontWeight: '800', display: 'block', marginBottom: '6px', color: '#555' }}>
+                          תמונה לכל מוצר
+                        </label>
+                        <p style={{ margin: '0 0 10px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          לחצו על תמונה מהגלריה ליד מוצר, או העלו תמונה. אם לא תבחרו — ניקח אוטומטית מהגלריה בשליחה.
+                        </p>
+                        <div style={{ display: 'grid', gap: '10px' }}>
+                          {(fiestaPushForm.products || [])
+                            .filter((p) => String(p.name || '').trim())
+                            .map((p) => {
+                              const productIndex = (fiestaPushForm.products || []).findIndex((x) => x.id === p.id);
+                              return (
+                                <div
+                                  key={p.id}
+                                  style={{
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '10px',
+                                    padding: '10px',
+                                    background: 'white',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                                    <div
+                                      style={{
+                                        width: 48,
+                                        height: 48,
+                                        borderRadius: '8px',
+                                        overflow: 'hidden',
+                                        border: '1px solid var(--border)',
+                                        background: '#f1f5f9',
+                                        flexShrink: 0,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                      }}
+                                    >
+                                      {p.image ? (
+                                        <img
+                                          src={resolveWizardImageSrc(p.image)}
+                                          alt=""
+                                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        />
+                                      ) : (
+                                        <ImageIcon size={16} color="#94a3b8" />
+                                      )}
+                                    </div>
+                                    <div style={{ flex: 1, fontWeight: 800, fontSize: '0.88rem' }}>{p.name}</div>
+                                    {p.image ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => updatePushProduct(productIndex, { image: '' })}
+                                        style={{
+                                          border: 'none',
+                                          background: 'transparent',
+                                          color: '#64748b',
+                                          fontSize: '0.75rem',
+                                          fontWeight: 700,
+                                          cursor: 'pointer',
+                                          fontFamily: 'inherit',
+                                        }}
+                                      >
+                                        נקה
+                                      </button>
+                                    ) : null}
+                                    <label
+                                      style={{
+                                        fontSize: '0.72rem',
+                                        fontWeight: 800,
+                                        color: 'var(--accent-strong)',
+                                        cursor: 'pointer',
+                                      }}
+                                    >
+                                      העלה
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        style={{ display: 'none' }}
+                                        onChange={async (e) => {
+                                          const file = e.target.files?.[0];
+                                          e.target.value = '';
+                                          if (!file) return;
+                                          try {
+                                            const url = await uploadImageFile(file);
+                                            setFiestaPushForm((f) => ({
+                                              ...f,
+                                              products: (f.products || []).map((x, i) =>
+                                                i === productIndex ? { ...x, image: url } : x
+                                              ),
+                                              selectedImages: (f.selectedImages || []).includes(url)
+                                                ? f.selectedImages
+                                                : [...(f.selectedImages || []), url],
+                                            }));
+                                          } catch (err) {
+                                            alert(`⚠️ תמונת מוצר לא הועלתה: ${err.message}`);
+                                          }
+                                        }}
+                                      />
+                                    </label>
+                                  </div>
+                                  {(fiestaPushForm.selectedImages || []).length > 0 && (
+                                    <div
+                                      style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(6, 1fr)',
+                                        gap: '6px',
+                                      }}
+                                    >
+                                      {(fiestaPushForm.selectedImages || []).map((imgUrl) => {
+                                        const selected = p.image === imgUrl;
+                                        return (
+                                          <button
+                                            key={imgUrl}
+                                            type="button"
+                                            onClick={() => updatePushProduct(productIndex, { image: imgUrl })}
+                                            style={{
+                                              padding: 0,
+                                              border: selected
+                                                ? '2px solid var(--accent)'
+                                                : '1px solid var(--border)',
+                                              borderRadius: '6px',
+                                              overflow: 'hidden',
+                                              cursor: 'pointer',
+                                              aspectRatio: '1',
+                                              background: '#e2e8f0',
+                                            }}
+                                            title="בחר לתמונת מוצר"
+                                          >
+                                            <img
+                                              src={resolveWizardImageSrc(imgUrl)}
+                                              alt=""
+                                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                            />
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
                       </div>
                     )}
 
@@ -4136,7 +4394,16 @@ export default function SuppliersDashboard() {
 
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button
-                      onClick={() => setFiestaPushStep(6)}
+                      onClick={() => {
+                        setFiestaPushForm((f) => ({
+                          ...f,
+                          products: applyGalleryImagesToProducts(
+                            f.products,
+                            f.selectedImages || []
+                          ),
+                        }));
+                        setFiestaPushStep(6);
+                      }}
                       className="btn-primary"
                       style={{ flex: 2, padding: '12px' }}
                     >
@@ -4172,7 +4439,7 @@ export default function SuppliersDashboard() {
                   }}>
                     <div><strong>ספק:</strong> {fiestaPushSupplier['Supplier Name']}</div>
                     <div><strong>קטגוריות פייסטה:</strong> {pushSelectedTypes.map((t) => FIESTA_CATEGORIES.find(c => c.value === t)?.label || t).join(' · ') || '—'}</div>
-                    <div><strong>אזור:</strong> {fiestaPushForm.region || 'לא צוין'}</div>
+                    <div><strong>אזורים:</strong> {pushSelectedRegions.join(' · ') || 'לא צוין'}</div>
                     <div><strong>תיאור:</strong> {(fiestaPushForm.description || '').slice(0, 120) || 'אין'}{(fiestaPushForm.description || '').length > 120 ? '…' : ''}</div>
                     <div>
                       <strong>תמחור:</strong> הנחה {pushDiscountPercent}% · עמלת Fiesta {pushCommissionPercent}%
@@ -4187,10 +4454,19 @@ export default function SuppliersDashboard() {
                     {pushPricedProducts.length > 0 ? (
                       <div style={{ display: 'grid', gap: '4px', marginTop: '2px' }}>
                         {pushPricedProducts.map((p) => (
-                          <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
-                            <span>
-                              {p.name}
-                              {p.kind === 'addon' ? ' (תוספת)' : ''}
+                          <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                              {p.image ? (
+                                <img
+                                  src={resolveWizardImageSrc(p.image)}
+                                  alt=""
+                                  style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
+                                />
+                              ) : null}
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {p.name}
+                                {p.kind === 'addon' ? ' (תוספת)' : ''}
+                              </span>
                             </span>
                             <span style={{ whiteSpace: 'nowrap', fontWeight: '700' }}>
                               {ilsShort(p.originalPrice)} ← {ilsShort(p.price)} · עמלה {ilsShort(p.commissionAmount)}
