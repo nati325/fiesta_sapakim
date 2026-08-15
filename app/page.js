@@ -517,7 +517,27 @@ export default function SuppliersDashboard() {
 
   const stateFor = (phone) => getSupplierState(supplierStates, phone);
 
-  const buildDisplayList = (list) => list.map((supplier) => ({ type: 'supplier', supplier }));
+  const STATUS_ORDER = ['לא נגעו בכלל', 'לחזור אליהם', 'לא ענו', 'עדיין לא חתם', 'סירבו', 'טופלו'];
+
+  const buildDisplayList = (list) => {
+    if (!WORKING_AGENTS.includes(activeAgent) || !isSearchMode) {
+      return list.map((supplier) => ({ type: 'supplier', supplier }));
+    }
+    const grouped = new Map(STATUS_ORDER.map((tab) => [tab, []]));
+    list.forEach((supplier) => {
+      const tab = getSupplierTab(supplier['Real Phone'] || supplier.phone, activeAgent) || 'לא נגעו בכלל';
+      if (!grouped.has(tab)) grouped.set(tab, []);
+      grouped.get(tab).push(supplier);
+    });
+    const display = [];
+    STATUS_ORDER.forEach((tab) => {
+      const items = grouped.get(tab) || [];
+      if (!items.length) return;
+      display.push({ type: 'header', group: tab, label: tab, count: items.length });
+      items.forEach((supplier) => display.push({ type: 'supplier', supplier }));
+    });
+    return display;
+  };
 
   const isSupplierTouched = (state = {}) => {
     if (!state) return false;
@@ -530,9 +550,23 @@ export default function SuppliersDashboard() {
     return false;
   };
 
+  const moranTouchedState = (state = {}) => {
+    if (!state) return false;
+    if (state.firstTouchedBy === 'מורן' || state.lastTouchedBy === 'מורן') return true;
+    if (state.agent === 'מורן' || state.assignedAgent === 'מורן') return true;
+    return Array.isArray(state.activityLog) && state.activityLog.some((entry) => entry.agent === 'מורן');
+  };
+
+  const previousAgentName = (state = {}) => {
+    if (!state) return '';
+    return state.lastTouchedBy || state.firstTouchedBy || state.assignedAgent || state.agent || '';
+  };
+
   const agentHasWorkedSupplier = (state = {}, agent) => {
     if (!agent || VIEW_ALL_AGENTS.has(agent)) return isSupplierTouched(state);
     if (!state) return false;
+    if (agent === 'ינון' && moranTouchedState(state)) return true;
+    if ((agent === 'הודיה' || agent === 'טל') && isSupplierTouched(state)) return true;
     if (state.firstTouchedBy === agent || state.lastTouchedBy === agent) return true;
     if (state.agent === agent) return true;
     if (Array.isArray(state.activityLog) && state.activityLog.some((entry) => entry.agent === agent)) {
@@ -569,6 +603,7 @@ export default function SuppliersDashboard() {
     if (!isSupplierTouched(state)) return 'לא נגעו בכלל';
     if (state.status === 'not-available') return 'לא ענו';
     if (state.status === 'not-signed') return 'עדיין לא חתם';
+    if (WORKING_AGENTS.includes(agent) && state.status === 'not-interested') return 'סירבו';
     if (isHandled) return 'טופלו';
     if (isCallback) return 'לחזור אליהם';
     return null;
@@ -576,7 +611,16 @@ export default function SuppliersDashboard() {
 
   const feedSuppliers = useMemo(() => {
     if (isSearchMode) {
-      return (searchResults ?? []).filter(isValidSupplierRow).filter(supplierInYinonView);
+      return (searchResults ?? [])
+        .filter(isValidSupplierRow)
+        .filter(supplierInYinonView)
+        .sort((a, b) => {
+          const tabA = getSupplierTab(a['Real Phone'] || a.phone, activeAgent);
+          const tabB = getSupplierTab(b['Real Phone'] || b.phone, activeAgent);
+          const order = STATUS_ORDER.indexOf(tabA) - STATUS_ORDER.indexOf(tabB);
+          if (order) return order;
+          return (a['Supplier Name'] || '').localeCompare(b['Supplier Name'] || '', 'he');
+        });
     }
 
     return suppliers
@@ -588,7 +632,12 @@ export default function SuppliersDashboard() {
         if (exitInfo?.fromTab === activeTab) return true;
         return getSupplierTab(phone, activeAgent) === activeTab;
       })
-      .filter(isValidSupplierRow);
+      .filter(isValidSupplierRow)
+      .sort((a, b) => {
+        const nameA = (a['Supplier Name'] || a.clean_name || '').trim();
+        const nameB = (b['Supplier Name'] || b.clean_name || '').trim();
+        return nameA.localeCompare(nameB, 'he');
+      });
   }, [
     isSearchMode,
     searchResults,
@@ -1001,7 +1050,11 @@ export default function SuppliersDashboard() {
 
         // Condition for active, non-dismissed callback reminder
         if (state.callbackTimestamp && now >= state.callbackTimestamp && state.callbackDismissed !== true) {
-          if (supplierBelongsToAgent(s, activeAgent) && agentHasWorkedSupplier(state, activeAgent)) {
+          if (
+            supplierBelongsToAgent(s, activeAgent)
+            && agentHasWorkedSupplier(state, activeAgent)
+            && (state.lastTouchedBy === activeAgent || state.firstTouchedBy === activeAgent)
+          ) {
             newAlerts.push({
               id: phone,
               supplierName: s["Supplier Name"],
@@ -2457,6 +2510,7 @@ export default function SuppliersDashboard() {
       'לחזור אליהם': 0,
       'לא ענו': 0,
       'עדיין לא חתם': 0,
+      'סירבו': 0,
       'טופלו': 0,
     };
 
@@ -2980,7 +3034,8 @@ export default function SuppliersDashboard() {
             { key: 'לחזור אליהם', label: 'לחזור', count: tabCounts['לחזור אליהם'] },
             { key: 'לא ענו', label: 'לא ענו', count: tabCounts['לא ענו'] },
             { key: 'עדיין לא חתם', label: 'לא חתם', count: tabCounts['עדיין לא חתם'] },
-            { key: 'טופלו', label: 'טופלו', count: tabCounts['טופלו'] },
+            { key: 'סירבו', label: 'סירבו', count: tabCounts['סירבו'] },
+            { key: 'טופלו', label: 'נחתמו', count: tabCounts['טופלו'] },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -3255,6 +3310,9 @@ export default function SuppliersDashboard() {
                           <span className="category-tag">
                             {s['Category'] || 'כללי'}
                           </span>
+                          {WORKING_AGENTS.includes(activeAgent) && previousAgentName(stateFor(phone)) && previousAgentName(stateFor(phone)) !== activeAgent && (
+                            <span className="status-pill callback">{previousAgentName(stateFor(phone))}</span>
+                          )}
                           {state.status === 'contract' && <span className="status-pill contract">נחתם</span>}
                           {state.status === 'not-interested' && <span className="status-pill not-interested">לא מעוניין</span>}
                           {state.status === 'not-available' && <span className="status-pill not-available">לא ענו</span>}
