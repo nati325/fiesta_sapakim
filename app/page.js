@@ -27,6 +27,7 @@ import {
   buildActivityEntry,
   countAgentCalls,
   DAY_MS,
+  getAgentCallCounts,
   getManagerStats,
   resolveActivityAction,
   WEEK_MS,
@@ -59,6 +60,41 @@ import {
   LOW_MARGIN_THRESHOLD_PERCENT,
 } from '../lib/pricing';
 import './globals.css';
+
+const LOGIN_AGENTS = ['ינון', 'הודיה', 'טל', 'נתנאל', 'מאגר כללי'];
+const WORKING_AGENTS = ['ינון', 'הודיה', 'טל'];
+const VIEW_ALL_AGENTS = new Set(['נתנאל', 'מאגר כללי']);
+const PHOTO_SHARE_AGENTS = new Set(['הודיה', 'ינון']);
+const PHOTO_CATEGORY_KEYS = ['צלמים', 'צילום', 'צלם', 'וידאו', 'סושיאל', 'photographer'];
+
+function isPhotographerCategory(category) {
+  const cat = category || '';
+  if (!cat || cat === 'ספקים ללא קטגוריה') return false;
+  return PHOTO_CATEGORY_KEYS.some((key) => cat.includes(key));
+}
+
+/** Exact 50/50 split of photographers, stable by Hebrew name then phone. */
+function buildPhotographerOwnerMap(list) {
+  const unique = [];
+  const seen = new Set();
+  (list || []).forEach((supplier) => {
+    if (!isPhotographerCategory(supplier.Category)) return;
+    const key = phoneKey(supplier['Real Phone'] || supplier.phone);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    unique.push({
+      key,
+      name: (supplier['Supplier Name'] || supplier.clean_name || '').trim(),
+    });
+  });
+  unique.sort((a, b) => a.name.localeCompare(b.name, 'he') || a.key.localeCompare(b.key));
+  const mid = Math.ceil(unique.length / 2);
+  const map = new Map();
+  unique.forEach((item, index) => {
+    map.set(item.key, index < mid ? 'הודיה' : 'ינון');
+  });
+  return map;
+}
 
 function makeWizardProduct(index) {
   return { id: `p${Date.now().toString(36)}${index}`, name: '', originalPrice: '', kind: 'main', image: '' };
@@ -449,21 +485,9 @@ export default function SuppliersDashboard() {
   // Categories mapping
   const agentCategoryMap = {
     'ינון': ['צלמים', 'צילום', 'צלם', 'וידאו', 'סושיאל', 'photographer'],
-    'מורן': [
-      'מאפרות', 'איפור', 'שיער', 'כלות', 'לחתן ולכלה',
-      'שמלות כלה', 'חליפות חתן', 'makeup', 'hair', 'dresses', 'suits',
-    ],
-    'הודיה': [], // פיד ריק — כל קטגוריות הכלה/איפור/שיער/שמלות עברו למורן
-    'נתנאל': [] // Sees all
-  };
-
-  const moranGroupOrder = ['dress', 'makeup', 'hair', 'suit', 'other'];
-  const moranGroupLabels = {
-    dress: 'שמלות כלה',
-    makeup: 'איפור',
-    hair: 'שיער',
-    suit: 'חליפות חתן',
-    other: 'אחר',
+    'הודיה': ['צלמים', 'צילום', 'צלם', 'וידאו', 'סושיאל', 'photographer'],
+    'טל': ['מוזיקה', "די ג'יי", 'DJ', "דיג'יי", 'דיגיי', 'תקליטן', 'dj'],
+    'נתנאל': [],
   };
   const supplierIndexByPhone = useMemo(() => {
     const map = new Map();
@@ -476,58 +500,12 @@ export default function SuppliersDashboard() {
 
   const stateFor = (phone) => getSupplierState(supplierStates, phone);
 
-  const getMoranSupplierGroup = (supplier) => {
-    const text = [
-      supplier['Supplier Name'],
-      supplier.name,
-      supplier.clean_name,
-      supplier.description,
-    ].filter(Boolean).join(' ').toLowerCase();
+  const photographerOwnerByPhone = useMemo(
+    () => buildPhotographerOwnerMap(suppliers),
+    [suppliers]
+  );
 
-    const rules = [
-      ['dress', ['שמלות כלה', 'שמלה', 'bridal dresses', 'bridal', 'bride\'s', 'brides', 'gown', 'שמלות']],
-      ['makeup', ['מאפר', 'איפור', 'makeup', 'mua']],
-      ['hair', ['מסרק', 'תסרוק', 'עיצוב שיער', 'שיער', 'hair style', 'hair', 'braids', 'צמות']],
-      ['suit', ['חליפות חתן', 'חליפת חתן', 'חליפות בוטיק', ' suit']],
-    ];
-
-    for (const [group, keywords] of rules) {
-      if (keywords.some((kw) => text.includes(kw))) return group;
-    }
-    return 'other';
-  };
-
-  const buildDisplayList = (list, agent, query) => {
-    if (agent !== 'מורן' || query) {
-      return list.map((supplier) => ({ type: 'supplier', supplier }));
-    }
-
-    const grouped = { dress: [], makeup: [], hair: [], suit: [], other: [] };
-    list.forEach((supplier) => {
-      grouped[getMoranSupplierGroup(supplier)].push(supplier);
-    });
-
-    moranGroupOrder.forEach((group) => {
-      grouped[group].sort((a, b) =>
-        (a['Supplier Name'] || '').localeCompare(b['Supplier Name'] || '', 'he')
-      );
-    });
-
-    const display = [];
-    moranGroupOrder.forEach((group) => {
-      if (!grouped[group].length) return;
-      display.push({
-        type: 'header',
-        group,
-        label: moranGroupLabels[group],
-        count: grouped[group].length,
-      });
-      grouped[group].forEach((supplier) => {
-        display.push({ type: 'supplier', supplier, moranGroup: group });
-      });
-    });
-    return display;
-  };
+  const buildDisplayList = (list) => list.map((supplier) => ({ type: 'supplier', supplier }));
 
   const isSupplierTouched = (state = {}) => {
     if (!state) return false;
@@ -541,11 +519,15 @@ export default function SuppliersDashboard() {
   };
 
   const supplierBelongsToAgent = (supplier, agent) => {
-    if (agent === 'נתנאל' || agent === 'מאגר כללי') return true;
-    if (agent === 'הודיה') return false;
+    if (VIEW_ALL_AGENTS.has(agent)) return true;
     const allowedCategories = agentCategoryMap[agent] || [];
     if (supplier.Category === 'ספקים ללא קטגוריה' || !supplier.Category) return true;
-    return allowedCategories.some((cat) => supplier.Category.includes(cat));
+    if (!allowedCategories.some((cat) => supplier.Category.includes(cat))) return false;
+    if (PHOTO_SHARE_AGENTS.has(agent) && isPhotographerCategory(supplier.Category)) {
+      const key = phoneKey(supplier['Real Phone'] || supplier.phone);
+      return photographerOwnerByPhone.get(key) === agent;
+    }
+    return true;
   };
 
   const getSupplierTab = (phone) => {
@@ -585,8 +567,7 @@ export default function SuppliersDashboard() {
         if (activeTab === 'עדיין לא חתם') return false;
         return isHandled;
       })
-      .filter(isValidSupplierRow)
-      .filter((s) => activeAgent !== 'מורן' || getMoranSupplierGroup(s) !== 'other');
+      .filter(isValidSupplierRow);
   }, [
     isSearchMode,
     searchResults,
@@ -603,10 +584,9 @@ export default function SuppliersDashboard() {
   );
 
   const getAgentFeedSuppliers = (agent) => {
-    if (!agent || agent === 'נתנאל' || agent === 'מאגר כללי' || agent === 'הודיה') return [];
+    if (!agent || VIEW_ALL_AGENTS.has(agent)) return [];
     return suppliers.filter((supplier) => {
       if (!supplierBelongsToAgent(supplier, agent)) return false;
-      if (agent === 'מורן' && getMoranSupplierGroup(supplier) === 'other') return false;
       const name = (supplier['Supplier Name'] || supplier.clean_name || '').trim();
       const phone = supplier['Real Phone'] || supplier.phone || '';
       return name && name !== 'ספק ללא שם' && phone && phone !== 'FAILED' && phone !== 'N/A';
@@ -626,14 +606,10 @@ export default function SuppliersDashboard() {
   const buildAgentAssignments = (agent) => {
     return getAgentFeedSuppliers(agent).map((supplier) => {
       const phone = supplier['Real Phone'] || supplier.phone;
-      const moranGroup = agent === 'מורן' ? getMoranSupplierGroup(supplier) : '';
       return {
         phone,
         assignedAgent: agent,
-        moranGroup,
-        assignedCategory: agent === 'מורן'
-          ? moranGroupLabels[moranGroup]
-          : (supplier.Category || 'כללי'),
+        assignedCategory: supplier.Category || 'כללי',
         supplierName: supplier['Supplier Name'] || supplier.clean_name || '',
       };
     });
@@ -716,11 +692,13 @@ export default function SuppliersDashboard() {
 
   useEffect(() => {
     const session = loadSession();
-    if (session) {
+    if (session && LOGIN_AGENTS.includes(session.agent)) {
       setActiveAgent(session.agent);
       setIsLoggedIn(true);
       saveSession(session.agent);
       applyUiState(loadUiState(session.agent));
+    } else if (session) {
+      clearSession();
     }
     setSessionRestored(true);
   }, []);
@@ -926,7 +904,7 @@ export default function SuppliersDashboard() {
 
   useEffect(() => {
     if (!isLoggedIn || loading || !suppliers.length) return;
-    if (!activeAgent || activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי' || activeAgent === 'הודיה') return;
+    if (!activeAgent || VIEW_ALL_AGENTS.has(activeAgent)) return;
     if (assignmentsSyncedRef.current) return;
 
     const assignments = buildAgentAssignments(activeAgent);
@@ -949,7 +927,6 @@ export default function SuppliersDashboard() {
               ...(next[key] || {}),
               assignedAgent: item.assignedAgent,
               assignedCategory: item.assignedCategory,
-              moranGroup: item.moranGroup,
               supplierName: item.supplierName,
             };
           });
@@ -966,34 +943,15 @@ export default function SuppliersDashboard() {
     const checkReminders = () => {
       const now = Date.now();
       const newAlerts = [];
-      const allowedCategories = agentCategoryMap[activeAgent] || [];
 
-      suppliers.forEach((s, index) => {
+      suppliers.forEach((s) => {
         const phone = s["Real Phone"] || s["phone"];
         const state = stateFor(phone);
         if (!state || Object.keys(state).length === 0) return;
 
         // Condition for active, non-dismissed callback reminder
         if (state.callbackTimestamp && now >= state.callbackTimestamp && state.callbackDismissed !== true) {
-          
-          // Check if this supplier belongs to the active agent
-          let isAllowed = false;
-          if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') {
-            isAllowed = true;
-          } else if (activeAgent === 'הודיה') {
-            isAllowed = false;
-          } else {
-            if (s.Category === "ספקים ללא קטגוריה" || !s.Category) {
-              isAllowed = true;
-            } else {
-              const matches = allowedCategories.some(cat => s.Category.includes(cat));
-              if (matches) {
-                isAllowed = true;
-              }
-            }
-          }
-
-          if (isAllowed) {
+          if (supplierBelongsToAgent(s, activeAgent)) {
             newAlerts.push({
               id: phone,
               supplierName: s["Supplier Name"],
@@ -1674,6 +1632,14 @@ export default function SuppliersDashboard() {
     const enrichedState = { ...newState };
     const prevState = supplierStates[key] || {};
 
+    const activityAction = resolveActivityAction(newState);
+    if (activityAction && activeAgent) {
+      enrichedState.activityLog = appendActivityLog(
+        prevState.activityLog,
+        buildActivityEntry(activityAction.action, activeAgent, activityAction)
+      );
+    }
+
     if (isTouchAction) {
       enrichedState.lastTouchedAt = Date.now();
       enrichedState.lastTouchedBy = activeAgent;
@@ -1682,26 +1648,12 @@ export default function SuppliersDashboard() {
         enrichedState.firstTouchedBy = activeAgent;
       }
 
-      const activityAction = resolveActivityAction(newState);
-      if (activityAction && activeAgent) {
-        enrichedState.activityLog = appendActivityLog(
-          prevState.activityLog,
-          buildActivityEntry(activityAction.action, activeAgent, activityAction)
-        );
-      }
-
-      if (activeAgent === 'מורן' || activeAgent === 'ינון') {
+      if (WORKING_AGENTS.includes(activeAgent)) {
         const supplier = suppliers.find((s) => phoneKey(s['Real Phone'] || s.phone) === key);
         if (supplier) {
           enrichedState.assignedAgent = activeAgent;
           enrichedState.supplierName = supplier['Supplier Name'] || supplier.clean_name || '';
-          if (activeAgent === 'מורן') {
-            const group = getMoranSupplierGroup(supplier);
-            enrichedState.moranGroup = group;
-            enrichedState.assignedCategory = moranGroupLabels[group];
-          } else {
-            enrichedState.assignedCategory = supplier.Category || 'כללי';
-          }
+          enrichedState.assignedCategory = supplier.Category || 'כללי';
         }
       }
     }
@@ -1739,8 +1691,14 @@ export default function SuppliersDashboard() {
     })
     .catch(err => {
       console.error("DB Save Error:", err);
+      if ('outboundCallAt' in newState && !isTouchAction) return;
       alert(`⚠️ שגיאה בשמירת הנתונים במונגו!\n\nסיבת השגיאה מהשרת: ${err.message}\n\nאנא וודא שהגדרת את MONGODB_URI ב-Vercel בצורה נכונה ושהגדרת Network Access ל-0.0.0.0/0 ב-MongoDB Atlas.`);
     });
+  };
+
+  const recordOutboundCall = (phone) => {
+    if (!phone || !activeAgent) return;
+    updateSupplierState(phone, { outboundCallAt: Date.now() });
   };
 
   const scheduleCallback = (phone, supplier, minutes) => {
@@ -1881,7 +1839,7 @@ export default function SuppliersDashboard() {
               בחר פרופיל כניסה
             </p>
             <div className="login-agent-grid">
-              {['ינון', 'מורן', 'הודיה', 'נתנאל', 'מאגר כללי'].map(agent => (
+              {LOGIN_AGENTS.map(agent => (
                 <button
                   key={agent}
                   type="button"
@@ -2168,8 +2126,31 @@ export default function SuppliersDashboard() {
     }, 500);
   };
 
+  const renderCallCountRow = (counts) => (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: '8px',
+      marginBottom: '14px',
+    }}>
+      {[
+        { label: 'היום', value: counts.today, color: 'var(--accent-strong)' },
+        { label: 'השבוע', value: counts.week, color: '#2563eb' },
+        { label: 'סה"כ', value: counts.all, color: '#64748b' },
+      ].map((item) => (
+        <div key={item.label} className="stat-cell" style={{ textAlign: 'center', padding: '10px 6px' }}>
+          <p style={{ fontSize: '1.35rem', fontWeight: '800', color: item.color, margin: 0 }}>{item.value}</p>
+          <p style={{ fontSize: '0.68rem', fontWeight: '700', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+            שיחות {item.label}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+
   const renderManagerStats = () => {
-    const stats = getManagerStats(supplierStates, ['ינון', 'מורן', 'הודיה']);
+    const stats = getManagerStats(supplierStates, WORKING_AGENTS);
+    const callCounts = getAgentCallCounts(supplierStates, WORKING_AGENTS);
 
     const renderStatRow = (label, data, accent) => (
       <div style={{ marginBottom: '12px' }}>
@@ -2202,7 +2183,7 @@ export default function SuppliersDashboard() {
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>מתעדכן בזמן אמת · יומי = 24 שעות אחרונות</p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-          {['ינון', 'מורן', 'הודיה'].map(agent => (
+          {WORKING_AGENTS.map(agent => (
             <div key={agent} className="glass-card" style={{ borderTop: '4px solid var(--accent)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
                 <div style={{ width: '40px', height: '40px', background: 'var(--accent-soft)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
@@ -2211,25 +2192,28 @@ export default function SuppliersDashboard() {
                 <h3 style={{ fontSize: '1.2rem', fontWeight: '800' }}>סוכן: {agent}</h3>
               </div>
 
+              <p style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--accent)', margin: '0 0 8px' }}>
+                שיחות שהוצאו · לחיצה על «התקשר עכשיו»
+              </p>
+              {renderCallCountRow(callCounts[agent])}
+
               {renderStatRow('היום (24 שעות)', stats[agent].today, 'var(--accent-strong)')}
               {renderStatRow('השבוע (7 ימים)', stats[agent].week, '#2563eb')}
               {renderStatRow('סה"כ מצטבר', stats[agent].all, '#64748b')}
 
-              {agent !== 'הודיה' && (
-                <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--border)', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  {loading ? (
-                    <span style={{ color: 'var(--text-muted)' }}>טוען כיסוי פיד...</span>
-                  ) : (
-                    <>
-                      כיסוי פיד: <strong style={{ color: '#10b981' }}>{getAgentFeedStats(agent).touched}</strong>
-                      {' / '}
-                      {getAgentFeedStats(agent).total}
-                      {' · '}
-                      לא נגעו: <strong style={{ color: '#ef4444' }}>{getAgentFeedStats(agent).untouched}</strong>
-                    </>
-                  )}
-                </div>
-              )}
+              <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--border)', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                {loading ? (
+                  <span style={{ color: 'var(--text-muted)' }}>טוען כיסוי פיד...</span>
+                ) : (
+                  <>
+                    כיסוי פיד: <strong style={{ color: '#10b981' }}>{getAgentFeedStats(agent).touched}</strong>
+                    {' / '}
+                    {getAgentFeedStats(agent).total}
+                    {' · '}
+                    לא נגעו: <strong style={{ color: '#ef4444' }}>{getAgentFeedStats(agent).untouched}</strong>
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -2238,53 +2222,9 @@ export default function SuppliersDashboard() {
   };
 
   const renderAgentTargets = () => {
-    if (activeAgent === 'נתנאל' || activeAgent === 'מאגר כללי') return null;
+    if (VIEW_ALL_AGENTS.has(activeAgent)) return null;
 
-    if (activeAgent === 'הודיה') {
-      return (
-        <div style={{ marginBottom: '30px' }} className="animate-in">
-          <div className="glass-card" style={{ 
-            padding: '25px', 
-            textAlign: 'center', 
-            background: 'var(--card-bg)',
-            border: '2px solid var(--border)'
-          }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--accent-strong)' }}>
-              תודה רבה לאישה הטובה והיפה בעולם
-            </h3>
-          </div>
-        </div>
-      );
-    }
-
-    const moranBanner = activeAgent === 'מורן' ? (
-      <div className="glass-card" style={{
-        padding: '28px 24px',
-        marginBottom: '20px',
-        textAlign: 'center',
-        background: 'var(--card-bg)',
-        border: '1px solid var(--border)',
-      }}>
-        <p style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--accent)', marginBottom: '8px', letterSpacing: '0.05em' }}>
-          מורן
-        </p>
-        <h3 style={{
-          fontSize: '1.55rem',
-          fontWeight: '800',
-          lineHeight: 1.45,
-          color: 'var(--primary)',
-          
-          margin: 0,
-        }}>
-          אישה חזקה שכמותך — תביאי לי מלא לידיים!
-        </h3>
-        <p style={{ fontSize: '0.95rem', color: '#6b7280', marginTop: '10px', fontWeight: '600' }}>
-          אני יודע שאת יכולה. תתחילי לרוץ!
-        </p>
-      </div>
-    ) : null;
-
-    const feedStats = (activeAgent === 'מורן' || activeAgent === 'ינון')
+    const feedStats = WORKING_AGENTS.includes(activeAgent)
       ? getAgentFeedStats(activeAgent)
       : null;
 
@@ -2334,8 +2274,8 @@ export default function SuppliersDashboard() {
       )
     ) : null;
 
-    const dailyTarget = activeAgent === 'מורן' ? 7 : 50;
-    const weeklyTarget = activeAgent === 'מורן' ? 35 : 250;
+    const dailyTarget = 50;
+    const weeklyTarget = 250;
 
     const callsToday = countAgentCalls(supplierStates, activeAgent, DAY_MS);
     const callsThisWeek = countAgentCalls(supplierStates, activeAgent, WEEK_MS);
@@ -2344,19 +2284,49 @@ export default function SuppliersDashboard() {
     const dailyProgress = Math.min(100, (callsToday / dailyTarget) * 100);
     const weeklyProgress = Math.min(100, (callsThisWeek / weeklyTarget) * 100);
 
+    const teamCallBoard = activeAgent === 'ינון' ? (
+      <div className="glass-card" style={{
+        padding: '18px 20px',
+        marginBottom: '20px',
+        border: '1px solid var(--border)',
+        background: 'var(--card-bg)',
+      }}>
+        <h3 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: '800', color: 'var(--primary)' }}>
+          שיחות שהוציאו הודיה וטל
+        </h3>
+        <p style={{ margin: '0 0 14px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          נספר לפי כל לחיצה על «התקשר עכשיו»
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+          {['הודיה', 'טל'].map((agent) => {
+            const counts = getAgentCallCounts(supplierStates, [agent])[agent];
+            return (
+              <div key={agent} style={{
+                padding: '14px',
+                borderRadius: '12px',
+                border: '1px solid var(--border)',
+                background: 'var(--accent-soft)',
+              }}>
+                <p style={{ margin: '0 0 10px', fontSize: '1rem', fontWeight: '800', color: 'var(--primary)' }}>
+                  {agent}
+                </p>
+                {renderCallCountRow(counts)}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    ) : null;
+
     return (
       <div style={{ marginBottom: '30px' }} className="animate-in">
-        {moranBanner}
+        {teamCallBoard}
         {feedStatsCard}
         <div className="glass-card" style={{ padding: '20px', borderRight: '6px solid var(--accent)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: '800' }}>היעד היומי שלך (24 שעות)</h3>
-              {activeAgent === 'מורן' && dailyRemaining > 0 ? (
-                <p style={{ fontSize: '0.85rem', color: '#ef4444', fontWeight: '700' }}>שימי לב מורן, נשארו עוד {dailyRemaining} שיחות כדי להגיע ליעד!</p>
-              ) : (
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>נשארו עוד {dailyRemaining} שיחות ליעד היום</p>
-              )}
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>נשארו עוד {dailyRemaining} שיחות ליעד היום</p>
             </div>
             <div style={{ textAlign: 'left' }}>
               <span style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--accent)' }}>{callsToday}</span>
@@ -2395,7 +2365,6 @@ export default function SuppliersDashboard() {
 
     suppliers.forEach((supplier) => {
       if (!supplierBelongsToAgent(supplier, activeAgent)) return;
-      if (activeAgent === 'מורן' && getMoranSupplierGroup(supplier) === 'other') return;
 
       const name = (supplier['Supplier Name'] || supplier.clean_name || '').trim();
       const phone = supplier['Real Phone'] || supplier.phone || '';
@@ -2535,7 +2504,7 @@ export default function SuppliersDashboard() {
 
           <div className="top-header-actions">
             <div className="agent-switcher">
-              {['ינון', 'מורן', 'הודיה', 'נתנאל', 'מאגר כללי'].map(agent => (
+              {LOGIN_AGENTS.map(agent => (
                 <button
                   key={agent}
                   type="button"
@@ -2703,7 +2672,8 @@ export default function SuppliersDashboard() {
 
               <div style={{ display: 'flex', gap: '8px' }}>
                 <a 
-                  href={`tel:${alert.phone}`} 
+                  href={`tel:${alert.phone}`}
+                  onClick={() => recordOutboundCall(alert.phone)}
                   className="btn-primary" 
                   style={{ 
                     flex: 1, 
@@ -3024,9 +2994,7 @@ export default function SuppliersDashboard() {
                       <div className="supplier-card-top">
                         <div className="supplier-card-tags">
                           <span className="category-tag">
-                            {activeAgent === 'מורן' && !isSearchMode
-                              ? moranGroupLabels[item.moranGroup || getMoranSupplierGroup(s)]
-                              : (s['Category'] || 'כללי')}
+                            {s['Category'] || 'כללי'}
                           </span>
                           {state.status === 'contract' && <span className="status-pill contract">נחתם</span>}
                           {state.status === 'not-interested' && <span className="status-pill not-interested">לא מעוניין</span>}
@@ -3315,7 +3283,11 @@ export default function SuppliersDashboard() {
                       </AnimatePresence>
 
                       <div style={{ marginTop: state.status === 'closed' ? '8px' : '0' }}>
-                        <a href={`tel:${s["Real Phone"]}`} className="btn-call">
+                        <a
+                          href={`tel:${s["Real Phone"]}`}
+                          className="btn-call"
+                          onClick={() => recordOutboundCall(s["Real Phone"] || s["phone"])}
+                        >
                           <Phone size={18} />
                           <span>התקשר עכשיו</span>
                         </a>

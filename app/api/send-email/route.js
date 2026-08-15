@@ -15,8 +15,8 @@ export async function POST(req) {
 
     const agentEmails = {
       'ינון': process.env.EMAIL_YINON || process.env.EMAIL_TO,
-      'מורן': process.env.EMAIL_MORAN || process.env.EMAIL_TO,
       'הודיה': process.env.EMAIL_HODAYA || process.env.EMAIL_TO,
+      'טל': process.env.EMAIL_TAL || process.env.EMAIL_TO,
     };
     const toEmail = agentEmails[agentName] || process.env.EMAIL_TO;
 
