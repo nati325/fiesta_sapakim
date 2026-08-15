@@ -75,21 +75,39 @@ const YINON_WORK_GROUPS = [
   { id: 'hair', label: 'עיצוב שיער', keywords: ['עיצוב שיער', 'מסרק', 'תסרוק', 'שיער', 'hair style', 'braids', 'צמות'] },
 ];
 
-function getYinonWorkGroup(supplier) {
-  const text = [
+function supplierSearchText(supplier) {
+  return [
     supplier?.Category,
+    supplier?.category,
     supplier?.['Supplier Name'],
     supplier?.name,
     supplier?.clean_name,
     supplier?.description,
   ].filter(Boolean).join(' ').toLowerCase();
-  if (!text) return null;
+}
 
-  const match = (keywords) => keywords.some((kw) => text.includes(kw.toLowerCase()));
-  if (match(YINON_WORK_GROUPS[0].keywords)) return 'makeup';
-  if (match(YINON_WORK_GROUPS[2].keywords)) return 'hair';
-  if (match(YINON_WORK_GROUPS[1].keywords)) return 'dresses';
+function textMatchesKeywords(text, keywords) {
+  return keywords.some((kw) => text.includes(kw.toLowerCase()));
+}
+
+function getYinonWorkGroup(supplier) {
+  const text = supplierSearchText(supplier);
+  if (!text) return null;
+  if (textMatchesKeywords(text, YINON_WORK_GROUPS[0].keywords)) return 'makeup';
+  if (textMatchesKeywords(text, YINON_WORK_GROUPS[2].keywords)) return 'hair';
+  if (textMatchesKeywords(text, YINON_WORK_GROUPS[1].keywords)) return 'dresses';
   return null;
+}
+
+const PHOTO_KEYWORDS = ['צלמים', 'צילום', 'צלם', 'וידאו', 'סושיאל', 'photographer', 'photography', 'video'];
+const DJ_KEYWORDS = ['מוזיקה', "די ג'יי", 'די ג׳יי', 'דיג׳י', 'דיגיי', 'תקליטן', 'dj', 'music'];
+
+function isPhotographerSupplier(supplier) {
+  return textMatchesKeywords(supplierSearchText(supplier), PHOTO_KEYWORDS);
+}
+
+function isDjSupplier(supplier) {
+  return textMatchesKeywords(supplierSearchText(supplier), DJ_KEYWORDS);
 }
 
 function makeWizardProduct(index) {
@@ -531,9 +549,11 @@ export default function SuppliersDashboard() {
   const supplierBelongsToAgent = (supplier, agent) => {
     if (VIEW_ALL_AGENTS.has(agent)) return true;
     if (agent === 'ינון') return getYinonWorkGroup(supplier) != null;
+    if (agent === 'הודיה') return isPhotographerSupplier(supplier);
+    if (agent === 'טל') return isDjSupplier(supplier);
     const allowedCategories = agentCategoryMap[agent] || [];
     if (supplier.Category === 'ספקים ללא קטגוריה' || !supplier.Category) return true;
-    return allowedCategories.some((cat) => supplier.Category.includes(cat));
+    return allowedCategories.some((cat) => String(supplier.Category).includes(cat));
   };
 
   const supplierInYinonView = (supplier) => {
@@ -763,6 +783,23 @@ export default function SuppliersDashboard() {
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [isLoggedIn, activeAgent, activeTab, searchQuery, selectedSupplierProfile]);
+
+  useEffect(() => {
+    if (loading || isSearchMode || !WORKING_AGENTS.includes(activeAgent)) return;
+    if (activeTab === 'לא נגעו בכלל') return;
+    const hasInCurrentTab = suppliers.some((supplier) => {
+      if (!supplierBelongsToAgent(supplier, activeAgent)) return false;
+      if (!supplierInYinonView(supplier) || !isValidSupplierRow(supplier)) return false;
+      return getSupplierTab(supplier['Real Phone'] || supplier.phone, activeAgent) === activeTab;
+    });
+    if (hasInCurrentTab) return;
+    const hasUntouched = suppliers.some((supplier) => {
+      if (!supplierBelongsToAgent(supplier, activeAgent)) return false;
+      if (!supplierInYinonView(supplier) || !isValidSupplierRow(supplier)) return false;
+      return getSupplierTab(supplier['Real Phone'] || supplier.phone, activeAgent) === 'לא נגעו בכלל';
+    });
+    if (hasUntouched) setActiveTab('לא נגעו בכלל');
+  }, [loading, isSearchMode, activeAgent, activeTab, suppliers, supplierStates, yinonWorkGroup]);
 
   useEffect(() => {
     if (!isLoggedIn || !activeAgent || loading) return;
@@ -3063,8 +3100,14 @@ export default function SuppliersDashboard() {
                 width: '100%'
               }}>
                 
-                <h3 style={{ fontSize: '1.15rem', fontWeight: '800', marginBottom: '8px', color: 'var(--primary)' }}>לא נמצאו ספקים תואמים</h3>
-                <p style={{ fontSize: '0.9rem' }}>נסה לחפש לפי שם אחר, מספר טלפון מלא או מספר ספק תקין.</p>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: '800', marginBottom: '8px', color: 'var(--primary)' }}>
+                  {isSearchMode ? 'לא נמצאו ספקים תואמים' : `אין ספקים בטאב "${activeTab}"`}
+                </h3>
+                <p style={{ fontSize: '0.9rem' }}>
+                  {isSearchMode
+                    ? 'נסה לחפש לפי שם אחר, מספר טלפון מלא או מספר ספק תקין.'
+                    : 'עברו לטאב «לא נגעו» או נקו את החיפוש.'}
+                </p>
               </div>
             ) : (
               displayList.map((item) => {
