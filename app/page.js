@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   clearSession,
   getSupplierPhone,
+  dismissWeeklySummary,
+  isWeeklySummaryDismissed,
   loadSession,
   loadUiState,
   saveSession,
@@ -25,12 +27,15 @@ import {
 import {
   appendActivityLog,
   buildActivityEntry,
-  countAgentCalls,
-  DAY_MS,
+  countAgentCallsBetween,
+  countAgentPipelineBetween,
   getAgentCallCounts,
   getManagerStats,
+  getWeeklySummaryWindow,
+  israelDayRange,
+  israelWeekRange,
   resolveActivityAction,
-  WEEK_MS,
+  shouldShowWeeklySummaryReminder,
 } from '../lib/agentActivity';
 import {
   loadAllSupplierStatesLocal,
@@ -64,36 +69,27 @@ import './globals.css';
 const LOGIN_AGENTS = ['ינון', 'הודיה', 'טל', 'נתנאל', 'מאגר כללי'];
 const WORKING_AGENTS = ['ינון', 'הודיה', 'טל'];
 const VIEW_ALL_AGENTS = new Set(['נתנאל', 'מאגר כללי']);
-const PHOTO_SHARE_AGENTS = new Set(['הודיה', 'ינון']);
-const PHOTO_CATEGORY_KEYS = ['צלמים', 'צילום', 'צלם', 'וידאו', 'סושיאל', 'photographer'];
+const YINON_WORK_GROUPS = [
+  { id: 'makeup', label: 'מאפרות', keywords: ['מאפר', 'איפור', 'makeup', 'mua'] },
+  { id: 'dresses', label: 'שמלות כלה', keywords: ['שמלות כלה', 'שמלת כלה', 'שמלות', 'bridal dress', 'bridal gown', 'gown'] },
+  { id: 'hair', label: 'עיצוב שיער', keywords: ['עיצוב שיער', 'מסרק', 'תסרוק', 'שיער', 'hair style', 'braids', 'צמות'] },
+];
 
-function isPhotographerCategory(category) {
-  const cat = category || '';
-  if (!cat || cat === 'ספקים ללא קטגוריה') return false;
-  return PHOTO_CATEGORY_KEYS.some((key) => cat.includes(key));
-}
+function getYinonWorkGroup(supplier) {
+  const text = [
+    supplier?.Category,
+    supplier?.['Supplier Name'],
+    supplier?.name,
+    supplier?.clean_name,
+    supplier?.description,
+  ].filter(Boolean).join(' ').toLowerCase();
+  if (!text) return null;
 
-/** Exact 50/50 split of photographers, stable by Hebrew name then phone. */
-function buildPhotographerOwnerMap(list) {
-  const unique = [];
-  const seen = new Set();
-  (list || []).forEach((supplier) => {
-    if (!isPhotographerCategory(supplier.Category)) return;
-    const key = phoneKey(supplier['Real Phone'] || supplier.phone);
-    if (!key || seen.has(key)) return;
-    seen.add(key);
-    unique.push({
-      key,
-      name: (supplier['Supplier Name'] || supplier.clean_name || '').trim(),
-    });
-  });
-  unique.sort((a, b) => a.name.localeCompare(b.name, 'he') || a.key.localeCompare(b.key));
-  const mid = Math.ceil(unique.length / 2);
-  const map = new Map();
-  unique.forEach((item, index) => {
-    map.set(item.key, index < mid ? 'הודיה' : 'ינון');
-  });
-  return map;
+  const match = (keywords) => keywords.some((kw) => text.includes(kw.toLowerCase()));
+  if (match(YINON_WORK_GROUPS[0].keywords)) return 'makeup';
+  if (match(YINON_WORK_GROUPS[2].keywords)) return 'hair';
+  if (match(YINON_WORK_GROUPS[1].keywords)) return 'dresses';
+  return null;
 }
 
 function makeWizardProduct(index) {
@@ -343,6 +339,9 @@ export default function SuppliersDashboard() {
   const [activeCallbackPicker, setActiveCallbackPicker] = useState(null);
   const [callbackAlerts, setCallbackAlerts] = useState([]);
   const [activeTab, setActiveTab] = useState('לא נגעו בכלל');
+  const [yinonWorkGroup, setYinonWorkGroup] = useState('makeup');
+  const [showWeeklySummary, setShowWeeklySummary] = useState(false);
+  const [weeklySummaryDismissed, setWeeklySummaryDismissed] = useState(false);
   const [showReminderSuccess, setShowReminderSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
@@ -484,7 +483,7 @@ export default function SuppliersDashboard() {
   
   // Categories mapping
   const agentCategoryMap = {
-    'ינון': ['צלמים', 'צילום', 'צלם', 'וידאו', 'סושיאל', 'photographer'],
+    'ינון': ['מאפרות', 'איפור', 'שיער', 'שמלות כלה', 'makeup', 'hair', 'dresses'],
     'הודיה': ['צלמים', 'צילום', 'צלם', 'וידאו', 'סושיאל', 'photographer'],
     'טל': ['מוזיקה', "די ג'יי", 'DJ', "דיג'יי", 'דיגיי', 'תקליטן', 'dj'],
     'נתנאל': [],
@@ -500,11 +499,6 @@ export default function SuppliersDashboard() {
 
   const stateFor = (phone) => getSupplierState(supplierStates, phone);
 
-  const photographerOwnerByPhone = useMemo(
-    () => buildPhotographerOwnerMap(suppliers),
-    [suppliers]
-  );
-
   const buildDisplayList = (list) => list.map((supplier) => ({ type: 'supplier', supplier }));
 
   const isSupplierTouched = (state = {}) => {
@@ -518,20 +512,37 @@ export default function SuppliersDashboard() {
     return false;
   };
 
-  const supplierBelongsToAgent = (supplier, agent) => {
-    if (VIEW_ALL_AGENTS.has(agent)) return true;
-    const allowedCategories = agentCategoryMap[agent] || [];
-    if (supplier.Category === 'ספקים ללא קטגוריה' || !supplier.Category) return true;
-    if (!allowedCategories.some((cat) => supplier.Category.includes(cat))) return false;
-    if (PHOTO_SHARE_AGENTS.has(agent) && isPhotographerCategory(supplier.Category)) {
-      const key = phoneKey(supplier['Real Phone'] || supplier.phone);
-      return photographerOwnerByPhone.get(key) === agent;
+  const agentHasWorkedSupplier = (state = {}, agent) => {
+    if (!agent || VIEW_ALL_AGENTS.has(agent)) return isSupplierTouched(state);
+    if (!state) return false;
+    if (state.firstTouchedBy === agent || state.lastTouchedBy === agent) return true;
+    if (state.agent === agent) return true;
+    if (Array.isArray(state.activityLog) && state.activityLog.some((entry) => entry.agent === agent)) {
+      return true;
     }
-    return true;
+    return false;
   };
 
-  const getSupplierTab = (phone) => {
+  const stateForAgent = (phone, agent = activeAgent) => {
     const state = stateFor(phone);
+    return agentHasWorkedSupplier(state, agent) ? state : {};
+  };
+
+  const supplierBelongsToAgent = (supplier, agent) => {
+    if (VIEW_ALL_AGENTS.has(agent)) return true;
+    if (agent === 'ינון') return getYinonWorkGroup(supplier) != null;
+    const allowedCategories = agentCategoryMap[agent] || [];
+    if (supplier.Category === 'ספקים ללא קטגוריה' || !supplier.Category) return true;
+    return allowedCategories.some((cat) => supplier.Category.includes(cat));
+  };
+
+  const supplierInYinonView = (supplier) => {
+    if (activeAgent !== 'ינון') return true;
+    return getYinonWorkGroup(supplier) === yinonWorkGroup;
+  };
+
+  const getSupplierTab = (phone, agent = activeAgent) => {
+    const state = stateForAgent(phone, agent);
     const isHandled = state.status === 'not-interested' || state.status === 'contract';
     const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
 
@@ -545,27 +556,17 @@ export default function SuppliersDashboard() {
 
   const feedSuppliers = useMemo(() => {
     if (isSearchMode) {
-      return (searchResults ?? []).filter(isValidSupplierRow);
+      return (searchResults ?? []).filter(isValidSupplierRow).filter(supplierInYinonView);
     }
 
     return suppliers
       .filter((s) => supplierBelongsToAgent(s, activeAgent))
+      .filter(supplierInYinonView)
       .filter((s) => {
         const phone = s['Real Phone'] || s.phone;
         const exitInfo = exitingSuppliers[phone];
         if (exitInfo?.fromTab === activeTab) return true;
-
-        const state = stateFor(phone);
-        const isHandled = state.status === 'not-interested' || state.status === 'contract';
-        const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
-
-        if (activeTab === 'לא נגעו בכלל') return !isSupplierTouched(state);
-        if (state.status === 'not-available') return activeTab === 'לא ענו';
-        if (state.status === 'not-signed') return activeTab === 'עדיין לא חתם';
-        if (activeTab === 'לחזור אליהם') return !isHandled && isCallback;
-        if (activeTab === 'לא ענו') return false;
-        if (activeTab === 'עדיין לא חתם') return false;
-        return isHandled;
+        return getSupplierTab(phone, activeAgent) === activeTab;
       })
       .filter(isValidSupplierRow);
   }, [
@@ -574,6 +575,7 @@ export default function SuppliersDashboard() {
     suppliers,
     activeAgent,
     activeTab,
+    yinonWorkGroup,
     exitingSuppliers,
     supplierStates,
   ]);
@@ -598,10 +600,14 @@ export default function SuppliersDashboard() {
     let touched = 0;
     feed.forEach((supplier) => {
       const phone = supplier['Real Phone'] || supplier.phone;
-      if (isSupplierTouched(stateFor(phone))) touched += 1;
+      if (agentHasWorkedSupplier(stateFor(phone), agent)) touched += 1;
     });
     return { total: feed.length, touched, untouched: feed.length - touched };
   };
+
+  const getAgentPipelineStats = (agent, fromMs, toMs) => (
+    countAgentPipelineBetween(supplierStates, agent, fromMs, toMs)
+  );
 
   const buildAgentAssignments = (agent) => {
     return getAgentFeedSuppliers(agent).map((supplier) => {
@@ -619,6 +625,7 @@ export default function SuppliersDashboard() {
     if (!agent) return;
     saveUiState(agent, {
       activeTab,
+      yinonWorkGroup,
       searchQuery,
       scrollY: typeof window !== 'undefined' ? window.scrollY : 0,
       selectedPhone: getSupplierPhone(selectedSupplierProfile),
@@ -630,6 +637,7 @@ export default function SuppliersDashboard() {
     if (!agent) return;
     saveUiState(agent, {
       activeTab,
+      yinonWorkGroup,
       searchQuery,
       selectedPhone: getSupplierPhone(selectedSupplierProfile),
     });
@@ -639,6 +647,7 @@ export default function SuppliersDashboard() {
     if (!agent || typeof window === 'undefined') return;
     saveUiState(agent, {
       activeTab,
+      yinonWorkGroup,
       searchQuery,
       scrollY: window.scrollY,
       selectedPhone: getSupplierPhone(selectedSupplierProfile),
@@ -665,6 +674,7 @@ export default function SuppliersDashboard() {
   const applyUiState = (ui) => {
     if (!ui) {
       setActiveTab('לא נגעו בכלל');
+      setYinonWorkGroup('makeup');
       setSearchQuery('');
       setSelectedSupplierProfile(null);
       pendingRestoreRef.current = { scrollY: null, selectedPhone: null };
@@ -672,6 +682,9 @@ export default function SuppliersDashboard() {
     }
     const restoredTab = ui.activeTab === 'לטיפול' ? 'לא נגעו בכלל' : (ui.activeTab || 'לא נגעו בכלל');
     setActiveTab(restoredTab);
+    if (YINON_WORK_GROUPS.some((group) => group.id === ui.yinonWorkGroup)) {
+      setYinonWorkGroup(ui.yinonWorkGroup);
+    }
     setSearchQuery(ui.searchQuery || '');
     setSelectedSupplierProfile(null);
     pendingRestoreRef.current = {
@@ -714,7 +727,7 @@ export default function SuppliersDashboard() {
   useEffect(() => {
     if (!isLoggedIn || !activeAgent || loading) return;
     persistUiMetaForAgent(activeAgent);
-  }, [activeTab, searchQuery, selectedSupplierProfile, isLoggedIn, activeAgent, loading]);
+  }, [activeTab, yinonWorkGroup, searchQuery, selectedSupplierProfile, isLoggedIn, activeAgent, loading]);
 
   useEffect(() => {
     if (!isLoggedIn || !activeAgent) return;
@@ -951,7 +964,7 @@ export default function SuppliersDashboard() {
 
         // Condition for active, non-dismissed callback reminder
         if (state.callbackTimestamp && now >= state.callbackTimestamp && state.callbackDismissed !== true) {
-          if (supplierBelongsToAgent(s, activeAgent)) {
+          if (supplierBelongsToAgent(s, activeAgent) && agentHasWorkedSupplier(state, activeAgent)) {
             newAlerts.push({
               id: phone,
               supplierName: s["Supplier Name"],
@@ -2126,6 +2139,24 @@ export default function SuppliersDashboard() {
     }, 500);
   };
 
+  const renderPipelineGrid = (pipeline) => (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+      {[
+        { label: 'לא נענו', value: pipeline.noAnswer, color: '#f97316' },
+        { label: 'סירבו', value: pipeline.refused, color: '#ef4444' },
+        { label: 'לחזור אליהם', value: pipeline.callback, color: '#0ea5e9' },
+        { label: 'הועברו הלאה', value: pipeline.forwarded, color: '#3b82f6' },
+      ].map((item) => (
+        <div key={item.label} className="stat-cell" style={{ textAlign: 'center', padding: '10px 6px' }}>
+          <p style={{ fontSize: '1.25rem', fontWeight: '800', color: item.color, margin: 0 }}>{item.value}</p>
+          <p style={{ fontSize: '0.68rem', fontWeight: '700', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+            {item.label}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+
   const renderCallCountRow = (counts) => (
     <div style={{
       display: 'grid',
@@ -2276,9 +2307,11 @@ export default function SuppliersDashboard() {
 
     const dailyTarget = 50;
     const weeklyTarget = 250;
+    const dayRange = israelDayRange();
+    const weekRange = israelWeekRange();
 
-    const callsToday = countAgentCalls(supplierStates, activeAgent, DAY_MS);
-    const callsThisWeek = countAgentCalls(supplierStates, activeAgent, WEEK_MS);
+    const callsToday = countAgentCallsBetween(supplierStates, activeAgent, dayRange.start, dayRange.end);
+    const callsThisWeek = countAgentCallsBetween(supplierStates, activeAgent, weekRange.start, weekRange.end);
 
     const dailyRemaining = Math.max(0, dailyTarget - callsToday);
     const dailyProgress = Math.min(100, (callsToday / dailyTarget) * 100);
@@ -2291,15 +2324,36 @@ export default function SuppliersDashboard() {
         border: '1px solid var(--border)',
         background: 'var(--card-bg)',
       }}>
-        <h3 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: '800', color: 'var(--primary)' }}>
-          שיחות שהוציאו הודיה וטל
-        </h3>
-        <p style={{ margin: '0 0 14px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          נספר לפי כל לחיצה על «התקשר עכשיו»
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap', marginBottom: '14px' }}>
+          <div>
+            <h3 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: '800', color: 'var(--primary)' }}>
+              מעקב הודיה וטל · היום
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              מתאפס כל יום בחצות · הועברו הלאה = עוד לא חתם
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowWeeklySummary(true)}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '10px',
+              border: 'none',
+              background: 'var(--accent)',
+              color: 'white',
+              fontWeight: '800',
+              cursor: 'pointer',
+              fontSize: '0.8rem',
+            }}
+          >
+            סיכום שבועי
+          </button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
           {['הודיה', 'טל'].map((agent) => {
-            const counts = getAgentCallCounts(supplierStates, [agent])[agent];
+            const callsTodayCount = countAgentCallsBetween(supplierStates, agent, dayRange.start, dayRange.end);
+            const pipeline = getAgentPipelineStats(agent, dayRange.start, dayRange.end);
             return (
               <div key={agent} style={{
                 padding: '14px',
@@ -2310,7 +2364,13 @@ export default function SuppliersDashboard() {
                 <p style={{ margin: '0 0 10px', fontSize: '1rem', fontWeight: '800', color: 'var(--primary)' }}>
                   {agent}
                 </p>
-                {renderCallCountRow(counts)}
+                <div className="stat-cell" style={{ textAlign: 'center', padding: '10px 6px', marginBottom: '8px' }}>
+                  <p style={{ fontSize: '1.45rem', fontWeight: '800', color: 'var(--accent-strong)', margin: 0 }}>{callsTodayCount}</p>
+                  <p style={{ fontSize: '0.68rem', fontWeight: '700', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                    שיחות היום
+                  </p>
+                </div>
+                {renderPipelineGrid(pipeline)}
               </div>
             );
           })}
@@ -2365,6 +2425,7 @@ export default function SuppliersDashboard() {
 
     suppliers.forEach((supplier) => {
       if (!supplierBelongsToAgent(supplier, activeAgent)) return;
+      if (!supplierInYinonView(supplier)) return;
 
       const name = (supplier['Supplier Name'] || supplier.clean_name || '').trim();
       const phone = supplier['Real Phone'] || supplier.phone || '';
@@ -2382,6 +2443,15 @@ export default function SuppliersDashboard() {
   const displaySuppliers = filteredSuppliers;
   const displayList = buildDisplayList(filteredSuppliers, activeAgent, isSearchMode ? effectiveSearchQuery : '');
   const tabCounts = getTabCounts();
+  const yinonGroupCounts = YINON_WORK_GROUPS.reduce((result, group) => {
+    result[group.id] = suppliers.filter((supplier) => {
+      if (getYinonWorkGroup(supplier) !== group.id) return false;
+      const name = (supplier['Supplier Name'] || supplier.clean_name || '').trim();
+      const phone = supplier['Real Phone'] || supplier.phone || '';
+      return name && name !== 'ספק ללא שם' && phone && phone !== 'FAILED' && phone !== 'N/A';
+    }).length;
+    return result;
+  }, {});
 
   const openSupplierProfile = async (supplier) => {
     setSelectedSupplierProfile(supplier);
@@ -2590,6 +2660,136 @@ export default function SuppliersDashboard() {
         )}
       </AnimatePresence>
 
+      {activeAgent === 'ינון' && shouldShowWeeklySummaryReminder() && !isWeeklySummaryDismissed(getWeeklySummaryWindow().weekKey) && !weeklySummaryDismissed && (
+        <div style={{
+          margin: '0 0 16px',
+          padding: '14px 16px',
+          borderRadius: '12px',
+          background: '#0f172a',
+          color: 'white',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '12px',
+          flexWrap: 'wrap',
+        }}>
+          <div>
+            <p style={{ margin: '0 0 4px', fontWeight: '800', fontSize: '0.95rem' }}>תזכורת · {getWeeklySummaryWindow().title}</p>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: '#cbd5e1' }}>אפשר לפתוח ולראות כמה הודיה וטל עשו השבוע. מתאפס ביום ראשון.</p>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setShowWeeklySummary(true)}
+              style={{
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: 'none',
+                background: 'var(--accent)',
+                color: 'white',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              פתח סיכום
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                dismissWeeklySummary(getWeeklySummaryWindow().weekKey);
+                setWeeklySummaryDismissed(true);
+              }}
+              style={{
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'transparent',
+                color: '#e2e8f0',
+                fontWeight: '700',
+                cursor: 'pointer',
+              }}
+            >
+              סגור
+            </button>
+          </div>
+        </div>
+      )}
+
+      <AnimatePresence>
+        {showWeeklySummary && activeAgent === 'ינון' && (
+          <div
+            style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(8px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 11000, padding: '20px',
+            }}
+            onClick={() => setShowWeeklySummary(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass-card"
+              style={{ maxWidth: '720px', width: '100%', padding: '24px', maxHeight: '90vh', overflowY: 'auto' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {(() => {
+                const weekly = getWeeklySummaryWindow();
+                return (
+                  <>
+                    <h2 style={{ margin: '0 0 6px', fontSize: '1.3rem', fontWeight: '800', color: 'var(--primary)' }}>
+                      {weekly.title}
+                    </h2>
+                    <p style={{ margin: '0 0 18px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      סיכום הודיה וטל לשבוע · מתאפס ביום ראשון בחצות
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+                      {['הודיה', 'טל'].map((agent) => {
+                        const calls = countAgentCallsBetween(supplierStates, agent, weekly.start, weekly.end);
+                        const pipeline = getAgentPipelineStats(agent, weekly.start, weekly.end);
+                        return (
+                          <div key={agent} style={{
+                            padding: '14px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--border)',
+                            background: 'var(--accent-soft)',
+                          }}>
+                            <p style={{ margin: '0 0 10px', fontSize: '1rem', fontWeight: '800', color: 'var(--primary)' }}>{agent}</p>
+                            <div className="stat-cell" style={{ textAlign: 'center', padding: '10px 6px', marginBottom: '8px' }}>
+                              <p style={{ fontSize: '1.45rem', fontWeight: '800', color: 'var(--accent-strong)', margin: 0 }}>{calls}</p>
+                              <p style={{ fontSize: '0.68rem', fontWeight: '700', color: 'var(--text-muted)', margin: '4px 0 0' }}>שיחות השבוע</p>
+                            </div>
+                            {renderPipelineGrid(pipeline)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowWeeklySummary(false)}
+                      style={{
+                        marginTop: '18px',
+                        width: '100%',
+                        padding: '12px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        background: 'var(--primary)',
+                        color: 'white',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      סגור
+                    </button>
+                  </>
+                );
+              })()}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Callback Alerts Banner */}
       {callbackAlerts.length > 0 && (
         <div style={{ 
@@ -2719,6 +2919,22 @@ export default function SuppliersDashboard() {
 
       {activeAgent === 'נתנאל' && renderManagerStats()}
       {renderAgentTargets()}
+
+      {activeAgent === 'ינון' && !loading && (
+        <div className="work-group-bar" role="tablist" aria-label="תחום עבודה">
+          {YINON_WORK_GROUPS.map((group) => (
+            <button
+              key={group.id}
+              type="button"
+              onClick={() => setYinonWorkGroup(group.id)}
+              className={`work-group-btn${yinonWorkGroup === group.id ? ' active' : ''}`}
+            >
+              {group.label}
+              <span className="tab-count">{yinonGroupCounts[group.id] || 0}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {activeAgent && activeAgent !== 'נתנאל' && activeAgent !== 'מאגר כללי' && !loading && (
         <div className="tab-bar">
@@ -2890,7 +3106,7 @@ export default function SuppliersDashboard() {
 
                 const s = item.supplier;
                 const phone = s["Real Phone"] || s["phone"];
-                const state = stateFor(phone);
+                const state = stateForAgent(phone);
                 const supplierNumber = supplierIndexByPhone.get(phoneKey(phone)) || suppliers.indexOf(s) + 1;
                 const cardKey = `${s.id ?? 'no-id'}-${phone}-${supplierNumber}`;
                 const supplierTab = getSupplierTab(phone);
