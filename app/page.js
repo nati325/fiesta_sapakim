@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Upload, MessageCircle, Phone, Calendar, CheckCircle2, User, LogOut, Search, Image as ImageIcon, Globe, ExternalLink, FileText, Star } from 'lucide-react';
+import { Upload, MessageCircle, Phone, Calendar, CheckCircle2, User, LogOut, Search, Image as ImageIcon, Globe, ExternalLink, FileText, Star, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   clearSession,
@@ -386,6 +386,7 @@ export default function SuppliersDashboard() {
   const [moveEffects, setMoveEffects] = useState({});
   const [exitingSuppliers, setExitingSuppliers] = useState({});
   const [activeMoveButton, setActiveMoveButton] = useState(null);
+  const [confirmDeleteTarget, setConfirmDeleteTarget] = useState(null);
 
   // ── Fiesta Push Modal ────────────────────────────────────────────────────────
   const [showFiestaPushModal, setShowFiestaPushModal] = useState(false);
@@ -516,6 +517,7 @@ export default function SuppliersDashboard() {
   }, [suppliers]);
 
   const stateFor = (phone) => getSupplierState(supplierStates, phone);
+  const isSupplierIrrelevant = (phone) => stateFor(phone).status === 'irrelevant';
 
   const STATUS_ORDER = ['לא נגעו בכלל', 'לחזור אליהם', 'לא ענו', 'עדיין לא חתם', 'סירבו', 'טופלו'];
 
@@ -596,6 +598,7 @@ export default function SuppliersDashboard() {
   };
 
   const getSupplierTab = (phone, agent = activeAgent) => {
+    if (isSupplierIrrelevant(phone)) return null;
     const state = stateForAgent(phone, agent);
     const isHandled = state.status === 'not-interested' || state.status === 'contract';
     const isCallback = !!state.callbackScheduled || state.status === 'thinking' || state.status === 'no-answer';
@@ -614,6 +617,7 @@ export default function SuppliersDashboard() {
       return (searchResults ?? [])
         .filter(isValidSupplierRow)
         .filter(supplierInYinonView)
+        .filter((supplier) => !isSupplierIrrelevant(supplier['Real Phone'] || supplier.phone))
         .sort((a, b) => {
           const tabA = getSupplierTab(a['Real Phone'] || a.phone, activeAgent);
           const tabB = getSupplierTab(b['Real Phone'] || b.phone, activeAgent);
@@ -630,6 +634,7 @@ export default function SuppliersDashboard() {
         const phone = s['Real Phone'] || s.phone;
         const exitInfo = exitingSuppliers[phone];
         if (exitInfo?.fromTab === activeTab) return true;
+        if (isSupplierIrrelevant(phone)) return false;
         return getSupplierTab(phone, activeAgent) === activeTab;
       })
       .filter(isValidSupplierRow)
@@ -660,7 +665,8 @@ export default function SuppliersDashboard() {
       if (!supplierBelongsToAgent(supplier, agent)) return false;
       const name = (supplier['Supplier Name'] || supplier.clean_name || '').trim();
       const phone = supplier['Real Phone'] || supplier.phone || '';
-      return name && name !== 'ספק ללא שם' && phone && phone !== 'FAILED' && phone !== 'N/A';
+      if (!name || name === 'ספק ללא שם' || !phone || phone === 'FAILED' || phone === 'N/A') return false;
+      return !isSupplierIrrelevant(phone);
     });
   };
 
@@ -2012,6 +2018,7 @@ export default function SuppliersDashboard() {
     'not-signed': { tab: 'עדיין לא חתם', label: 'עדיין לא חתם', color: '#3b82f6' },
     'reset-untouched': { tab: 'לא נגעו בכלל', label: 'לא נגעו בכלל', color: '#ef4444' },
     callback: { tab: 'לחזור אליהם', label: 'לחזור אליהם', color: '#0ea5e9' },
+    irrelevant: { tab: 'הוסר', label: 'לא רלוונטי', color: '#64748b' },
   };
 
   const triggerSupplierMove = (phone, metaKey, buttonKey, applyAction) => {
@@ -2116,6 +2123,24 @@ export default function SuppliersDashboard() {
     };
 
     triggerSupplierMove(phone, metaKey, `${phone}-${status}`, apply);
+  };
+
+  const markSupplierIrrelevant = (phone) => {
+    if (!phone) return;
+    setConfirmDeleteTarget(null);
+    if (selectedSupplierProfile) {
+      const profilePhone = selectedSupplierProfile['Real Phone'] || selectedSupplierProfile.phone;
+      if (profilePhone === phone) setSelectedSupplierProfile(null);
+    }
+    triggerSupplierMove(phone, 'irrelevant', `${phone}-irrelevant`, () => {
+      updateSupplierState(phone, {
+        status: 'irrelevant',
+        reminder: null,
+        callbackScheduled: null,
+        callbackTimestamp: null,
+        agent: activeAgent,
+      });
+    });
   };
 
   const setReminder = (phone, timeText) => {
@@ -2522,6 +2547,8 @@ export default function SuppliersDashboard() {
       const phone = supplier['Real Phone'] || supplier.phone || '';
       if (!name || name === 'ספק ללא שם' || !phone || phone === 'FAILED' || phone === 'N/A') return;
 
+      if (isSupplierIrrelevant(phone)) return;
+
       const tab = getSupplierTab(phone);
       if (tab && counts[tab] !== undefined) counts[tab] += 1;
     });
@@ -2539,7 +2566,8 @@ export default function SuppliersDashboard() {
       if (getYinonWorkGroup(supplier) !== group.id) return false;
       const name = (supplier['Supplier Name'] || supplier.clean_name || '').trim();
       const phone = supplier['Real Phone'] || supplier.phone || '';
-      return name && name !== 'ספק ללא שם' && phone && phone !== 'FAILED' && phone !== 'N/A';
+      if (!name || name === 'ספק ללא שם' || !phone || phone === 'FAILED' || phone === 'N/A') return false;
+      return !isSupplierIrrelevant(phone);
     }).length;
     return result;
   }, {});
@@ -2715,6 +2743,69 @@ export default function SuppliersDashboard() {
               >
                 תודה, נמשיך לעבוד!
               </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {confirmDeleteTarget && (
+          <div
+            style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: '20px'
+            }}
+            onClick={() => setConfirmDeleteTarget(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="glass-card"
+              style={{ maxWidth: '460px', width: '100%', textAlign: 'center', padding: '36px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                background: '#fee2e2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 18px',
+              }}>
+                <Trash2 size={26} />
+              </div>
+              <h2 style={{ fontSize: '1.45rem', fontWeight: '800', marginBottom: '10px', color: 'var(--primary)' }}>
+                למחוק את הספק?
+              </h2>
+              <p style={{ fontSize: '1rem', lineHeight: '1.6', marginBottom: '8px', color: 'var(--text)' }}>
+                הספק <strong>{confirmDeleteTarget.name}</strong> יוסר מהדשבורד ולא יופיע יותר אצל אף סוכן.
+              </p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '28px' }}>
+                המחיקה רכה — אפשר לשחזר בעתיד אם צריך.
+              </p>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteTarget(null)}
+                  className="btn-primary"
+                  style={{ flex: 1, background: '#e2e8f0', color: '#0f172a', boxShadow: 'none' }}
+                >
+                  ביטול
+                </button>
+                <button
+                  type="button"
+                  onClick={() => markSupplierIrrelevant(confirmDeleteTarget.phone)}
+                  className="btn-primary"
+                  style={{ flex: 1, background: '#dc2626' }}
+                >
+                  כן, מחק
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
@@ -3440,6 +3531,17 @@ export default function SuppliersDashboard() {
                           className={`status-btn callback${state.callbackScheduled || activeCallbackPicker === phone ? ' active' : ''}`}
                         >
                           {state.callbackScheduled ? state.callbackScheduled : 'לחזור מאוחר יותר'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteTarget({
+                            phone,
+                            name: s['Supplier Name'] || s.clean_name || 'ספק ללא שם',
+                          })}
+                          className={`status-btn irrelevant${activeMoveButton === `${phone}-irrelevant` ? ' supplier-move-btn-active' : ''}`}
+                        >
+                          <Trash2 size={14} />
+                          לא רלוונטי
                         </button>
                       </div>
 
