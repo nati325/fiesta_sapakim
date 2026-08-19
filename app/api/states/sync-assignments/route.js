@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import getMongoClient from '../../../../lib/mongodb';
+import { phoneKey } from '../../../../lib/phoneUtils';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 export async function POST(req) {
   try {
@@ -14,27 +16,32 @@ export async function POST(req) {
     const collection = client.db('fiesta_crm').collection('supplier_states');
     const now = new Date().toISOString();
 
-    const ops = assignments
-      .filter((item) => item?.phone)
-      .map((item) => ({
-        updateOne: {
-          filter: { phone: item.phone },
-          update: {
-            $set: {
-              phone: item.phone,
-              assignedAgent: item.assignedAgent || '',
-              assignedCategory: item.assignedCategory || '',
-              moranGroup: item.moranGroup || '',
-              supplierName: item.supplierName || '',
-            },
-            $setOnInsert: {
-              assignedAt: now,
-              status: null,
-            },
+    const byKey = new Map();
+    for (const item of assignments) {
+      const key = phoneKey(item?.phone);
+      if (!key) continue;
+      byKey.set(key, item);
+    }
+
+    const ops = [...byKey.entries()].map(([key, item]) => ({
+      updateOne: {
+        filter: { phone: key },
+        update: {
+          $set: {
+            phone: key,
+            phoneKey: key,
+            assignedAgent: item.assignedAgent || '',
+            assignedCategory: item.assignedCategory || '',
+            moranGroup: item.moranGroup || '',
+            supplierName: item.supplierName || '',
           },
-          upsert: true,
+          $setOnInsert: {
+            assignedAt: now,
+          },
         },
-      }));
+        upsert: true,
+      },
+    }));
 
     if (ops.length === 0) {
       return NextResponse.json({ success: true, synced: 0 });

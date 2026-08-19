@@ -383,6 +383,8 @@ export default function SuppliersDashboard() {
   const assignmentsSyncedRef = useRef(false);
   const supplierStatesRef = useRef({});
   const suppliersRef = useRef([]);
+  const notesSaveTimersRef = useRef({});
+  const updateSupplierStateRef = useRef(() => {});
   const [moveEffects, setMoveEffects] = useState({});
   const [exitingSuppliers, setExitingSuppliers] = useState({});
   const [activeMoveButton, setActiveMoveButton] = useState(null);
@@ -812,6 +814,13 @@ export default function SuppliersDashboard() {
     };
 
     const saveBeforeLeave = () => {
+      const timers = notesSaveTimersRef.current;
+      Object.keys(timers).forEach((key) => {
+        clearTimeout(timers[key]);
+        delete timers[key];
+        const notes = supplierStatesRef.current[key]?.notes ?? '';
+        updateSupplierStateRef.current(key, { notes });
+      });
       if (activeAgent) persistFullUiSnapshot(activeAgent);
       saveAllSupplierStatesLocal(supplierStatesRef.current);
     };
@@ -1732,24 +1741,34 @@ export default function SuppliersDashboard() {
     return Math.round((tomorrow - new Date()) / 60000);
   };
 
-  const updateSupplierState = (phone, newState) => {
+  const updateSupplierState = (phone, newState, options = {}) => {
+    const { localOnly = false } = options;
     const key = phoneKey(phone);
     if (!key) return;
 
     const touchFields = ['status', 'callbackScheduled', 'reminder', 'notes', 'uploadedImage'];
     const isTouchAction = touchFields.some((field) => field in newState);
     const enrichedState = { ...newState };
-    const prevState = supplierStates[key] || {};
+    const prevState = supplierStatesRef.current[key] || supplierStates[key] || {};
 
     const activityAction = resolveActivityAction(newState);
-    if (activityAction && activeAgent) {
-      enrichedState.activityLog = appendActivityLog(
-        prevState.activityLog,
-        buildActivityEntry(activityAction.action, activeAgent, activityAction)
-      );
+    if (!localOnly && activityAction && activeAgent) {
+      const log = prevState.activityLog || [];
+      const last = log[log.length - 1];
+      const skipDuplicateNotes =
+        activityAction.action === 'notes' &&
+        last?.action === 'notes' &&
+        last.agent === activeAgent &&
+        Date.now() - (last.at || 0) < 2 * 60 * 1000;
+      if (!skipDuplicateNotes) {
+        enrichedState.activityLog = appendActivityLog(
+          log,
+          buildActivityEntry(activityAction.action, activeAgent, activityAction)
+        );
+      }
     }
 
-    if (isTouchAction) {
+    if (isTouchAction && !localOnly) {
       enrichedState.lastTouchedAt = Date.now();
       enrichedState.lastTouchedBy = activeAgent;
       if (!prevState.firstTouchedAt) {
@@ -1768,21 +1787,24 @@ export default function SuppliersDashboard() {
     }
 
     setSupplierStates((prev) => {
-      const merged = { ...(prev[key] || {}), ...enrichedState };
-      saveSupplierStateLocal(phone, merged);
+      const merged = { ...(prev[key] || {}), ...enrichedState, phone: key };
+      saveSupplierStateLocal(key, merged);
       return {
         ...prev,
         [key]: merged,
       };
     });
+
+    if (localOnly) return;
+
     fetch('/api/states', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, state: enrichedState }),
+      body: JSON.stringify({ phone: key, state: enrichedState }),
     })
     .then(async res => {
       if (!res.ok) {
-        let errMsg = 'Failed to update state in DB';
+        let errMsg = 'שמירה נכשלה';
         try {
           const errData = await res.json();
           if (errData && errData.error) {
@@ -1801,8 +1823,34 @@ export default function SuppliersDashboard() {
     .catch(err => {
       console.error("DB Save Error:", err);
       if ('outboundCallAt' in newState && !isTouchAction) return;
-      alert(`⚠️ שגיאה בשמירת הנתונים במונגו!\n\nסיבת השגיאה מהשרת: ${err.message}\n\nאנא וודא שהגדרת את MONGODB_URI ב-Vercel בצורה נכונה ושהגדרת Network Access ל-0.0.0.0/0 ב-MongoDB Atlas.`);
+      const raw = err.message || 'שגיאה לא ידועה';
+      const hint = /timed out|Timeout|ETIMEOUT|server selection|ECONN/i.test(raw)
+        ? 'המסד לא ענה בזמן. נסי שוב.'
+        : raw;
+      alert(`לא הצלחנו לשמור את השינוי.\n\n${hint}`);
     });
+  };
+  updateSupplierStateRef.current = updateSupplierState;
+
+  const draftNotes = (phone, notes) => {
+    const key = phoneKey(phone);
+    if (!key) return;
+    updateSupplierState(phone, { notes }, { localOnly: true });
+    if (notesSaveTimersRef.current[key]) clearTimeout(notesSaveTimersRef.current[key]);
+    notesSaveTimersRef.current[key] = setTimeout(() => {
+      delete notesSaveTimersRef.current[key];
+      updateSupplierState(phone, { notes });
+    }, 800);
+  };
+
+  const commitNotes = (phone, notes) => {
+    const key = phoneKey(phone);
+    if (!key) return;
+    if (notesSaveTimersRef.current[key]) {
+      clearTimeout(notesSaveTimersRef.current[key]);
+      delete notesSaveTimersRef.current[key];
+    }
+    updateSupplierState(phone, { notes });
   };
 
   const recordOutboundCall = (phone) => {
@@ -1906,6 +1954,13 @@ export default function SuppliersDashboard() {
   };
 
   const handleLogout = () => {
+    const timers = notesSaveTimersRef.current;
+    Object.keys(timers).forEach((key) => {
+      clearTimeout(timers[key]);
+      delete timers[key];
+      const notes = supplierStatesRef.current[key]?.notes ?? '';
+      updateSupplierState(key, { notes });
+    });
     if (activeAgent) persistUiForAgent(activeAgent);
     saveAllSupplierStatesLocal(supplierStatesRef.current);
     clearSession();
@@ -2080,16 +2135,17 @@ export default function SuppliersDashboard() {
       );
     }
 
+    const key = phoneKey(phone);
     setSupplierStates((prev) => {
-      const merged = { ...prev[phone], ...resetState };
-      saveSupplierStateLocal(phone, merged);
-      return { ...prev, [phone]: merged };
+      const merged = { ...(prev[key] || {}), ...resetState, phone: key };
+      saveSupplierStateLocal(key, merged);
+      return { ...prev, [key]: merged };
     });
 
     fetch('/api/states', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, state: resetState }),
+      body: JSON.stringify({ phone: key, state: resetState }),
     }).catch((err) => console.error('Reset save error:', err));
   };
 
@@ -3492,7 +3548,8 @@ export default function SuppliersDashboard() {
                         className="supplier-notes"
                         placeholder="הערות לדיווח..."
                         value={state.notes || ''}
-                        onChange={(e) => updateSupplierState(phone, { notes: e.target.value })}
+                        onChange={(e) => draftNotes(phone, e.target.value)}
+                        onBlur={(e) => commitNotes(phone, e.target.value)}
                       />
 
                       <div className="card-actions-grid">
