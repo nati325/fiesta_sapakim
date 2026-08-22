@@ -12,7 +12,7 @@ import {
   saveSession,
   saveUiState,
 } from '../lib/agentSession';
-import { phoneKey, getSupplierState } from '../lib/phoneUtils';
+import { phoneKey, getSupplierState, whatsappChatUrl } from '../lib/phoneUtils';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 import {
   collectLocalMedia,
@@ -3351,6 +3351,7 @@ export default function SuppliersDashboard() {
 
                 const s = item.supplier;
                 const phone = s["Real Phone"] || s["phone"];
+                const supplierWhatsAppUrl = whatsappChatUrl(phone);
                 const state = stateForAgent(phone);
                 const supplierNumber = supplierIndexByPhone.get(phoneKey(phone)) || suppliers.indexOf(s) + 1;
                 const cardKey = `${s.id ?? 'no-id'}-${phone}-${supplierNumber}`;
@@ -3758,7 +3759,21 @@ export default function SuppliersDashboard() {
                         )}
                       </AnimatePresence>
 
-                      <div style={{ marginTop: state.status === 'closed' ? '8px' : '0' }}>
+                      <div
+                        className="card-contact-row"
+                        style={{ marginTop: state.status === 'closed' ? '8px' : '0' }}
+                      >
+                        {supplierWhatsAppUrl ? (
+                          <a
+                            href={supplierWhatsAppUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-whatsapp-chat"
+                          >
+                            <MessageCircle size={18} />
+                            <span>וואטסאפ</span>
+                          </a>
+                        ) : null}
                         <a
                           href={`tel:${s["Real Phone"]}`}
                           className="btn-call"

@@ -657,12 +657,17 @@ a {
   color: var(--accent-strong);
 }
 
-.btn-call {
+.card-contact-row {
+  display: flex;
+  gap: 8px;
   width: 100%;
+}
+
+.btn-call,
+.btn-whatsapp-chat {
+  flex: 1;
   padding: 12px;
   border-radius: 9px;
-  background: var(--primary);
-  color: #fff;
   border: none;
   font-weight: 700;
   font-family: var(--font-body);
@@ -676,8 +681,22 @@ a {
   transition: background 0.15s ease;
 }
 
+.btn-call {
+  background: var(--primary);
+  color: #fff;
+}
+
 .btn-call:hover {
   background: #2a2a2a;
+}
+
+.btn-whatsapp-chat {
+  background: #25d366;
+  color: #fff;
+}
+
+.btn-whatsapp-chat:hover {
+  background: #1ebe57;
 }
 
 .logo {
