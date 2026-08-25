@@ -72,7 +72,7 @@ async function loadFromJsonFallback({ lite, phoneQuery, search }) {
   };
 }
 
-async function loadFromMongo({ lite, phoneQuery, search, category }) {
+async function loadFromMongo({ lite, phoneQuery, search, category, limit, skip }) {
   const mongoCount = await countSuppliersInMongo();
   if (mongoCount === 0) return null;
 
@@ -85,6 +85,8 @@ async function loadFromMongo({ lite, phoneQuery, search, category }) {
     lite,
     search: search || '',
     category: category || '',
+    limit: limit || 0,
+    skip: skip || 0,
   });
 
   return { suppliers, source: 'mongodb', total: mongoCount };
@@ -112,16 +114,24 @@ export async function GET(request) {
     const phoneQuery = searchParams.get('phone') || '';
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
+    const limit = Math.min(Math.max(Number(searchParams.get('limit')) || 0, 0), 200);
+    const skip = Math.max(Number(searchParams.get('skip')) || 0, 0);
 
     let result = null;
     try {
-      result = await loadFromMongo({ lite, phoneQuery, search, category });
+      result = await loadFromMongo({ lite, phoneQuery, search, category, limit, skip });
     } catch (mongoErr) {
       console.error('MongoDB suppliers read failed, falling back to JSON:', mongoErr.message);
     }
 
     if (!result) {
       result = await loadFromJsonFallback({ lite, phoneQuery, search });
+      if (limit) {
+        result = {
+          ...result,
+          suppliers: result.suppliers.slice(skip, skip + limit),
+        };
+      }
     }
 
     const { suppliers, source, total } = result;

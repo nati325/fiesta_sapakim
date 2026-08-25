@@ -147,6 +147,10 @@ export async function POST(req) {
         images,
         agentName,
         agreementSigned: true,
+        eventTypes: ['מתאים לכל האירועים'],
+        eventTypesExplicit: true,
+        eventPrices: [],
+        fitsAllEvents: true,
         ...(body.overrides || {}),
       });
 

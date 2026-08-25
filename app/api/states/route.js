@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import getMongoClient from '../../../lib/mongodb';
 import { phoneKey } from '../../../lib/phoneUtils';
 import {
-  canonicalizeSupplierStates,
   normalizeStatesObject,
   upsertSupplierState,
 } from '../../../lib/supplierStateMongo';
+import { invalidateStatesCache } from '../../../lib/agentFeedQuery';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -14,12 +14,6 @@ export async function GET() {
   try {
     const client = await getMongoClient();
     const collection = client.db('fiesta_crm').collection('supplier_states');
-
-    try {
-      await canonicalizeSupplierStates(collection);
-    } catch (error) {
-      console.warn('canonicalizeSupplierStates:', error.message);
-    }
 
     const allStatesArray = await collection.find({}).toArray();
     const statesObject = normalizeStatesObject(allStatesArray);
@@ -80,6 +74,7 @@ export async function POST(req) {
     }
 
     await upsertSupplierState(collection, key, setFields, unsetFields);
+    invalidateStatesCache();
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('API error:', error);

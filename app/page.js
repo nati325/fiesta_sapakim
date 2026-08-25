@@ -64,6 +64,12 @@ import {
   toPercent,
   LOW_MARGIN_THRESHOLD_PERCENT,
 } from '../lib/pricing';
+import {
+  ALL_EVENTS_LABEL,
+  FIESTA_EVENT_TYPES,
+  emptyEventPriceRow,
+  normalizePushEventTypes,
+} from '../lib/fiestaEventTypes';
 import './globals.css';
 
 const LOGIN_AGENTS = ['ינון', 'הודיה', 'טל', 'נתנאל', 'מאגר כללי'];
@@ -389,6 +395,18 @@ export default function SuppliersDashboard() {
   const [exitingSuppliers, setExitingSuppliers] = useState({});
   const [activeMoveButton, setActiveMoveButton] = useState(null);
   const [confirmDeleteTarget, setConfirmDeleteTarget] = useState(null);
+  /** Queue of phones that need an outcome after a call: { phoneKey, phone, name } */
+  const [pendingCallOutcomes, setPendingCallOutcomes] = useState([]);
+  const [callOutcomeCallbackMode, setCallOutcomeCallbackMode] = useState(false);
+  const [feedCursor, setFeedCursor] = useState(null);
+  const [feedHasMore, setFeedHasMore] = useState(false);
+  const [feedLoading, setFeedLoading] = useState(false);
+  const [feedLoadingMore, setFeedLoadingMore] = useState(false);
+  const [serverTabCounts, setServerTabCounts] = useState(null);
+  const [serverFeedStats, setServerFeedStats] = useState(null);
+  const [serverAgentStats, setServerAgentStats] = useState(null);
+  const feedRequestIdRef = useRef(0);
+  const lastFeedKeyRef = useRef('');
 
   // ── Fiesta Push Modal ────────────────────────────────────────────────────────
   const [showFiestaPushModal, setShowFiestaPushModal] = useState(false);
@@ -411,6 +429,9 @@ export default function SuppliersDashboard() {
     agreementSigned: false,
     agreementImages: [],
     agreementImage: '',
+    fitsAllEvents: false,
+    eventTypes: [],
+    eventPriceRows: {},
   });
 
   const pushAgreementImages = Array.isArray(fiestaPushForm.agreementImages)
@@ -446,8 +467,42 @@ export default function SuppliersDashboard() {
     });
   };
 
-  // Everything the agent sees in step 3 is derived from the two rates above.
-  const pushDiscountPercent = toPercent(fiestaPushForm.discountPercent);
+  const pushSelectedEvents = fiestaPushForm.fitsAllEvents
+    ? []
+    : FIESTA_EVENT_TYPES.filter((et) => (fiestaPushForm.eventTypes || []).includes(et));
+  const firstEventDiscount = pushSelectedEvents.length
+    ? (fiestaPushForm.eventPriceRows?.[pushSelectedEvents[0]]?.discountPercent || '')
+    : '';
+
+  const togglePushEventType = (et) => {
+    setFiestaPushForm((f) => {
+      const current = Array.isArray(f.eventTypes) ? f.eventTypes : [];
+      const has = current.includes(et);
+      const next = has ? current.filter((item) => item !== et) : [...current, et];
+      const rows = { ...(f.eventPriceRows || {}) };
+      if (!has && !rows[et]) rows[et] = emptyEventPriceRow();
+      return { ...f, fitsAllEvents: false, eventTypes: next, eventPriceRows: rows };
+    });
+  };
+
+  const setFitsAllEvents = () => {
+    setFiestaPushForm((f) => ({ ...f, fitsAllEvents: true, eventTypes: [] }));
+  };
+
+  const updateEventPriceRow = (et, patch) => {
+    setFiestaPushForm((f) => ({
+      ...f,
+      eventPriceRows: {
+        ...(f.eventPriceRows || {}),
+        [et]: { ...(f.eventPriceRows?.[et] || emptyEventPriceRow()), ...patch },
+      },
+    }));
+  };
+
+  // Everything the agent sees in pricing is derived from the two rates above.
+  const pushDiscountPercent = toPercent(
+    fiestaPushForm.fitsAllEvents ? fiestaPushForm.discountPercent : (firstEventDiscount || fiestaPushForm.discountPercent)
+  );
   const pushCommissionPercent = toPercent(fiestaPushForm.commissionPercent);
   const pushPricedProducts = buildPricedProducts(
     fiestaPushForm.products,
@@ -629,9 +684,8 @@ export default function SuppliersDashboard() {
         });
     }
 
+    // Server already filtered by agent/tab; keep exit animation + live tab check after moves.
     return suppliers
-      .filter((s) => supplierBelongsToAgent(s, activeAgent))
-      .filter(supplierInYinonView)
       .filter((s) => {
         const phone = s['Real Phone'] || s.phone;
         const exitInfo = exitingSuppliers[phone];
@@ -639,12 +693,7 @@ export default function SuppliersDashboard() {
         if (isSupplierIrrelevant(phone)) return false;
         return getSupplierTab(phone, activeAgent) === activeTab;
       })
-      .filter(isValidSupplierRow)
-      .sort((a, b) => {
-        const nameA = (a['Supplier Name'] || a.clean_name || '').trim();
-        const nameB = (b['Supplier Name'] || b.clean_name || '').trim();
-        return nameA.localeCompare(nameB, 'he');
-      });
+      .filter(isValidSupplierRow);
   }, [
     isSearchMode,
     searchResults,
@@ -673,18 +722,22 @@ export default function SuppliersDashboard() {
   };
 
   const getAgentFeedStats = (agent) => {
-    const feed = getAgentFeedSuppliers(agent);
-    let touched = 0;
-    feed.forEach((supplier) => {
-      const phone = supplier['Real Phone'] || supplier.phone;
-      if (agentHasWorkedSupplier(stateFor(phone), agent)) touched += 1;
-    });
-    return { total: feed.length, touched, untouched: feed.length - touched };
+    if (serverFeedStats && agent === activeAgent) {
+      return serverFeedStats;
+    }
+    return { total: 0, touched: 0, untouched: 0 };
   };
 
-  const getAgentPipelineStats = (agent, fromMs, toMs) => (
-    countAgentPipelineBetween(supplierStates, agent, fromMs, toMs)
-  );
+  const getAgentPipelineStats = (agent, fromMs, toMs) => {
+    const bucket = serverAgentStats?.[agent];
+    if (bucket?.pipeline) {
+      const day = israelDayRange();
+      const week = israelWeekRange();
+      if (fromMs === day.start && toMs === day.end) return bucket.pipeline.today;
+      if (fromMs === week.start && toMs === week.end) return bucket.pipeline.week;
+    }
+    return countAgentPipelineBetween(supplierStates, agent, fromMs, toMs);
+  };
 
   const buildAgentAssignments = (agent) => {
     return getAgentFeedSuppliers(agent).map((supplier) => {
@@ -848,23 +901,7 @@ export default function SuppliersDashboard() {
     };
   }, [isLoggedIn, activeAgent, activeTab, searchQuery, selectedSupplierProfile]);
 
-  useEffect(() => {
-    if (loading || isSearchMode || !WORKING_AGENTS.includes(activeAgent)) return;
-    if (activeTab === 'לא נגעו בכלל') return;
-    const hasInCurrentTab = suppliers.some((supplier) => {
-      if (!supplierBelongsToAgent(supplier, activeAgent)) return false;
-      if (!supplierInYinonView(supplier) || !isValidSupplierRow(supplier)) return false;
-      return getSupplierTab(supplier['Real Phone'] || supplier.phone, activeAgent) === activeTab;
-    });
-    if (hasInCurrentTab) return;
-    const hasUntouched = suppliers.some((supplier) => {
-      if (!supplierBelongsToAgent(supplier, activeAgent)) return false;
-      if (!supplierInYinonView(supplier) || !isValidSupplierRow(supplier)) return false;
-      return getSupplierTab(supplier['Real Phone'] || supplier.phone, activeAgent) === 'לא נגעו בכלל';
-    });
-    if (hasUntouched) setActiveTab('לא נגעו בכלל');
-  }, [loading, isSearchMode, activeAgent, activeTab, suppliers, supplierStates, yinonWorkGroup]);
-
+  // With server-paginated feeds, an empty tab is valid — do not auto-jump.
   useEffect(() => {
     if (!isLoggedIn || !activeAgent || loading) return;
 
@@ -914,7 +951,7 @@ export default function SuppliersDashboard() {
     const controller = new AbortController();
     setSearchLoading(true);
 
-    fetch(`/api/suppliers?lite=1&search=${encodeURIComponent(effectiveSearchQuery)}`, {
+    fetch(`/api/suppliers?lite=1&search=${encodeURIComponent(effectiveSearchQuery)}&limit=40`, {
       cache: 'no-store',
       signal: controller.signal,
     })
@@ -941,114 +978,208 @@ export default function SuppliersDashboard() {
   }, [isSearchMode, effectiveSearchQuery, loading]);
 
   useEffect(() => {
-    fetch('/api/suppliers?lite=1', { cache: 'no-store' })
-      .then(async (res) => {
-        const source = res.headers.get('X-Suppliers-Source');
-        const data = await res.json();
-
-        if (!Array.isArray(data)) {
-          console.error('Suppliers API returned invalid data:', data);
-          setApiHealthWarning('שגיאה בטעינת ספקים מהשרת. סגור את השרת והרץ מחדש: restart-dashboard.bat');
-          setLoading(false);
-          return;
-        }
-
-        const emptyInPayload = data.filter((s) => {
-          const name = (s['Supplier Name'] || s.name || s.clean_name || '').trim();
-          return !name || name === 'ספק ללא שם';
-        }).length;
-
-        const suspiciouslySmall = data.length > 0 && data.length < 200;
-        if ((source !== 'json' && source !== 'mongodb') || emptyInPayload > 5 || suspiciouslySmall) {
-          setApiHealthWarning(
-            `השרת מריץ גרסה ישנה (${data.length} רשומות, מקור: ${source || 'לא ידוע'}). רענן את הדף — אם נמשך, redeploy ב-Vercel.`
-          );
-        } else {
-          setApiHealthWarning(null);
-        }
-
-        const normalizeRow = normalizeSupplierRow;
-
-        const processedData = data
-          .map(normalizeRow)
-          .filter(isValidSupplierRow);
-        setSuppliers(processedData);
-
-        const localStates = loadAllSupplierStatesLocal();
-
-        fetch('/api/states', { cache: 'no-store' })
-          .then(async (res) => {
-            let savedStates = {};
-            if (res.ok) {
-              savedStates = await res.json();
-              if (savedStates?.error) {
-                setStatesLoadWarning('לא הצלחנו לטעון סטטוסים מהענן — מוצגים רק נתונים מקומיים. רענון עשוי לעזור.');
-                savedStates = {};
-              } else {
-                setStatesLoadWarning(null);
-              }
-            } else {
-              setStatesLoadWarning('שגיאה בטעינת סטטוסים מהענן — ייתכן שחלק מהעבודה לא יוצג. נסי לרענן.');
-              savedStates = {};
-            }
-
-            const mergedStates = { ...localStates };
-            for (const [key, state] of Object.entries(savedStates)) {
-              const nk = phoneKey(key);
-              if (!nk) continue;
-              mergedStates[nk] = { ...(mergedStates[nk] || {}), ...state };
-            }
-
-            setSupplierStates(mergedStates);
-            saveAllSupplierStatesLocal(mergedStates);
-            setLoading(false);
-          })
-          .catch(() => {
-            setStatesLoadWarning('שגיאת רשת בטעינת סטטוסים — מוצגים נתונים מקומיים בלבד.');
-            setSupplierStates({ ...localStates });
-            setLoading(false);
-          });
-      })
-      .catch(err => {
-        console.error(err);
-        setApiHealthWarning('לא ניתן להתחבר לשרת. ודא ש-npm run dev רץ על פורט 3000.');
-        setLoading(false);
-      });
+    // Fast boot: local states only — suppliers come from paginated /api/feed after login.
+    const localStates = loadAllSupplierStatesLocal();
+    setSupplierStates(localStates);
+    setLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (!isLoggedIn || loading || !suppliers.length) return;
-    if (!activeAgent || VIEW_ALL_AGENTS.has(activeAgent)) return;
-    if (assignmentsSyncedRef.current) return;
+  const mergeFeedStates = (incoming = {}) => {
+    setSupplierStates((prev) => {
+      const next = { ...prev };
+      for (const [key, state] of Object.entries(incoming || {})) {
+        const nk = phoneKey(key);
+        if (!nk) continue;
+        next[nk] = { ...(next[nk] || {}), ...state, phone: nk, phoneKey: nk };
+      }
+      saveAllSupplierStatesLocal(next);
+      return next;
+    });
+  };
 
-    const assignments = buildAgentAssignments(activeAgent);
-    if (!assignments.length) return;
+  const fetchServerStats = async (agent) => {
+    if (!agent) return;
+    try {
+      const statsUrl =
+        agent === 'ינון'
+          ? '/api/agent-stats'
+          : `/api/agent-stats?agent=${encodeURIComponent(agent)}`;
+      const [statsRes, tabsRes] = await Promise.all([
+        fetch(statsUrl, { cache: 'no-store' }),
+        fetch(
+          `/api/tab-counts?agent=${encodeURIComponent(agent)}&yinonWorkGroup=${encodeURIComponent(yinonWorkGroup)}`,
+          { cache: 'no-store' }
+        ),
+      ]);
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setServerAgentStats(statsData.agents || null);
+      }
+      if (tabsRes.ok) {
+        const tabsData = await tabsRes.json();
+        setServerTabCounts(tabsData.counts || null);
+        setServerFeedStats(tabsData.feedStats || null);
+      }
+    } catch (err) {
+      console.error('stats/tab-counts failed:', err);
+    }
+  };
 
-    fetch('/api/states/sync-assignments', {
+  const scheduleClientAssign = (agent, suppliers) => {
+    if (!agent || !WORKING_AGENTS.includes(agent) || !suppliers?.length) return;
+    const items = suppliers.map((s) => ({
+      phone: s['Real Phone'] || s.phone,
+      assignedCategory: s.Category || 'כללי',
+      supplierName: s['Supplier Name'] || s.clean_name || '',
+    })).filter((item) => item.phone);
+    if (!items.length) return;
+    fetch('/api/feed/assign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assignments }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.success) return;
-        assignmentsSyncedRef.current = true;
-        setSupplierStates((prev) => {
-          const next = { ...prev };
-          assignments.forEach((item) => {
-            const key = phoneKey(item.phone);
-            next[key] = {
-              ...(next[key] || {}),
-              assignedAgent: item.assignedAgent,
-              assignedCategory: item.assignedCategory,
-              supplierName: item.supplierName,
-            };
-          });
-          return next;
+      body: JSON.stringify({ agent, items }),
+      keepalive: true,
+    }).catch(() => {});
+  };
+
+  const applyBootstrapPayload = (data) => {
+    if (data.agents) setServerAgentStats(data.agents);
+    if (data.counts) setServerTabCounts(data.counts);
+    if (data.feedStats) setServerFeedStats(data.feedStats);
+
+    const feed = data.feed || {};
+    const incoming = (feed.suppliers || []).map(normalizeSupplierRow).filter(isValidSupplierRow);
+    mergeFeedStates(feed.states || {});
+    setSuppliers(incoming);
+    setFeedCursor(feed.nextCursor || null);
+    setFeedHasMore(Boolean(feed.hasMore));
+    if (activeTab === 'לא נגעו בכלל') {
+      scheduleClientAssign(activeAgent, incoming);
+    }
+  };
+
+  const loadAgentBootstrap = async () => {
+    if (!activeAgent || isSearchMode) return;
+    const limit = VIEW_ALL_AGENTS.has(activeAgent) ? 20 : 10;
+    const requestId = ++feedRequestIdRef.current;
+    setFeedLoading(true);
+    try {
+      const params = new URLSearchParams({
+        agent: activeAgent,
+        tab: activeTab,
+        yinonWorkGroup,
+        limit: String(limit),
+      });
+
+      const res = await fetch(`/api/bootstrap?${params.toString()}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`bootstrap ${res.status}`);
+      const data = await res.json();
+      if (requestId !== feedRequestIdRef.current) return;
+      applyBootstrapPayload(data);
+    } catch (err) {
+      console.error('loadAgentBootstrap failed:', err);
+      setApiHealthWarning('לא הצלחנו לטעון את הפיד מהשרת. נסי לרענן.');
+    } finally {
+      if (requestId === feedRequestIdRef.current) {
+        setFeedLoading(false);
+        setFeedLoadingMore(false);
+      }
+    }
+  };
+
+  const loadAgentFeed = async ({ append = false, refillCount = 0 } = {}) => {
+    if (!activeAgent || isSearchMode) return;
+    const limit = VIEW_ALL_AGENTS.has(activeAgent) ? 20 : 10;
+    const requestId = ++feedRequestIdRef.current;
+    const exclude = append || refillCount
+      ? suppliersRef.current.map((s) => phoneKey(s['Real Phone'] || s.phone)).filter(Boolean).join(',')
+      : '';
+
+    if (refillCount) {
+      // keep UI snappy
+    } else if (append) {
+      setFeedLoadingMore(true);
+    } else {
+      setFeedLoading(true);
+    }
+
+    try {
+      const params = new URLSearchParams({
+        agent: activeAgent,
+        tab: activeTab,
+        yinonWorkGroup,
+        limit: String(refillCount || limit),
+      });
+      if (append && feedCursor) params.set('cursor', feedCursor);
+      if (exclude) params.set('exclude', exclude);
+      if (refillCount) params.set('refill', '1');
+
+      const res = await fetch(`/api/feed?${params.toString()}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`feed ${res.status}`);
+      const data = await res.json();
+      if (requestId !== feedRequestIdRef.current) return;
+
+      const incoming = (data.suppliers || []).map(normalizeSupplierRow).filter(isValidSupplierRow);
+      mergeFeedStates(data.states || {});
+
+      setSuppliers((prev) => {
+        if (!append && !refillCount) return incoming;
+        const seen = new Set(prev.map((s) => phoneKey(s['Real Phone'] || s.phone)));
+        const merged = [...prev];
+        incoming.forEach((s) => {
+          const key = phoneKey(s['Real Phone'] || s.phone);
+          if (!key || seen.has(key)) return;
+          seen.add(key);
+          merged.push(s);
         });
-      })
-      .catch((err) => console.error('Assignment sync failed:', err));
-  }, [isLoggedIn, loading, suppliers, activeAgent]);
+        return merged;
+      });
+
+      if (!refillCount) {
+        setFeedCursor(data.nextCursor || null);
+        setFeedHasMore(Boolean(data.hasMore));
+      }
+      if (typeof data.totalMatching === 'number' && activeTab === 'לא נגעו בכלל') {
+        setServerTabCounts((prev) => ({
+          ...(prev || {}),
+          'לא נגעו בכלל': data.totalMatching,
+        }));
+      }
+      if (activeTab === 'לא נגעו בכלל' && incoming.length) {
+        scheduleClientAssign(activeAgent, incoming);
+      }
+    } catch (err) {
+      console.error('loadAgentFeed failed:', err);
+      setApiHealthWarning('לא הצלחנו לטעון את הפיד מהשרת. נסי לרענן.');
+    } finally {
+      if (requestId === feedRequestIdRef.current) {
+        setFeedLoading(false);
+        setFeedLoadingMore(false);
+      }
+    }
+  };
+
+  const refillUntouchedFeed = () => {
+    if (!activeAgent || activeTab !== 'לא נגעו בכלל' || isSearchMode) return;
+    loadAgentFeed({ refillCount: 1 });
+  };
+
+  useEffect(() => {
+    if (!isLoggedIn || !activeAgent || isSearchMode) return;
+    const key = `${activeAgent}|${activeTab}|${yinonWorkGroup}`;
+    if (lastFeedKeyRef.current === key && suppliersRef.current.length) return;
+    lastFeedKeyRef.current = key;
+    setSuppliers([]);
+    setFeedCursor(null);
+    setFeedHasMore(false);
+    // Initial tab load: one round-trip for stats + counts + feed.
+    loadAgentBootstrap();
+  }, [isLoggedIn, activeAgent, activeTab, yinonWorkGroup, isSearchMode]);
+
+  useEffect(() => {
+    // Disable full-catalog assignment sync — assignments happen on feed fetch.
+    if (!isLoggedIn || !activeAgent || VIEW_ALL_AGENTS.has(activeAgent)) return;
+    assignmentsSyncedRef.current = true;
+  }, [isLoggedIn, activeAgent]);
 
   // Persistent callback reminder checker running every 5 seconds
   useEffect(() => {
@@ -1058,46 +1189,42 @@ export default function SuppliersDashboard() {
       const now = Date.now();
       const newAlerts = [];
 
-      suppliers.forEach((s) => {
-        const phone = s["Real Phone"] || s["phone"];
-        const state = stateFor(phone);
+      Object.values(supplierStatesRef.current || {}).forEach((state) => {
         if (!state || Object.keys(state).length === 0) return;
+        const phone = state.phone || state.phoneKey;
+        if (!phone) return;
 
         // Condition for active, non-dismissed callback reminder
         if (state.callbackTimestamp && now >= state.callbackTimestamp && state.callbackDismissed !== true) {
           if (
-            supplierBelongsToAgent(s, activeAgent)
-            && agentHasWorkedSupplier(state, activeAgent)
+            agentHasWorkedSupplier(state, activeAgent)
             && (state.lastTouchedBy === activeAgent || state.firstTouchedBy === activeAgent)
           ) {
             newAlerts.push({
               id: phone,
-              supplierName: s["Supplier Name"],
-              phone: s["Real Phone"] || s["phone"],
-              phoneKey: phone,
+              supplierName: state.supplierName || phone,
+              phone,
+              phoneKey: phoneKey(phone) || phone,
               scheduledTime: state.callbackScheduled || 'הזמן שנבחר'
             });
 
             // Send email and browser push notification if not already sent
             if (!state.callbackEmailSent) {
-              // Immediately update DB to prevent multiple triggers
-              updateSupplierState(phone, { callbackEmailSent: true });
+              updateSupplierStateRef.current(phone, { callbackEmailSent: true });
 
-              // Send browser push notification
               if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(`תזכורת - ${s['Supplier Name']}`, {
-                  body: `הגיע הזמן לחזור לספק!\nטלפון: ${s['Real Phone']}`,
+                new Notification(`תזכורת - ${state.supplierName || phone}`, {
+                  body: `הגיע הזמן לחזור לספק!\nטלפון: ${phone}`,
                   requireInteraction: true
                 });
               }
 
-              // Send email alert via existing send-email API
               fetch('/api/send-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  supplierName: s['Supplier Name'],
-                  phone: s['Real Phone'],
+                  supplierName: state.supplierName || phone,
+                  phone,
                   agentName: activeAgent,
                   scheduledTime: state.callbackScheduled || 'הזמן שנבחר'
                 })
@@ -1397,6 +1524,9 @@ export default function SuppliersDashboard() {
       selectedImages: pushImages,
       agreementImage: uploadedImage,
       agreementImages: uploadedImage ? [uploadedImage] : [],
+      fitsAllEvents: false,
+      eventTypes: [],
+      eventPriceRows: {},
     });
     setShowFiestaPushModal(true);
   };
@@ -1416,8 +1546,31 @@ export default function SuppliersDashboard() {
     setFiestaPushResult(null);
     setFiestaPushError('');
     try {
-      const discountPercent = toPercent(fiestaPushForm.discountPercent);
+      const discountPercent = pushDiscountPercent;
       const commissionPercent = toPercent(fiestaPushForm.commissionPercent);
+      const fitsAllEvents = Boolean(fiestaPushForm.fitsAllEvents);
+      const eventTypes = normalizePushEventTypes({
+        fitsAllEvents,
+        eventTypes: fiestaPushForm.eventTypes,
+      });
+      const eventPrices = fitsAllEvents
+        ? []
+        : pushSelectedEvents
+            .map((et) => {
+              const row = fiestaPushForm.eventPriceRows?.[et] || emptyEventPriceRow();
+              const computed = priceProduct(row.originalPrice, row.discountPercent, commissionPercent);
+              return {
+                eventType: et,
+                originalPrice: String(computed.listPrice || toAmount(row.originalPrice)),
+                price: String(computed.clientPrice),
+                discount: String(toPercent(row.discountPercent)),
+                discountType: 'percent',
+              };
+            })
+            .filter((row) => toAmount(row.originalPrice) > 0);
+      const cheapestEvent = eventPrices
+        .slice()
+        .sort((a, b) => toAmount(a.price) - toAmount(b.price))[0];
       const gallery = await sanitizeImageList(
         fiestaPushForm.selectedImages || fiestaPushForm.images || []
       );
@@ -1490,13 +1643,21 @@ export default function SuppliersDashboard() {
             images: gallery,
             products,
             mainProductId: base?.id || '',
-            discount: discountForSite,
-            discountType: discountTypeForSite,
+            discount: cheapestEvent && !base
+              ? cheapestEvent.discount
+              : discountForSite,
+            discountType: cheapestEvent && !base ? 'percent' : discountTypeForSite,
             commissionPercent,
-            originalPrice: base?.originalPrice || '0',
-            price: base?.price || '0',
-            commissionAmount: base?.commissionAmount || 0,
+            originalPrice: base?.originalPrice || cheapestEvent?.originalPrice || '0',
+            price: base?.price || cheapestEvent?.price || '0',
+            commissionAmount: base?.commissionAmount || (cheapestEvent
+              ? priceProduct(cheapestEvent.originalPrice, cheapestEvent.discount, commissionPercent).commission
+              : 0),
             agentName: activeAgent,
+            eventTypes: eventTypes.length ? eventTypes : [ALL_EVENTS_LABEL],
+            eventTypesExplicit: true,
+            eventPrices,
+            fitsAllEvents,
             reviews: Array.isArray(fiestaPushForm.reviews)
               ? fiestaPushForm.reviews.slice(0, 30)
               : slimSupplierForPush(fiestaPushSupplier).reviews,
@@ -1617,12 +1778,13 @@ export default function SuppliersDashboard() {
   };
 
   const renderWizardHeader = (step, title) => {
-    const progress = (step / 6) * 100;
+    const total = 7;
+    const progress = (step / total) * 100;
     return (
       <div style={{ marginBottom: '24px', textAlign: 'center' }}>
         {/* Step dots */}
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
-          {[1, 2, 3, 4, 5, 6].map(s => (
+          {[1, 2, 3, 4, 5, 6, 7].map(s => (
             <div 
               key={s} 
               style={{
@@ -1741,6 +1903,32 @@ export default function SuppliersDashboard() {
     return Math.round((tomorrow - new Date()) / 60000);
   };
 
+  const enqueuePendingCallOutcome = (phone, supplierName) => {
+    const key = phoneKey(phone);
+    if (!key) return;
+    setPendingCallOutcomes((prev) => [
+      ...prev,
+      {
+        id: `${key}-${Date.now()}-${prev.length}`,
+        phoneKey: key,
+        phone,
+        name: supplierName || 'ספק',
+      },
+    ]);
+    setCallOutcomeCallbackMode(false);
+  };
+
+  const clearPendingCallOutcome = (phone) => {
+    const key = phoneKey(phone);
+    if (!key) return;
+    setPendingCallOutcomes((prev) => {
+      const idx = prev.findIndex((item) => item.phoneKey === key);
+      if (idx < 0) return prev;
+      return [...prev.slice(0, idx), ...prev.slice(idx + 1)];
+    });
+    setCallOutcomeCallbackMode(false);
+  };
+
   const updateSupplierState = (phone, newState, options = {}) => {
     const { localOnly = false } = options;
     const key = phoneKey(phone);
@@ -1766,6 +1954,10 @@ export default function SuppliersDashboard() {
           buildActivityEntry(activityAction.action, activeAgent, activityAction)
         );
       }
+    }
+
+    if (!localOnly && ('status' in newState || 'callbackScheduled' in newState)) {
+      clearPendingCallOutcome(key);
     }
 
     if (isTouchAction && !localOnly) {
@@ -1853,9 +2045,17 @@ export default function SuppliersDashboard() {
     updateSupplierState(phone, { notes });
   };
 
-  const recordOutboundCall = (phone) => {
+  const recordOutboundCall = (phone, supplierName) => {
     if (!phone || !activeAgent) return;
     updateSupplierState(phone, { outboundCallAt: Date.now() });
+    const key = phoneKey(phone);
+    const match = suppliers.find((s) => phoneKey(s['Real Phone'] || s.phone) === key);
+    const name =
+      supplierName ||
+      match?.['Supplier Name'] ||
+      match?.clean_name ||
+      'ספק';
+    enqueuePendingCallOutcome(phone, name);
   };
 
   const scheduleCallback = (phone, supplier, minutes) => {
@@ -1879,6 +2079,7 @@ export default function SuppliersDashboard() {
     }
     
     const applyCallback = () => {
+      const wasUntouchedTab = activeTab === 'לא נגעו בכלל';
       updateSupplierState(phone, {
         callbackScheduled: timeStr,
         callbackTimestamp: reminderTime.getTime(),
@@ -1887,6 +2088,10 @@ export default function SuppliersDashboard() {
         agent: activeAgent,
       });
       setActiveCallbackPicker(null);
+      if (wasUntouchedTab) {
+        setTimeout(() => refillUntouchedFeed(), 400);
+        fetchServerStats(activeAgent);
+      }
     };
 
     triggerSupplierMove(phone, 'callback', `${phone}-callback`, applyCallback);
@@ -1966,6 +2171,14 @@ export default function SuppliersDashboard() {
     clearSession();
     setIsLoggedIn(false);
     setPassword('');
+    setSuppliers([]);
+    setFeedCursor(null);
+    setFeedHasMore(false);
+    setServerTabCounts(null);
+    setServerFeedStats(null);
+    setServerAgentStats(null);
+    lastFeedKeyRef.current = '';
+    feedRequestIdRef.current += 1;
   };
 
   const updateSupplierCategory = (index, newCategory) => {
@@ -2136,6 +2349,7 @@ export default function SuppliersDashboard() {
     }
 
     const key = phoneKey(phone);
+    clearPendingCallOutcome(key);
     setSupplierStates((prev) => {
       const merged = { ...(prev[key] || {}), ...resetState, phone: key };
       saveSupplierStateLocal(key, merged);
@@ -2171,10 +2385,15 @@ export default function SuppliersDashboard() {
             : null;
 
     const apply = () => {
+      const wasUntouchedTab = activeTab === 'לא נגעו בכלל';
       if (isReset) {
         resetSupplierToUntouched(phone);
       } else {
         updateSupplierState(phone, { status, reminder: null, agent: activeAgent });
+      }
+      if (wasUntouchedTab && !isReset) {
+        setTimeout(() => refillUntouchedFeed(), 400);
+        fetchServerStats(activeAgent);
       }
     };
 
@@ -2189,6 +2408,7 @@ export default function SuppliersDashboard() {
       if (profilePhone === phone) setSelectedSupplierProfile(null);
     }
     triggerSupplierMove(phone, 'irrelevant', `${phone}-irrelevant`, () => {
+      const wasUntouchedTab = activeTab === 'לא נגעו בכלל';
       updateSupplierState(phone, {
         status: 'irrelevant',
         reminder: null,
@@ -2196,6 +2416,10 @@ export default function SuppliersDashboard() {
         callbackTimestamp: null,
         agent: activeAgent,
       });
+      if (wasUntouchedTab) {
+        setTimeout(() => refillUntouchedFeed(), 400);
+        fetchServerStats(activeAgent);
+      }
     });
   };
 
@@ -2325,6 +2549,29 @@ export default function SuppliersDashboard() {
           </p>
         </div>
       ))}
+      <div
+        className="stat-cell"
+        style={{
+          gridColumn: '1 / -1',
+          textAlign: 'center',
+          padding: '10px 6px',
+          background: (pipeline.noStatus || 0) > 0 ? 'rgba(245, 158, 11, 0.12)' : undefined,
+          border: (pipeline.noStatus || 0) > 0 ? '1px solid rgba(245, 158, 11, 0.35)' : undefined,
+          borderRadius: '10px',
+        }}
+      >
+        <p style={{
+          fontSize: '1.25rem',
+          fontWeight: '800',
+          color: (pipeline.noStatus || 0) > 0 ? '#d97706' : '#94a3b8',
+          margin: 0,
+        }}>
+          {pipeline.noStatus || 0}
+        </p>
+        <p style={{ fontSize: '0.68rem', fontWeight: '700', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+          ללא סטטוס
+        </p>
+      </div>
     </div>
   );
 
@@ -2481,8 +2728,12 @@ export default function SuppliersDashboard() {
     const dayRange = israelDayRange();
     const weekRange = israelWeekRange();
 
-    const callsToday = countAgentCallsBetween(supplierStates, activeAgent, dayRange.start, dayRange.end);
-    const callsThisWeek = countAgentCallsBetween(supplierStates, activeAgent, weekRange.start, weekRange.end);
+    const callsToday =
+      serverAgentStats?.[activeAgent]?.calls?.today ??
+      countAgentCallsBetween(supplierStates, activeAgent, dayRange.start, dayRange.end);
+    const callsThisWeek =
+      serverAgentStats?.[activeAgent]?.calls?.week ??
+      countAgentCallsBetween(supplierStates, activeAgent, weekRange.start, weekRange.end);
 
     const dailyRemaining = Math.max(0, dailyTarget - callsToday);
     const dailyProgress = Math.min(100, (callsToday / dailyTarget) * 100);
@@ -2523,8 +2774,12 @@ export default function SuppliersDashboard() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
           {['הודיה', 'טל'].map((agent) => {
-            const callsTodayCount = countAgentCallsBetween(supplierStates, agent, dayRange.start, dayRange.end);
-            const pipeline = getAgentPipelineStats(agent, dayRange.start, dayRange.end);
+            const callsTodayCount =
+              serverAgentStats?.[agent]?.calls?.today ??
+              countAgentCallsBetween(supplierStates, agent, dayRange.start, dayRange.end);
+            const pipeline =
+              serverAgentStats?.[agent]?.pipeline?.today ??
+              getAgentPipelineStats(agent, dayRange.start, dayRange.end);
             return (
               <div key={agent} style={{
                 padding: '14px',
@@ -2586,30 +2841,25 @@ export default function SuppliersDashboard() {
   };
 
   const getTabCounts = () => {
-    const counts = {
+    if (serverTabCounts) {
+      return {
+        'לא נגעו בכלל': 0,
+        'לחזור אליהם': 0,
+        'לא ענו': 0,
+        'עדיין לא חתם': 0,
+        סירבו: 0,
+        טופלו: 0,
+        ...serverTabCounts,
+      };
+    }
+    return {
       'לא נגעו בכלל': 0,
       'לחזור אליהם': 0,
       'לא ענו': 0,
       'עדיין לא חתם': 0,
-      'סירבו': 0,
-      'טופלו': 0,
+      סירבו: 0,
+      טופלו: 0,
     };
-
-    suppliers.forEach((supplier) => {
-      if (!supplierBelongsToAgent(supplier, activeAgent)) return;
-      if (!supplierInYinonView(supplier)) return;
-
-      const name = (supplier['Supplier Name'] || supplier.clean_name || '').trim();
-      const phone = supplier['Real Phone'] || supplier.phone || '';
-      if (!name || name === 'ספק ללא שם' || !phone || phone === 'FAILED' || phone === 'N/A') return;
-
-      if (isSupplierIrrelevant(phone)) return;
-
-      const tab = getSupplierTab(phone);
-      if (tab && counts[tab] !== undefined) counts[tab] += 1;
-    });
-
-    return counts;
   };
 
   const filteredSuppliers = feedSuppliers;
@@ -2618,13 +2868,8 @@ export default function SuppliersDashboard() {
   const displayList = buildDisplayList(filteredSuppliers, activeAgent, isSearchMode ? effectiveSearchQuery : '');
   const tabCounts = getTabCounts();
   const yinonGroupCounts = YINON_WORK_GROUPS.reduce((result, group) => {
-    result[group.id] = suppliers.filter((supplier) => {
-      if (getYinonWorkGroup(supplier) !== group.id) return false;
-      const name = (supplier['Supplier Name'] || supplier.clean_name || '').trim();
-      const phone = supplier['Real Phone'] || supplier.phone || '';
-      if (!name || name === 'ספק ללא שם' || !phone || phone === 'FAILED' || phone === 'N/A') return false;
-      return !isSupplierIrrelevant(phone);
-    }).length;
+    result[group.id] =
+      group.id === yinonWorkGroup && serverFeedStats ? serverFeedStats.total : null;
     return result;
   }, {});
 
@@ -2867,6 +3112,151 @@ export default function SuppliersDashboard() {
         )}
       </AnimatePresence>
 
+      {/* חובת בחירת תוצאה אחרי שיחה */}
+      <AnimatePresence>
+        {pendingCallOutcomes[0] && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(15, 23, 42, 0.85)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 12000,
+              padding: '20px',
+              direction: 'rtl',
+            }}
+          >
+            <motion.div
+              key={pendingCallOutcomes[0].id || pendingCallOutcomes[0].phoneKey}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass-card"
+              style={{ maxWidth: '440px', width: '100%', padding: '28px', textAlign: 'center' }}
+            >
+              <p style={{
+                margin: '0 0 6px',
+                fontSize: '0.75rem',
+                fontWeight: '800',
+                color: '#d97706',
+                letterSpacing: '0.02em',
+              }}>
+                חובה לבחור תוצאה
+              </p>
+              <h2 style={{ fontSize: '1.35rem', fontWeight: '800', margin: '0 0 8px', color: 'var(--primary)' }}>
+                מה יצא בשיחה?
+              </h2>
+              <p style={{ fontSize: '1rem', fontWeight: '700', margin: '0 0 6px', color: 'var(--text)' }}>
+                {pendingCallOutcomes[0].name}
+              </p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 20px' }}>
+                {pendingCallOutcomes[0].phone}
+                {pendingCallOutcomes.length > 1
+                  ? ` · עוד ${pendingCallOutcomes.length - 1} ממתינים לסטטוס`
+                  : ''}
+              </p>
+
+              {!callOutcomeCallbackMode ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <button
+                    type="button"
+                    className="status-btn warning"
+                    style={{ padding: '14px 10px', fontSize: '0.9rem' }}
+                    onClick={() => setStatus(pendingCallOutcomes[0].phone, 'not-available')}
+                  >
+                    לא ענו
+                  </button>
+                  <button
+                    type="button"
+                    className="status-btn danger"
+                    style={{ padding: '14px 10px', fontSize: '0.9rem' }}
+                    onClick={() => setStatus(pendingCallOutcomes[0].phone, 'not-interested')}
+                  >
+                    לא מעוניין
+                  </button>
+                  <button
+                    type="button"
+                    className="status-btn info"
+                    style={{ padding: '14px 10px', fontSize: '0.9rem' }}
+                    onClick={() => setStatus(pendingCallOutcomes[0].phone, 'not-signed')}
+                  >
+                    עדיין לא חתם
+                  </button>
+                  <button
+                    type="button"
+                    className="status-btn callback"
+                    style={{ padding: '14px 10px', fontSize: '0.9rem' }}
+                    onClick={() => setCallOutcomeCallbackMode(true)}
+                  >
+                    לחזור מאוחר יותר
+                  </button>
+                </div>
+              ) : (
+                <div style={{
+                  background: '#f0f9ff',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  border: '1px solid #bae6fd',
+                  textAlign: 'right',
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setCallOutcomeCallbackMode(false)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#0369a1',
+                      fontWeight: '700',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      marginBottom: '10px',
+                      padding: 0,
+                    }}
+                  >
+                    ← חזרה
+                  </button>
+                  <p style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1', marginBottom: '10px' }}>
+                    בחר שעה לחזרה לספק:
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                    {[
+                      { label: 'עוד 30 דק׳', minutes: 30 },
+                      { label: 'עוד שעה', minutes: 60 },
+                      { label: 'עוד 2 שעות', minutes: 120 },
+                      { label: 'מחר 9:00', minutes: minutesUntilTomorrow() },
+                    ].map((opt) => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => scheduleCallback(pendingCallOutcomes[0].phone, null, opt.minutes)}
+                        style={{
+                          padding: '10px 6px',
+                          borderRadius: '8px',
+                          border: '1px solid #bae6fd',
+                          background: 'white',
+                          color: '#0369a1',
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Reminder Success Toast */}
       <AnimatePresence>
         {showReminderSuccess && (
@@ -2984,8 +3374,12 @@ export default function SuppliersDashboard() {
                     </p>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
                       {['הודיה', 'טל'].map((agent) => {
-                        const calls = countAgentCallsBetween(supplierStates, agent, weekly.start, weekly.end);
-                        const pipeline = getAgentPipelineStats(agent, weekly.start, weekly.end);
+                        const calls =
+                          serverAgentStats?.[agent]?.calls?.week ??
+                          countAgentCallsBetween(supplierStates, agent, weekly.start, weekly.end);
+                        const pipeline =
+                          serverAgentStats?.[agent]?.pipeline?.week ??
+                          getAgentPipelineStats(agent, weekly.start, weekly.end);
                         return (
                           <div key={agent} style={{
                             padding: '14px',
@@ -3111,7 +3505,7 @@ export default function SuppliersDashboard() {
               <div style={{ display: 'flex', gap: '8px' }}>
                 <a 
                   href={`tel:${alert.phone}`}
-                  onClick={() => recordOutboundCall(alert.phone)}
+                  onClick={() => recordOutboundCall(alert.phone, alert.supplierName)}
                   className="btn-primary" 
                   style={{ 
                     flex: 1, 
@@ -3168,7 +3562,9 @@ export default function SuppliersDashboard() {
               className={`work-group-btn${yinonWorkGroup === group.id ? ' active' : ''}`}
             >
               {group.label}
-              <span className="tab-count">{yinonGroupCounts[group.id] || 0}</span>
+              {yinonGroupCounts[group.id] != null ? (
+                <span className="tab-count">{yinonGroupCounts[group.id]}</span>
+              ) : null}
             </button>
           ))}
         </div>
@@ -3289,6 +3685,14 @@ export default function SuppliersDashboard() {
                 color: 'var(--text-muted)',
               }}>
                 מחפש...
+              </div>
+            ) : feedLoading ? (
+              <div style={{
+                gridColumn: '1 / -1',
+                padding: '60px 20px',
+                textAlign: 'center',
+              }}>
+                <LoadingSpinner size={40} label="טוען ספקים..." />
               </div>
             ) : displaySuppliers.length === 0 ? (
               <div style={{ 
@@ -3777,7 +4181,10 @@ export default function SuppliersDashboard() {
                         <a
                           href={`tel:${s["Real Phone"]}`}
                           className="btn-call"
-                          onClick={() => recordOutboundCall(s["Real Phone"] || s["phone"])}
+                          onClick={() => recordOutboundCall(
+                            s["Real Phone"] || s["phone"],
+                            s["Supplier Name"] || s.clean_name
+                          )}
                         >
                           <Phone size={18} />
                           <span>התקשר עכשיו</span>
@@ -3788,6 +4195,27 @@ export default function SuppliersDashboard() {
                 );
               })
             )}
+            {!isSearchMode && (feedHasMore || feedLoadingMore) ? (
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '12px 0 24px' }}>
+                <button
+                  type="button"
+                  onClick={() => loadAgentFeed({ append: true })}
+                  disabled={feedLoadingMore || !feedHasMore}
+                  style={{
+                    padding: '12px 28px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--card-bg)',
+                    color: 'var(--primary)',
+                    fontWeight: 800,
+                    cursor: feedLoadingMore ? 'wait' : 'pointer',
+                    fontSize: '0.95rem',
+                  }}
+                >
+                  {feedLoadingMore ? 'טוען...' : 'טען עוד'}
+                </button>
+              </div>
+            ) : null}
           </div>
         </>
       )}
@@ -4298,27 +4726,149 @@ export default function SuppliersDashboard() {
                   </div>
                 </>
               ) : fiestaPushStep === 3 ? (
-                // ── Step 3: Pricing & Discounts ────────────────────────────
                 <>
-                  {renderWizardHeader(3, "תמחור ועמלות")}
+                  {renderWizardHeader(3, "לאילו אירועים?")}
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px', textAlign: 'center' }}>
+                    <strong>{fiestaPushSupplier['Supplier Name']}</strong>
+                  </p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '14px', textAlign: 'center' }}>
+                    אם הספק מתאים לכל האירועים — מחיר אחד. אחרת תזינו מחיר והנחה לכל סוג.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={setFitsAllEvents}
+                    style={{
+                      width: '100%',
+                      padding: '14px 12px',
+                      borderRadius: '12px',
+                      border: fiestaPushForm.fitsAllEvents ? '2px solid var(--accent)' : '1.5px solid var(--border)',
+                      background: fiestaPushForm.fitsAllEvents ? 'var(--accent-soft)' : 'white',
+                      fontWeight: 800,
+                      fontSize: '0.95rem',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      marginBottom: '14px',
+                    }}
+                  >
+                    {fiestaPushForm.fitsAllEvents ? '✓ ' : ''}כל האירועים — מחיר אחד לכולם
+                  </button>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '16px' }}>
+                    {FIESTA_EVENT_TYPES.map((et) => {
+                      const selected = pushSelectedEvents.includes(et);
+                      return (
+                        <button
+                          key={et}
+                          type="button"
+                          onClick={() => togglePushEventType(et)}
+                          style={{
+                            padding: '12px 8px',
+                            borderRadius: '12px',
+                            border: selected ? '2px solid var(--accent)' : '1.5px solid var(--border)',
+                            background: selected ? 'var(--accent-soft)' : 'white',
+                            cursor: 'pointer',
+                            fontWeight: 700,
+                            fontSize: '0.85rem',
+                            fontFamily: 'inherit',
+                          }}
+                        >
+                          {selected ? '✓ ' : ''}{et}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {fiestaPushError && fiestaPushStep === 3 ? (
+                    <p style={{ color: '#dc2626', fontSize: '0.8rem', fontWeight: 700, marginBottom: '10px' }}>{fiestaPushError}</p>
+                  ) : null}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={() => {
+                        if (!fiestaPushForm.fitsAllEvents && !pushSelectedEvents.length) {
+                          setFiestaPushError('בחרו «כל האירועים» או לפחות סוג אחד');
+                          return;
+                        }
+                        setFiestaPushError('');
+                        setFiestaPushStep(4);
+                      }}
+                      className="btn-primary"
+                      style={{ flex: 2, padding: '12px' }}
+                    >
+                      המשך
+                    </button>
+                    <button
+                      onClick={() => setFiestaPushStep(2)}
+                      style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white', fontFamily: 'inherit' }}
+                    >
+                      חזור
+                    </button>
+                  </div>
+                </>
+              ) : fiestaPushStep === 4 ? (
+                // ── Step 4: Pricing & Discounts ────────────────────────────
+                <>
+                  {renderWizardHeader(4, "תמחור ועמלות")}
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '18px', textAlign: 'center' }}>
                     <strong>{fiestaPushSupplier['Supplier Name']}</strong>
                   </p>
 
                   <div style={{ textAlign: 'right', display: 'grid', gap: '14px', marginBottom: '24px' }}>
-                    {/* The two rates that drive every number below */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#166534' }}>הנחה ללקוח (%)</label>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          value={fiestaPushForm.discountPercent}
-                          onChange={e => setFiestaPushForm(f => ({ ...f, discountPercent: e.target.value }))}
-                          style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem', fontWeight: '800' }}
-                          placeholder="למשל 20"
-                        />
+                    {!fiestaPushForm.fitsAllEvents && (
+                      <div style={{ display: 'grid', gap: '10px' }}>
+                        <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#166534' }}>
+                          מחירון והנחה לכל סוג אירוע
+                        </label>
+                        {pushSelectedEvents.map((et) => {
+                          const row = fiestaPushForm.eventPriceRows?.[et] || emptyEventPriceRow();
+                          const computed = priceProduct(row.originalPrice, row.discountPercent, pushCommissionPercent);
+                          return (
+                            <div key={et} style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '10px', background: 'white' }}>
+                              <strong style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem' }}>{et}</strong>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  value={row.originalPrice}
+                                  onChange={(e) => updateEventPriceRow(et, { originalPrice: e.target.value })}
+                                  style={{ padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.88rem', fontFamily: 'inherit' }}
+                                  placeholder="מחירון ₪"
+                                />
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  value={row.discountPercent}
+                                  onChange={(e) => updateEventPriceRow(et, { discountPercent: e.target.value })}
+                                  style={{ padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.88rem', fontFamily: 'inherit' }}
+                                  placeholder="הנחה %"
+                                />
+                              </div>
+                              {computed.listPrice > 0 && (
+                                <div style={{ marginTop: '8px', background: '#f0fdf4', borderRadius: '6px', padding: '6px 9px', fontSize: '0.78rem', fontWeight: '700', color: '#166534' }}>
+                                  ללקוח {ilsShort(computed.clientPrice)} · חוסך {ilsShort(computed.savings)} · עמלה {ilsShort(computed.commission)}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {fiestaPushError && fiestaPushStep === 4 ? (
+                          <p style={{ color: '#dc2626', fontSize: '0.8rem', fontWeight: 700, margin: 0 }}>{fiestaPushError}</p>
+                        ) : null}
                       </div>
+                    )}
+
+                    {/* The two rates that drive every number below */}
+                    <div style={{ display: 'grid', gridTemplateColumns: fiestaPushForm.fitsAllEvents ? '1fr 1fr' : '1fr', gap: '10px' }}>
+                      {fiestaPushForm.fitsAllEvents && (
+                        <div>
+                          <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#166534' }}>הנחה ללקוח (%)</label>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={fiestaPushForm.discountPercent}
+                            onChange={e => setFiestaPushForm(f => ({ ...f, discountPercent: e.target.value }))}
+                            style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem', fontWeight: '800' }}
+                            placeholder="למשל 20"
+                          />
+                        </div>
+                      )}
                       <div>
                         <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#666' }}>עמלת Fiesta (%)</label>
                         <input
@@ -4332,6 +4882,7 @@ export default function SuppliersDashboard() {
                       </div>
                     </div>
 
+                    {fiestaPushForm.fitsAllEvents && (
                     <div>
                       <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '6px', color: '#555' }}>
                         איך ההנחה תוצג באתר?
@@ -4378,6 +4929,7 @@ export default function SuppliersDashboard() {
                         החישוב תמיד לפי האחוז למעלה. הבחירה כאן רק לתגית באתר.
                       </div>
                     </div>
+                    )}
 
                     {pushLowMargin && (
                       <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '9px 12px', fontSize: '0.8rem', fontWeight: '700', color: '#991b1b' }}>
@@ -4497,24 +5049,37 @@ export default function SuppliersDashboard() {
 
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button
-                      onClick={() => setFiestaPushStep(4)}
+                      onClick={() => {
+                        if (!fiestaPushForm.fitsAllEvents) {
+                          const missing = pushSelectedEvents.filter((et) => {
+                            const row = fiestaPushForm.eventPriceRows?.[et];
+                            return !toAmount(row?.originalPrice);
+                          });
+                          if (missing.length) {
+                            setFiestaPushError(`חסר מחירון עבור: ${missing.join(', ')}`);
+                            return;
+                          }
+                        }
+                        setFiestaPushError('');
+                        setFiestaPushStep(5);
+                      }}
                       className="btn-primary"
                       style={{ flex: 2, padding: '12px' }}
                     >
                       המשך
                     </button>
                     <button
-                      onClick={() => setFiestaPushStep(2)}
+                      onClick={() => setFiestaPushStep(3)}
                       style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white', fontFamily: 'inherit' }}
                     >
                       חזור
                     </button>
                   </div>
                 </>
-              ) : fiestaPushStep === 4 ? (
-                // ── Step 4: Contract Upload & Status ────────────────────────────
+              ) : fiestaPushStep === 5 ? (
+                // ── Step 5: Contract Upload & Status ────────────────────────────
                 <>
-                  {renderWizardHeader(4, "העלאת חוזה או צילום שיחה")}
+                  {renderWizardHeader(5, "העלאת חוזה או צילום שיחה")}
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '18px', textAlign: 'center' }}>
                     <strong>{fiestaPushSupplier['Supplier Name']}</strong>
                   </p>
@@ -4607,7 +5172,7 @@ export default function SuppliersDashboard() {
                                 : fresh,
                           }));
                         }
-                        setFiestaPushStep(5);
+                        setFiestaPushStep(6);
                       }}
                       className="btn-primary"
                       style={{ flex: 2, padding: '12px' }}
@@ -4615,17 +5180,17 @@ export default function SuppliersDashboard() {
                       המשך
                     </button>
                     <button
-                      onClick={() => setFiestaPushStep(3)}
+                      onClick={() => setFiestaPushStep(4)}
                       style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white', fontFamily: 'inherit' }}
                     >
                       חזור
                     </button>
                   </div>
                 </>
-              ) : fiestaPushStep === 5 ? (
-                // ── Step 5: Portfolio Gallery Selection ────────────────────────────
+              ) : fiestaPushStep === 6 ? (
+                // ── Step 6: Portfolio Gallery Selection ────────────────────────────
                 <>
-                  {renderWizardHeader(5, "בחירת תמונות גלריה")}
+                  {renderWizardHeader(6, "בחירת תמונות גלריה")}
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '18px', textAlign: 'center' }}>
                     <strong>{fiestaPushSupplier['Supplier Name']}</strong>
                   </p>
@@ -4878,7 +5443,7 @@ export default function SuppliersDashboard() {
                             f.selectedImages || []
                           ),
                         }));
-                        setFiestaPushStep(6);
+                        setFiestaPushStep(7);
                       }}
                       className="btn-primary"
                       style={{ flex: 2, padding: '12px' }}
@@ -4886,7 +5451,7 @@ export default function SuppliersDashboard() {
                       המשך
                     </button>
                     <button
-                      onClick={() => setFiestaPushStep(4)}
+                      onClick={() => setFiestaPushStep(5)}
                       style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white', fontFamily: 'inherit' }}
                     >
                       חזור
@@ -4896,7 +5461,7 @@ export default function SuppliersDashboard() {
               ) : (
                 // ── Step 6: Confirmation & Submit ────────────────────────────
                 <>
-                  {renderWizardHeader(6, "אישור ושליחה")}
+                  {renderWizardHeader(7, "אישור ושליחה")}
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '18px', textAlign: 'center' }}>
                     <strong>{fiestaPushSupplier['Supplier Name']}</strong>
                   </p>
@@ -4915,6 +5480,30 @@ export default function SuppliersDashboard() {
                   }}>
                     <div><strong>ספק:</strong> {fiestaPushSupplier['Supplier Name']}</div>
                     <div><strong>קטגוריות פייסטה:</strong> {pushSelectedTypes.map((t) => FIESTA_CATEGORIES.find(c => c.value === t)?.label || t).join(' · ') || '—'}</div>
+                    <div>
+                      <strong>אירועים:</strong>{' '}
+                      {fiestaPushForm.fitsAllEvents
+                        ? ALL_EVENTS_LABEL
+                        : (pushSelectedEvents.join(' · ') || '—')}
+                    </div>
+                    {!fiestaPushForm.fitsAllEvents && pushSelectedEvents.length > 0 && (
+                      <div style={{ display: 'grid', gap: '4px' }}>
+                        {pushSelectedEvents.map((et) => {
+                          const row = fiestaPushForm.eventPriceRows?.[et] || emptyEventPriceRow();
+                          const computed = priceProduct(row.originalPrice, row.discountPercent, pushCommissionPercent);
+                          return (
+                            <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+                              <span>{et}</span>
+                              <span style={{ fontWeight: 700 }}>
+                                {computed.listPrice
+                                  ? `${ilsShort(computed.listPrice)} ← ${ilsShort(computed.clientPrice)} (${toPercent(row.discountPercent)}%)`
+                                  : 'חסר מחירון'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                     <div><strong>אזורים:</strong> {pushSelectedRegions.join(' · ') || 'לא צוין'}</div>
                     <div><strong>תיאור:</strong> {(fiestaPushForm.description || '').slice(0, 120) || 'אין'}{(fiestaPushForm.description || '').length > 120 ? '…' : ''}</div>
                     <div>
@@ -4968,7 +5557,7 @@ export default function SuppliersDashboard() {
                       {fiestaPushLoading ? 'שולח לפייסטה...' : 'שלח לפייסטה'}
                     </button>
                     <button
-                      onClick={() => setFiestaPushStep(5)}
+                      onClick={() => setFiestaPushStep(6)}
                       disabled={fiestaPushLoading}
                       style={{ flex: 1, padding: '14px', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: '700', background: 'white', fontFamily: 'inherit' }}
                     >
