@@ -68,6 +68,7 @@ import {
   ALL_EVENTS_LABEL,
   FIESTA_EVENT_TYPES,
   emptyEventPriceRow,
+  needsPriceDifferenceChoice,
   normalizePushEventTypes,
 } from '../lib/fiestaEventTypes';
 import './globals.css';
@@ -430,6 +431,7 @@ export default function SuppliersDashboard() {
     agreementImages: [],
     agreementImage: '',
     fitsAllEvents: false,
+    samePriceForEvents: true,
     eventTypes: [],
     eventPriceRows: {},
   });
@@ -470,9 +472,13 @@ export default function SuppliersDashboard() {
   const pushSelectedEvents = fiestaPushForm.fitsAllEvents
     ? []
     : FIESTA_EVENT_TYPES.filter((et) => (fiestaPushForm.eventTypes || []).includes(et));
-  const firstEventDiscount = pushSelectedEvents.length
-    ? (fiestaPushForm.eventPriceRows?.[pushSelectedEvents[0]]?.discountPercent || '')
-    : '';
+  const needsPriceDiffChoice = needsPriceDifferenceChoice({
+    fitsAllEvents: fiestaPushForm.fitsAllEvents,
+    eventTypes: pushSelectedEvents,
+  });
+  const usePerEventPricing = needsPriceDiffChoice && !fiestaPushForm.samePriceForEvents;
+  const pricedEventTypes = fiestaPushForm.fitsAllEvents ? FIESTA_EVENT_TYPES : pushSelectedEvents;
+  const firstPricedRow = fiestaPushForm.eventPriceRows?.[pricedEventTypes[0]] || emptyEventPriceRow();
 
   const togglePushEventType = (et) => {
     setFiestaPushForm((f) => {
@@ -489,6 +495,21 @@ export default function SuppliersDashboard() {
     setFiestaPushForm((f) => ({ ...f, fitsAllEvents: true, eventTypes: [] }));
   };
 
+  const setSamePriceForEvents = (same) => {
+    setFiestaPushForm((f) => {
+      const types = f.fitsAllEvents
+        ? FIESTA_EVENT_TYPES
+        : FIESTA_EVENT_TYPES.filter((et) => (f.eventTypes || []).includes(et));
+      const rows = { ...(f.eventPriceRows || {}) };
+      if (!same) {
+        types.forEach((et) => {
+          if (!rows[et]) rows[et] = emptyEventPriceRow();
+        });
+      }
+      return { ...f, samePriceForEvents: same, eventPriceRows: rows };
+    });
+  };
+
   const updateEventPriceRow = (et, patch) => {
     setFiestaPushForm((f) => ({
       ...f,
@@ -499,11 +520,16 @@ export default function SuppliersDashboard() {
     }));
   };
 
-  // Everything the agent sees in pricing is derived from the two rates above.
+  // Same-price path uses the two global rates. Per-event path uses each row;
+  // products still need a single pair, so they follow the first event type.
   const pushDiscountPercent = toPercent(
-    fiestaPushForm.fitsAllEvents ? fiestaPushForm.discountPercent : (firstEventDiscount || fiestaPushForm.discountPercent)
+    usePerEventPricing ? firstPricedRow.discountPercent : fiestaPushForm.discountPercent
   );
-  const pushCommissionPercent = toPercent(fiestaPushForm.commissionPercent);
+  const pushCommissionPercent = toPercent(
+    usePerEventPricing
+      ? (firstPricedRow.commissionPercent || fiestaPushForm.commissionPercent)
+      : fiestaPushForm.commissionPercent
+  );
   const pushPricedProducts = buildPricedProducts(
     fiestaPushForm.products,
     pushDiscountPercent,
@@ -561,7 +587,7 @@ export default function SuppliersDashboard() {
   const agentCategoryMap = {
     'ינון': ['מאפרות', 'איפור', 'שיער', 'שמלות כלה', 'makeup', 'hair', 'dresses'],
     'הודיה': ['צלמים', 'צילום', 'צלם', 'וידאו', 'סושיאל', 'photographer'],
-    'טל': ['מוזיקה', "די ג'יי", 'DJ', "דיג'יי", 'דיגיי', 'תקליטן', 'dj'],
+    'טל': ['צלמים', 'צילום', 'צלם', 'וידאו', 'סושיאל', 'photographer'],
     'נתנאל': [],
   };
   const supplierIndexByPhone = useMemo(() => {
@@ -641,9 +667,11 @@ export default function SuppliersDashboard() {
 
   const supplierBelongsToAgent = (supplier, agent) => {
     if (VIEW_ALL_AGENTS.has(agent)) return true;
+    const phone = supplier['Real Phone'] || supplier.phone;
+    const owner = stateFor(phone).photoOwner || '';
     if (agent === 'ינון') return getYinonWorkGroup(supplier) != null;
-    if (agent === 'הודיה') return isPhotographerSupplier(supplier);
-    if (agent === 'טל') return isDjSupplier(supplier);
+    if (agent === 'הודיה') return isPhotographerSupplier(supplier) && owner !== 'טל';
+    if (agent === 'טל') return isPhotographerSupplier(supplier) && owner === 'טל';
     const allowedCategories = agentCategoryMap[agent] || [];
     if (supplier.Category === 'ספקים ללא קטגוריה' || !supplier.Category) return true;
     return allowedCategories.some((cat) => String(supplier.Category).includes(cat));
@@ -673,6 +701,7 @@ export default function SuppliersDashboard() {
     if (isSearchMode) {
       return (searchResults ?? [])
         .filter(isValidSupplierRow)
+        .filter((supplier) => supplierBelongsToAgent(supplier, activeAgent))
         .filter(supplierInYinonView)
         .filter((supplier) => !isSupplierIrrelevant(supplier['Real Phone'] || supplier.phone))
         .sort((a, b) => {
@@ -951,7 +980,7 @@ export default function SuppliersDashboard() {
     const controller = new AbortController();
     setSearchLoading(true);
 
-    fetch(`/api/suppliers?lite=1&search=${encodeURIComponent(effectiveSearchQuery)}&limit=40`, {
+    fetch(`/api/suppliers?lite=1&search=${encodeURIComponent(effectiveSearchQuery)}&limit=40&agent=${encodeURIComponent(activeAgent || '')}`, {
       cache: 'no-store',
       signal: controller.signal,
     })
@@ -975,7 +1004,7 @@ export default function SuppliersDashboard() {
       });
 
     return () => controller.abort();
-  }, [isSearchMode, effectiveSearchQuery, loading]);
+  }, [isSearchMode, effectiveSearchQuery, loading, activeAgent]);
 
   useEffect(() => {
     // Fast boot: local states only — suppliers come from paginated /api/feed after login.
@@ -1525,6 +1554,7 @@ export default function SuppliersDashboard() {
       agreementImage: uploadedImage,
       agreementImages: uploadedImage ? [uploadedImage] : [],
       fitsAllEvents: false,
+      samePriceForEvents: true,
       eventTypes: [],
       eventPriceRows: {},
     });
@@ -1547,30 +1577,35 @@ export default function SuppliersDashboard() {
     setFiestaPushError('');
     try {
       const discountPercent = pushDiscountPercent;
-      const commissionPercent = toPercent(fiestaPushForm.commissionPercent);
       const fitsAllEvents = Boolean(fiestaPushForm.fitsAllEvents);
       const eventTypes = normalizePushEventTypes({
         fitsAllEvents,
         eventTypes: fiestaPushForm.eventTypes,
       });
-      const eventPrices = fitsAllEvents
-        ? []
-        : pushSelectedEvents
+      const eventPrices = usePerEventPricing
+        ? pricedEventTypes
             .map((et) => {
               const row = fiestaPushForm.eventPriceRows?.[et] || emptyEventPriceRow();
-              const computed = priceProduct(row.originalPrice, row.discountPercent, commissionPercent);
+              const rowCommission = toPercent(row.commissionPercent || fiestaPushForm.commissionPercent);
+              const computed = priceProduct(row.originalPrice, row.discountPercent, rowCommission);
               return {
                 eventType: et,
                 originalPrice: String(computed.listPrice || toAmount(row.originalPrice)),
                 price: String(computed.clientPrice),
                 discount: String(toPercent(row.discountPercent)),
                 discountType: 'percent',
+                commissionPercent: rowCommission,
+                commissionAmount: computed.commission,
               };
             })
-            .filter((row) => toAmount(row.originalPrice) > 0);
+            .filter((row) => toAmount(row.originalPrice) > 0)
+        : [];
       const cheapestEvent = eventPrices
         .slice()
         .sort((a, b) => toAmount(a.price) - toAmount(b.price))[0];
+      const commissionPercent = cheapestEvent
+        ? toPercent(cheapestEvent.commissionPercent)
+        : toPercent(fiestaPushForm.commissionPercent);
       const gallery = await sanitizeImageList(
         fiestaPushForm.selectedImages || fiestaPushForm.images || []
       );
@@ -1650,9 +1685,7 @@ export default function SuppliersDashboard() {
             commissionPercent,
             originalPrice: base?.originalPrice || cheapestEvent?.originalPrice || '0',
             price: base?.price || cheapestEvent?.price || '0',
-            commissionAmount: base?.commissionAmount || (cheapestEvent
-              ? priceProduct(cheapestEvent.originalPrice, cheapestEvent.discount, commissionPercent).commission
-              : 0),
+            commissionAmount: base?.commissionAmount || cheapestEvent?.commissionAmount || 0,
             agentName: activeAgent,
             eventTypes: eventTypes.length ? eventTypes : [ALL_EVENTS_LABEL],
             eventTypesExplicit: true,
@@ -4732,7 +4765,7 @@ export default function SuppliersDashboard() {
                     <strong>{fiestaPushSupplier['Supplier Name']}</strong>
                   </p>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '14px', textAlign: 'center' }}>
-                    אם הספק מתאים לכל האירועים — מחיר אחד. אחרת תזינו מחיר והנחה לכל סוג.
+                    בחרו לאילו אירועים הספק מתאים. אחר כך אפשר לקבוע אם המחיר זהה או שונה.
                   </p>
                   <button
                     type="button"
@@ -4750,7 +4783,7 @@ export default function SuppliersDashboard() {
                       marginBottom: '14px',
                     }}
                   >
-                    {fiestaPushForm.fitsAllEvents ? '✓ ' : ''}כל האירועים — מחיר אחד לכולם
+                    {fiestaPushForm.fitsAllEvents ? '✓ ' : ''}כל האירועים
                   </button>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '16px' }}>
                     {FIESTA_EVENT_TYPES.map((et) => {
@@ -4776,6 +4809,47 @@ export default function SuppliersDashboard() {
                       );
                     })}
                   </div>
+                  {needsPriceDiffChoice && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '10px', textAlign: 'center', fontWeight: 700 }}>
+                        האם יש הבדל במחיר בין האירועים?
+                      </p>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSamePriceForEvents(true)}
+                          style={{
+                            padding: '12px 8px',
+                            borderRadius: '12px',
+                            border: fiestaPushForm.samePriceForEvents ? '2px solid var(--accent)' : '1.5px solid var(--border)',
+                            background: fiestaPushForm.samePriceForEvents ? 'var(--accent-soft)' : 'white',
+                            cursor: 'pointer',
+                            fontWeight: 800,
+                            fontSize: '0.82rem',
+                            fontFamily: 'inherit',
+                          }}
+                        >
+                          {fiestaPushForm.samePriceForEvents ? '✓ ' : ''}אותו מחיר לכולם
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSamePriceForEvents(false)}
+                          style={{
+                            padding: '12px 8px',
+                            borderRadius: '12px',
+                            border: !fiestaPushForm.samePriceForEvents ? '2px solid var(--accent)' : '1.5px solid var(--border)',
+                            background: !fiestaPushForm.samePriceForEvents ? 'var(--accent-soft)' : 'white',
+                            cursor: 'pointer',
+                            fontWeight: 800,
+                            fontSize: '0.82rem',
+                            fontFamily: 'inherit',
+                          }}
+                        >
+                          {!fiestaPushForm.samePriceForEvents ? '✓ ' : ''}מחיר שונה לכל סוג
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {fiestaPushError && fiestaPushStep === 3 ? (
                     <p style={{ color: '#dc2626', fontSize: '0.8rem', fontWeight: 700, marginBottom: '10px' }}>{fiestaPushError}</p>
                   ) : null}
@@ -4811,18 +4885,19 @@ export default function SuppliersDashboard() {
                   </p>
 
                   <div style={{ textAlign: 'right', display: 'grid', gap: '14px', marginBottom: '24px' }}>
-                    {!fiestaPushForm.fitsAllEvents && (
+                    {usePerEventPricing && (
                       <div style={{ display: 'grid', gap: '10px' }}>
                         <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#166534' }}>
-                          מחירון והנחה לכל סוג אירוע
+                          מחירון, הנחה ללקוח (%) ועמלת החברה (%) לכל סוג אירוע
                         </label>
-                        {pushSelectedEvents.map((et) => {
+                        {pricedEventTypes.map((et) => {
                           const row = fiestaPushForm.eventPriceRows?.[et] || emptyEventPriceRow();
-                          const computed = priceProduct(row.originalPrice, row.discountPercent, pushCommissionPercent);
+                          const rowCommission = toPercent(row.commissionPercent);
+                          const computed = priceProduct(row.originalPrice, row.discountPercent, rowCommission);
                           return (
                             <div key={et} style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '10px', background: 'white' }}>
                               <strong style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem' }}>{et}</strong>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                                 <input
                                   type="number"
                                   inputMode="numeric"
@@ -4837,12 +4912,22 @@ export default function SuppliersDashboard() {
                                   value={row.discountPercent}
                                   onChange={(e) => updateEventPriceRow(et, { discountPercent: e.target.value })}
                                   style={{ padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.88rem', fontFamily: 'inherit' }}
-                                  placeholder="הנחה %"
+                                  placeholder="הנחה ללקוח %"
+                                />
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  value={row.commissionPercent}
+                                  onChange={(e) => updateEventPriceRow(et, { commissionPercent: e.target.value })}
+                                  style={{ padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.88rem', fontFamily: 'inherit' }}
+                                  placeholder="עמלה לחברה %"
                                 />
                               </div>
                               {computed.listPrice > 0 && (
                                 <div style={{ marginTop: '8px', background: '#f0fdf4', borderRadius: '6px', padding: '6px 9px', fontSize: '0.78rem', fontWeight: '700', color: '#166534' }}>
-                                  ללקוח {ilsShort(computed.clientPrice)} · חוסך {ilsShort(computed.savings)} · עמלה {ilsShort(computed.commission)}
+                                  ללקוח {ilsShort(computed.clientPrice)}
+                                  {computed.savings > 0 ? ` · חוסך ${ilsShort(computed.savings)}` : ''}
+                                  {computed.commission > 0 ? ` · לחברה ${ilsShort(computed.commission)}` : ''}
                                 </div>
                               )}
                             </div>
@@ -4854,21 +4939,19 @@ export default function SuppliersDashboard() {
                       </div>
                     )}
 
-                    {/* The two rates that drive every number below */}
-                    <div style={{ display: 'grid', gridTemplateColumns: fiestaPushForm.fitsAllEvents ? '1fr 1fr' : '1fr', gap: '10px' }}>
-                      {fiestaPushForm.fitsAllEvents && (
-                        <div>
-                          <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#166534' }}>הנחה ללקוח (%)</label>
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            value={fiestaPushForm.discountPercent}
-                            onChange={e => setFiestaPushForm(f => ({ ...f, discountPercent: e.target.value }))}
-                            style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem', fontWeight: '800' }}
-                            placeholder="למשל 20"
-                          />
-                        </div>
-                      )}
+                    {!usePerEventPricing && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#166534' }}>הנחה ללקוח (%)</label>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={fiestaPushForm.discountPercent}
+                          onChange={e => setFiestaPushForm(f => ({ ...f, discountPercent: e.target.value }))}
+                          style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.9rem', fontWeight: '800' }}
+                          placeholder="למשל 20"
+                        />
+                      </div>
                       <div>
                         <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '4px', color: '#666' }}>עמלת Fiesta (%)</label>
                         <input
@@ -4881,8 +4964,9 @@ export default function SuppliersDashboard() {
                         />
                       </div>
                     </div>
+                    )}
 
-                    {fiestaPushForm.fitsAllEvents && (
+                    {!usePerEventPricing && (
                     <div>
                       <label style={{ fontSize: '0.75rem', fontWeight: '700', display: 'block', marginBottom: '6px', color: '#555' }}>
                         איך ההנחה תוצג באתר?
@@ -5050,8 +5134,8 @@ export default function SuppliersDashboard() {
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button
                       onClick={() => {
-                        if (!fiestaPushForm.fitsAllEvents) {
-                          const missing = pushSelectedEvents.filter((et) => {
+                        if (usePerEventPricing) {
+                          const missing = pricedEventTypes.filter((et) => {
                             const row = fiestaPushForm.eventPriceRows?.[et];
                             return !toAmount(row?.originalPrice);
                           });
@@ -5485,18 +5569,22 @@ export default function SuppliersDashboard() {
                       {fiestaPushForm.fitsAllEvents
                         ? ALL_EVENTS_LABEL
                         : (pushSelectedEvents.join(' · ') || '—')}
+                      {needsPriceDiffChoice
+                        ? (fiestaPushForm.samePriceForEvents ? ' · אותו מחיר' : ' · מחיר לפי סוג')
+                        : ''}
                     </div>
-                    {!fiestaPushForm.fitsAllEvents && pushSelectedEvents.length > 0 && (
+                    {usePerEventPricing && pricedEventTypes.length > 0 && (
                       <div style={{ display: 'grid', gap: '4px' }}>
-                        {pushSelectedEvents.map((et) => {
+                        {pricedEventTypes.map((et) => {
                           const row = fiestaPushForm.eventPriceRows?.[et] || emptyEventPriceRow();
-                          const computed = priceProduct(row.originalPrice, row.discountPercent, pushCommissionPercent);
+                          const rowCommission = toPercent(row.commissionPercent || fiestaPushForm.commissionPercent);
+                          const computed = priceProduct(row.originalPrice, row.discountPercent, rowCommission);
                           return (
                             <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
                               <span>{et}</span>
                               <span style={{ fontWeight: 700 }}>
                                 {computed.listPrice
-                                  ? `${ilsShort(computed.listPrice)} ← ${ilsShort(computed.clientPrice)} (${toPercent(row.discountPercent)}%)`
+                                  ? `${ilsShort(computed.listPrice)} ← ${ilsShort(computed.clientPrice)} · לקוח ${toPercent(row.discountPercent)}% · חברה ${rowCommission}%`
                                   : 'חסר מחירון'}
                               </span>
                             </div>
@@ -5506,6 +5594,7 @@ export default function SuppliersDashboard() {
                     )}
                     <div><strong>אזורים:</strong> {pushSelectedRegions.join(' · ') || 'לא צוין'}</div>
                     <div><strong>תיאור:</strong> {(fiestaPushForm.description || '').slice(0, 120) || 'אין'}{(fiestaPushForm.description || '').length > 120 ? '…' : ''}</div>
+                    {!usePerEventPricing && (
                     <div>
                       <strong>תמחור:</strong> הנחה {pushDiscountPercent}% · עמלת Fiesta {pushCommissionPercent}%
                       {' · '}
@@ -5516,6 +5605,7 @@ export default function SuppliersDashboard() {
                           : '₪…')
                         : `${pushDiscountPercent}%`}
                     </div>
+                    )}
                     {pushPricedProducts.length > 0 ? (
                       <div style={{ display: 'grid', gap: '4px', marginTop: '2px' }}>
                         {pushPricedProducts.map((p) => (

@@ -24,6 +24,8 @@ export async function POST(req) {
     for (const item of items) {
       const key = phoneKey(item.phone);
       if (!key) continue;
+      const existing = await statesCollection.findOne({ phone: key });
+      if (existing?.photoOwner && existing.photoOwner !== agent) continue;
       await upsertSupplierState(
         statesCollection,
         key,

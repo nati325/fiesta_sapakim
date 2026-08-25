@@ -13,6 +13,8 @@ import {
   bulkUpsertSuppliers,
   updateSupplierFields,
 } from '../../../lib/suppliersMongo';
+import getMongoClient from '../../../lib/mongodb';
+import { VIEW_ALL_AGENTS, supplierBelongsToAgent } from '../../../lib/agentFeedRules';
 
 export const dynamic = 'force-dynamic';
 
@@ -92,6 +94,30 @@ async function loadFromMongo({ lite, phoneQuery, search, category, limit, skip }
   return { suppliers, source: 'mongodb', total: mongoCount };
 }
 
+async function filterSuppliersForAgent(suppliers, agent) {
+  if (!agent || VIEW_ALL_AGENTS.has(agent)) return suppliers;
+  const keys = suppliers.map((s) => phoneKey(s['Real Phone'] || s.phone)).filter(Boolean);
+  if (!keys.length) return [];
+
+  const client = await getMongoClient();
+  const docs = await client
+    .db('fiesta_crm')
+    .collection('supplier_states')
+    .find(
+      { phone: { $in: keys } },
+      { projection: { phone: 1, phoneKey: 1, photoOwner: 1, assignedAgent: 1 } }
+    )
+    .toArray();
+  const statesMap = {};
+  for (const doc of docs) {
+    const key = phoneKey(doc.phone || doc.phoneKey);
+    if (key) statesMap[key] = doc;
+  }
+  return suppliers.filter((s) =>
+    supplierBelongsToAgent(s, agent, statesMap[phoneKey(s['Real Phone'] || s.phone)] || {})
+  );
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -114,27 +140,34 @@ export async function GET(request) {
     const phoneQuery = searchParams.get('phone') || '';
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
+    const agent = searchParams.get('agent') || '';
     const limit = Math.min(Math.max(Number(searchParams.get('limit')) || 0, 0), 200);
     const skip = Math.max(Number(searchParams.get('skip')) || 0, 0);
+    const fetchLimit =
+      agent && !VIEW_ALL_AGENTS.has(agent) && search && limit ? Math.min(limit * 8, 200) : limit;
 
     let result = null;
     try {
-      result = await loadFromMongo({ lite, phoneQuery, search, category, limit, skip });
+      result = await loadFromMongo({ lite, phoneQuery, search, category, limit: fetchLimit, skip });
     } catch (mongoErr) {
       console.error('MongoDB suppliers read failed, falling back to JSON:', mongoErr.message);
     }
 
     if (!result) {
       result = await loadFromJsonFallback({ lite, phoneQuery, search });
-      if (limit) {
+      if (fetchLimit) {
         result = {
           ...result,
-          suppliers: result.suppliers.slice(skip, skip + limit),
+          suppliers: result.suppliers.slice(skip, skip + fetchLimit),
         };
       }
     }
 
-    const { suppliers, source, total } = result;
+    let { suppliers, source, total } = result;
+    if (agent) {
+      suppliers = await filterSuppliersForAgent(suppliers, agent);
+      if (limit) suppliers = suppliers.slice(0, limit);
+    }
 
     if (phoneQuery && !suppliers.length) {
       return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
