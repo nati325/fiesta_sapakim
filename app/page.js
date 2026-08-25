@@ -3632,7 +3632,8 @@ export default function SuppliersDashboard() {
       ) : (
         <>
           {/* Search */}
-          <div className="search-row animate-in">
+          <div className="search-sticky">
+            <div className="search-row animate-in">
             <span className="search-icon">
               <Search size={18} />
             </span>
@@ -3655,6 +3656,7 @@ export default function SuppliersDashboard() {
                 ✕
               </button>
             )}
+            </div>
           </div>
 
           {isSearchMode && (
