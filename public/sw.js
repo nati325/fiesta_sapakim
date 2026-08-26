@@ -1,7 +1,10 @@
-/* Fiesta CRM — minimal service worker for PWA installability.
-   Network-first: the dashboard always needs live API/Mongo data. */
+/* Fiesta CRM PWA.
+   Chromium needs a fetch handler to allow "Add to Home Screen".
+   We only intercept navigations (the HTML shell) and always hit the network,
+   so a deploy cannot leave an installed app stuck on old HTML that points at
+   deleted /_next/static chunks. JS/CSS/API/images go through the browser. */
 
-const SW_VERSION = 'fiesta-crm-pwa-v1';
+const SW_VERSION = 'fiesta-crm-pwa-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -12,17 +15,31 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(
-        keys
-          .filter((key) => key.startsWith('fiesta-crm-') && key !== SW_VERSION)
-          .map((key) => caches.delete(key))
-      );
+      await Promise.all(keys.map((key) => caches.delete(key)));
       await self.clients.claim();
     })()
   );
 });
 
-// Required by Chromium installability heuristics.
 self.addEventListener('fetch', (event) => {
-  event.respondWith(fetch(event.request));
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  if (req.mode !== 'navigate') return;
+
+  let url;
+  try {
+    url = new URL(req.url);
+  } catch {
+    return;
+  }
+  if (url.origin !== self.location.origin) return;
+
+  event.respondWith(
+    fetch(req, { cache: 'no-store' }).catch(() =>
+      new Response(
+        '<!doctype html><meta charset="utf-8"><title>Fiesta</title><p dir="rtl">אין חיבור. בדקו רשת ורעננו.</p>',
+        { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+      )
+    )
+  );
 });

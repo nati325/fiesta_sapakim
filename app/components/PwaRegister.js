@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 
 const DISMISS_KEY = 'fiesta_pwa_install_dismissed';
+const CHUNK_RELOAD_FLAG = 'fiesta_chunk_reload';
 
 export default function PwaRegister() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -12,21 +13,42 @@ export default function PwaRegister() {
     if (typeof window === 'undefined') return undefined;
 
     let cancelled = false;
+    let updateTimer = 0;
+    let hourlyTimer = 0;
+    let onVisible = () => {};
+    let checkForUpdate = () => {};
+    let onControllerChange = () => {};
+
+    try {
+      sessionStorage.removeItem(CHUNK_RELOAD_FLAG);
+    } catch {
+      /* ignore */
+    }
 
     const register = async () => {
       if (!('serviceWorker' in navigator)) return;
       try {
+        const hadController = Boolean(navigator.serviceWorker.controller);
+        onControllerChange = () => {
+          if (!hadController) return;
+          window.location.reload();
+        };
+        navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+
         const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-        if (!cancelled) {
-          // Ensure an active SW controls this page (needed for install criteria).
-          if (reg.installing) {
-            reg.installing.addEventListener('statechange', () => {
-              if (reg.installing?.state === 'activated' || reg.active) {
-                /* controlled after claim */
-              }
-            });
-          }
-        }
+        if (cancelled) return;
+
+        checkForUpdate = () => {
+          reg.update().catch(() => {});
+        };
+        onVisible = () => {
+          if (document.visibilityState === 'visible') checkForUpdate();
+        };
+
+        document.addEventListener('visibilitychange', onVisible);
+        window.addEventListener('focus', checkForUpdate);
+        updateTimer = window.setTimeout(checkForUpdate, 2000);
+        hourlyTimer = window.setInterval(checkForUpdate, 60 * 60 * 1000);
       } catch (err) {
         console.warn('[PWA] service worker registration failed:', err);
       }
@@ -55,6 +77,13 @@ export default function PwaRegister() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(updateTimer);
+      window.clearInterval(hourlyTimer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', checkForUpdate);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+      }
       window.removeEventListener('beforeinstallprompt', onBeforeInstall);
       window.removeEventListener('appinstalled', onInstalled);
     };

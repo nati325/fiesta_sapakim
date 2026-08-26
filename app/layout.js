@@ -1,3 +1,4 @@
+import Script from 'next/script';
 import './globals.css';
 import PwaRegister from './components/PwaRegister';
 
@@ -50,6 +51,7 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Fiesta CRM" />
+        <Script src="/chunk-recovery.js" strategy="beforeInteractive" />
       </head>
       <body style={{ fontFamily: "'Assistant', sans-serif" }}>
         {children}

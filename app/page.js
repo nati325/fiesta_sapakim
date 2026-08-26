@@ -1242,10 +1242,14 @@ export default function SuppliersDashboard() {
               updateSupplierStateRef.current(phone, { callbackEmailSent: true });
 
               if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(`תזכורת - ${state.supplierName || phone}`, {
-                  body: `הגיע הזמן לחזור לספק!\nטלפון: ${phone}`,
-                  requireInteraction: true
-                });
+                try {
+                  new Notification(`תזכורת - ${state.supplierName || phone}`, {
+                    body: `הגיע הזמן לחזור לספק!\nטלפון: ${phone}`,
+                    requireInteraction: true
+                  });
+                } catch {
+                  /* iOS / some WebViews throw even when permission is granted */
+                }
               }
 
               fetch('/api/send-email', {
